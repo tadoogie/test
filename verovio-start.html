@@ -5,6 +5,12 @@
       document.addEventListener("DOMContentLoaded", (event) => {
           verovio.module.onRuntimeInitialized = () => {
             let tk = new verovio.toolkit();
+
+            tk.setOptions({
+              scale: 30,
+              landscape: true,
+              adjustPageWidth: true
+            });
             console.log("Verovio has loaded!");
 
             fetch("https://www.verovio.org/examples/downloads/Schubert_Lindenbaum.mei")
