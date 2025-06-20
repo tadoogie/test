@@ -1,16 +1,53 @@
 <html>
   <head>
     <script src="https://www.verovio.org/javascript/latest/verovio-toolkit-wasm.js" defer></script>
-     <script>
-      document.addEventListener("DOMContentLoaded", (event) => {
+     <script>     
+       document.addEventListener("DOMContentLoaded", (event) => {
           verovio.module.onRuntimeInitialized = () => {
             let tk = new verovio.toolkit();
 
             tk.setOptions({
-              scale: 30,
-              landscape: true,
-              adjustPageWidth: true
+              pageWidth: document.body.clientWidth,
+              pageHeight: document.body.clientHeight,
+              scaleToPageSize: true
             });
+
+            let currentPage = 1;
+
+             const playMIDIHandler = function() {
+               let base64midi = tk.renderToMIDI();
+                // Add the data URL prefixes describing the content
+               let midiString = 'data:audio/midi;base64,' + base64midi;
+                // Pass it to play to MIDIjs
+                MIDIjs.play(midiString);
+             }
+
+             const stopMIDIHandler = function() {
+               MIDIjs.stop();
+             }
+
+             const midiHighlightingHandler = function (event) {
+               let playingNotes = document.querySelectorAll('g.note.playing');
+               for (let playingNote of playingNotes) playingNote.classList.remove("playing");
+               let currentElements = tk.getElementsAtTime(event.time * 1000);
+               
+               if (currentElements.page == 0) return;
+
+               if (currentElements.page != currentPage) {
+                  currentPage = currentElements.page;
+                  document.getElementById("notation").innerHTML = tk.renderToSVG(currentPage);
+               }
+               
+               for (note of currentElements.notes) {
+                  let noteElement = document.getElementById(note);
+                  if (noteElement) noteElement.classList.add("playing");
+               }
+               
+                document.getElementById("playMIDI").addEventListener("click", playMIDIHandler);
+                document.getElementById("stopMIDI").addEventListener("click", stopMIDIHandler);
+
+               MIDIjs.player_callback = midiHighlightingHandler;
+                
             console.log("Verovio has loaded!");
 
             fetch("https://www.verovio.org/examples/downloads/Schubert_Lindenbaum.mei")
@@ -26,6 +63,8 @@
   </head>
   <body>
     <h1>Hello Verovio!</h1>
+     <button id="playMIDI">Play</button>
+     <button id="stopMIDI">Stop</button>
     <div id="notation"></div>
   </body>
 </html>
