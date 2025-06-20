@@ -1,48 +1,23 @@
 <html>
   <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width">
-    <title>Understanding the structure of the SVG</title>
-    <!-- A stylesheet for modifying the appearance of the output -->
-    <link href="solution.css" rel="stylesheet" type="text/css" />
     <script src="https://www.verovio.org/javascript/latest/verovio-toolkit-wasm.js" defer></script>
      <script>
       document.addEventListener("DOMContentLoaded", (event) => {
-          verovio.module.onRuntimeInitialized = function () {
-            const tk = new verovio.toolkit();
+          verovio.module.onRuntimeInitialized = () => {
+            let tk = new verovio.toolkit();
 
-            let zoom = 80;
-            let pageHeight = document.body.clientHeight * 100 / zoom;
-            let pageWidth = document.body.clientWidth * 100 / zoom;
-
-            options = {
-              pageHeight: pageHeight,
-              pageWidth: pageWidth,
-              sale: zoom,
-              svgAdditionalAttribute: ["note@pname", "note@oct"]
-            };
-
-            tk.setOptions(options);
-            
+            tk.setOptions({
+              scale: 30,
+              landscape: true,
+              adjustPageWidth: true
+            });
             console.log("Verovio has loaded!");
 
             fetch("https://www.verovio.org/examples/downloads/Schubert_Lindenbaum.mei")
               .then( (response) => response.text() )
-              .then( (mei) => {
-                tk.loadDate(mei);
-                let svg = tk.renderToSVG(1);
+              .then( (meiXML) => {
+                let svg = tk.renderData(meiXML, {});
                 document.getElementById("notation").innerHTML = svg;
-
-                let rests = document.querySelectorAll('g.rest');
-                for (let rest of rests) {
-                  rest.style.fill = "dodgerblue";
-                }
-
-                let c5s = document.querySelectorAll('g[data-pname="c"][data-oct="5"]');
-                for (let c5 of c5s) {
-                  c5.style.fill = "aqua";
-                }
-                
             });
           }
       }); 
