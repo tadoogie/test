@@ -5,7 +5,7 @@
   <title>Verovio MIDI Player</title>
   <link href="https://book.verovio.org/tutorials/midi.css" rel="stylesheet" type="text/css" />
   <script src="https://www.verovio.org/javascript/latest/verovio-toolkit-wasm.js" defer></script>
-  <script src='https://www.midijs.net/lib/midi.js'></script>
+  <script type="module" src="https://cdn.jsdelivr.net/npm/html-midi-player@1.5.0/dist/html-midi-player.js"></script>
   <style>
     body {
       font-family: sans-serif;
@@ -26,17 +26,15 @@
   <h1>Hello Verovio!</h1>
   <button id="playMIDI">Play</button>
   <button id="stopMIDI">Stop</button>
+  <midi-player id="verovio-midi-player" sound-font="https://storage.googleapis.com/magentadata/js/soundfonts/sgm_plus" style="display: none;">
+            </midi-player>
   <div id="notation"></div>
 
   <script>
     document.addEventListener("DOMContentLoaded", () => {
       let tk = null; // Declare tk outside to make it accessible
 
-      // Make sure MIDIjs is loaded before trying to use it
-      if (typeof MIDIjs === 'undefined') {
-        console.error("MIDIjs not loaded. Please ensure midi.js is correctly linked.");
-        return;
-      }
+      const player = document.querySelector('#verovio-midi-player');
 
       verovio.module.onRuntimeInitialized = () => {
         tk = new verovio.toolkit();
@@ -54,12 +52,12 @@
         // --- Event Handlers ---
         const playMIDIHandler = () => {
           let base64midi = tk.renderToMIDI();
-          let midiString = 'data:audio/midi;base64,' + base64midi;
-          MIDIjs.play(midiString);
+          player.src = 'data:audio/midi;base64,' + base64midi;
+          player.start();
         };
 
         const stopMIDIHandler = () => {
-          MIDIjs.stop();
+          player.pause();
           // Remove highlighting when stopped
           document.querySelectorAll('g.note.playing').forEach(note => {
             note.classList.remove("playing");
@@ -105,7 +103,7 @@
             // --- Attach Event Listeners and Callbacks after data is loaded ---
             document.getElementById("playMIDI").addEventListener("click", playMIDIHandler);
             document.getElementById("stopMIDI").addEventListener("click", stopMIDIHandler);
-            MIDIjs.player_callback = midiHighlightingHandler; // This is the crucial change
+            player.addEventListener('timeupdate', midiHighlightingHandler); // This is the crucial change
 
             console.log("Verovio and MIDIjs ready!");
           })
