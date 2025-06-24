@@ -35,6 +35,7 @@
       let tk = null; // Declare tk outside to make it accessible
 
       const player = document.querySelector('#verovio-midi-player');
+      const playButton = document.querySelector('#playMIDI');
 
       verovio.module.onRuntimeInitialized = () => {
         tk = new verovio.toolkit();
@@ -103,7 +104,18 @@
             document.getElementById("notation").innerHTML = tk.renderToSVG(currentPage);
 
             // --- Attach Event Listeners and Callbacks after data is loaded ---
-            document.getElementById("playMIDI").addEventListener("click", playMIDIHandler);
+           playButton.addEventListener('click', async() => {
+             if (player) {
+               if (Tone.context.state !== 'running'){
+                 try {
+                   await Tone.start();
+                   console.log("Tone.js AudioContext resumed by user action.");
+                 } catch (error) {
+                   console.error("Failed to resume AudioContext:", error);
+                 }
+               }
+             });
+            
             document.getElementById("stopMIDI").addEventListener("click", stopMIDIHandler);
             player.addEventListener('timeupdate', midiHighlightingHandler); // This is the crucial change
 
