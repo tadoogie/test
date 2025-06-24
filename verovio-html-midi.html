@@ -52,6 +52,8 @@
         // --- Event Handlers ---
         const playMIDIHandler = () => {
           let base64midi = tk.renderToMIDI();
+          console.log("Verovio MIDI data length:", base64midi.length);
+          console.log("Verovio MIDI data (first 50 chars):", base64midi.substring(0, 50));
           player.src = 'data:audio/midi;base64,' + base64midi;
           player.start();
         };
