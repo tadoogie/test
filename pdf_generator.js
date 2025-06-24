@@ -2,10 +2,10 @@
 // let tk = new verovio.Toolkit();
 // tk.loadData(your_mei_string); // Make sure your MEI data is loaded into tk
 
-const printPdfButton = document.getElementById('printPdfButton');
+const printPDF = document.getElementById('printPDF');
 
-if (printPdfButton) {
-    printPdfButton.addEventListener('click', async () => {
+if (printPDF) {
+    printPDF.addEventListener('click', async () => {
         console.log("Print Preview PDF button clicked (client-side Verovio PDF).");
 
         // Ensure Verovio Toolkit (tk) is initialized and MEI data is loaded
