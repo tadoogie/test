@@ -32,29 +32,49 @@
 
   <script>
     document.addEventListener("DOMContentLoaded", () => {
-      let tk = null; // Declare tk outside to make it accessible
+      let tk = new verovio.Toolkit(); // Initialize Verovio
 
-      const player = document.querySelector('#verovio-midi-player');
+async function loadAndRender() {
+    try {
+        // This is the crucial step that must happen successfully BEFORE renderToMIDI()
+        await tk.loadData(yourMeiOrMusicXmlString);
+        console.log("MEI/MusicXML data loaded into Verovio.");
 
-      verovio.module.onRuntimeInitialized = () => {
-        tk = new verovio.toolkit();
+        // Now, generate the MIDI data
+        let base64midi = tk.renderToMIDI();
 
-        // Set options for Verovio
-        tk.setOptions({
-          pageWidth: document.body.clientWidth,
-          pageHeight: window.innerHeight - 100,
-          scale: 70,
-          scaleToPageSize: true
-        });
+        console.log("Length of base64midi:", base64midi.length);
+        console.log("First 50 chars of base64midi:", base64midi.substring(0, 50));
+        // A valid MIDI base64 should start with 'TVRoZ'
 
-        let currentPage = 1;
+        if (base64midi && base64midi.length > 0) {
+            // If it's valid, then assign to player
+            const player = document.querySelector('midi-player');
+            if (player) {
+                player.src = 'data:audio/midi;base64,' + base64midi;
+                console.log("MIDI player src set.");
+                // You would call player.start() on a user click
+            } else {
+                console.error("MIDI player element not found!");
+            }
+        } else {
+            console.error("Verovio did not produce valid MIDI data. Check your MEI/MusicXML input.");
+        }
+    } catch (error) {
+        console.error("Error loading data or rendering MIDI:", error);
+    }
+}
 
-        // --- Event Handlers ---
-        const playMIDIHandler = () => {
-          let base64midi = tk.renderToMIDI();
-          player.src = 'data:audio/midi;base64,' + base64midi;
-          player.start();
-        };
+// Call this function to start the process, perhaps on page load or after some setup
+loadAndRender();
+
+// Your playMIDIHandler (triggered by a button click) would then just do:
+function playMIDIHandler() {
+    const player = document.querySelector('midi-player');
+    if (player) {
+        player.start();
+    }
+}
 
         const stopMIDIHandler = () => {
           player.stop();
