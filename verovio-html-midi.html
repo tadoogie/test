@@ -57,7 +57,7 @@
         };
 
         const stopMIDIHandler = () => {
-          player.pause();
+          player.stop();
           // Remove highlighting when stopped
           document.querySelectorAll('g.note.playing').forEach(note => {
             note.classList.remove("playing");
