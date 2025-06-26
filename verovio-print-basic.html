@@ -40,6 +40,47 @@
 
       const player = document.querySelector('#verovio-midi-player');
 
+      const printPDF = document.getElementById('printPDF');
+
+      printPDF.addEventListener('click', function() {
+        console.log('Button clicked! Generating PDF...');
+
+        const doc = new PDFDocument({
+          size: 'LETTER',
+          margins: { top: 50, bottom: 50, left: 72, right: 72}
+      });
+
+      const stream = doc.pipe(blobStream());
+        doc.fontSize(25).text('My First PDF Document', {
+          align: 'center'
+        });
+        doc.moveDown();
+        doc.FontSize(12).text(
+          'This PDF was generated on the fly in the browser using PDFKit. ' +
+                'The next step would be to take the SVG music from Verovio and draw it onto this PDF. ' +
+                'For now, we are just proving that the PDF generation works.',
+                { align: 'left' }
+            );
+            // --- End of content ---
+
+            // Finalize the PDF
+            doc.end();
+
+        stream.on('finish', function() {
+          const blob = stream.toBlob('application/pdf');
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.style.display = 'none';
+          a.href = url;
+          a.download = 'verovio-output.pdf';
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(url);
+          document.body.removeChild(a);
+
+          console.log('PDF download should have started.');
+        });
+
       verovio.module.onRuntimeInitialized = () => {
         tk = new verovio.toolkit();
 
