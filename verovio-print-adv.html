@@ -199,16 +199,15 @@
                 });
                 console.log(`--- After page number text for Verovio page ${i}: Current PDF page range:`, doc.bufferedPageRange());
 
-                // Add a new page AFTER drawing the current content,
-                // BUT ONLY if this is NOT the last page of the score.
-                if (i < pageCount) {
-                    doc.addPage({
-                        margins: { top: 50, bottom: 50, left: 72, right: 72}
-                    });
-                    console.log(`--- After addPage for Verovio page ${i}: Current PDF page range:`, doc.bufferedPageRange());
-                }
+                // *** REMOVE THE FOLLOWING if BLOCK ***
+                // if (i < pageCount) {
+                //     doc.addPage({
+                //         margins: { top: 50, bottom: 50, left: 72, right: 72}
+                //     });
+                //     console.log(`--- After addPage for Verovio page ${i}: Current PDF page range:`, doc.bufferedPageRange());
+                // }
+                // ************************************
             }
-
             doc.end();
 
             // ... (rest of your printPDF.addEventListener code, including catch block) ...
