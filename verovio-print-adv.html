@@ -198,14 +198,14 @@
                 });
                 console.log(`--- After page number text for Verovio page ${i}: Current PDF page range:`, doc.bufferedPageRange());
                 
-                // ... (inside the for loop, just before the closing brace) ...
-                            if (i < pageCount) {
-                                doc.addPage({
-                                    margins: { top: 50, bottom: 50, left: 72, right: 72}
-                                });
-                                console.log(`--- After explicit addPage for Verovio page ${i}: Current PDF page range:`, doc.bufferedPageRange());
-                            }
-                        } // This is the closing brace for the for loop
+                // *** REMOVE THE ENTIRE 'if' BLOCK BELOW ***
+                // This is the duplicate page creation we need to eliminate.
+                // if (i < pageCount) {
+                //     doc.addPage({
+                //         margins: { top: 50, bottom: 50, left: 72, right: 72}
+                //     });
+                //     console.log(`--- After explicit addPage for Verovio page ${i}: Current PDF page range: {start: ${doc.bufferedPageRange().start}, count: ${doc.bufferedPageRange().count}}`);
+                // }
 
             // --- ADD THESE DEBUG LOGS AND THE DEFENSIVE CHECK HERE ---
             console.log("--- DEBUG: State before final page check ---");
