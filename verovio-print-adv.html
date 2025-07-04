@@ -171,48 +171,51 @@
                     console.log("Total pages to render:", pageCount);
 
                     for (let i = 1; i <= pageCount; i++) {
-                     // IMPORTANT: NO doc.addPage() HERE OR AT THE END OF THE LOOP.
-                     // We will rely on PDFKit's implicit page advancement after doc.text()
-                     // to move to the next page for the next score.
+                        // For every Verovio page, we draw its content and page number
+                        // on the *current* PDFKit page.
 
-                    // If this is not the first Verovio page, the previous doc.text() call
-                    // would have already advanced the cursor to a new, potentially blank, page.
-                    // We will draw the SVG content directly onto that page.
+                        const svgString = tk.renderToSVG(i);
+                        console.log(`Processing SVG page ${i}. Length: ${svgString.length}. First 200 chars:`, svgString.substring(0, 200));
 
-                    const svgString = tk.renderToSVG(i); // THIS LINE IS CRITICAL
-                    console.log(`Processing SVG page ${i}. Length: ${svgString.length}. First 200 chars:`, svgString.substring(0, 200));
+                        if (typeof svgString !== 'string' || svgString.trim() === '' || !svgString.startsWith('<svg')) {
+                            console.error(`SVG string for page ${i} is invalid or empty:`, svgString);
+                            throw new Error(`Invalid or malformed SVG content for page ${i}.`);
+                        }
 
-                    if (typeof svgString !== 'string' || svgString.trim() === '' || !svgString.startsWith('<svg')) {
-                        console.error(`SVG string for page ${i} is invalid or empty:`, svgString);
-                        throw new Error(`Invalid or malformed SVG content for page ${i}.`);
-                    }
+                        const drawableWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+                        const drawableHeight = doc.page.height - doc.page.margins.top - doc.page.margins.bottom;
+                        console.log(`--- SVGtoPDF parameters for Verovio page ${i} (PDF page ${doc.bufferedPageRange().start}):`);
+                        console.log(`   - x: ${doc.page.margins.left}`);
+                        console.log(`   - y: ${doc.page.margins.top}`);
+                        console.log(`   - width: ${drawableWidth}`);
+                        console.log(`   - height: ${drawableHeight}`);
+                        
+                        console.log(`--- Before SVGtoPDF for Verovio page ${i}: Current PDF page range:`, doc.bufferedPageRange());
 
-                    // --- NEW DIAGNOSTIC LOGS ADDED IN PREVIOUS STEP ---
-                    const drawableWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
-                    const drawableHeight = doc.page.height - doc.page.margins.top - doc.page.margins.bottom;
-                    console.log(`--- SVGtoPDF parameters for Verovio page ${i} (PDF page ${doc.bufferedPageRange().start}):`);
-                    console.log(`   - x: ${doc.page.margins.left}`);
-                    console.log(`   - y: ${doc.page.margins.top}`);
-                    console.log(`   - width: ${drawableWidth}`);
-                    console.log(`   - height: ${drawableHeight}`);
-                    // --- END NEW DIAGNOSTIC LOGS ---
+                        await SVGtoPDF(doc, svgString, doc.page.margins.left, doc.page.margins.top, {
+                            width: drawableWidth,
+                            height: drawableHeight,
+                            preserveAspectRatio: 'xMidYMid meet',
+                            assumeGIsCursive: true
+                        });
+                        console.log(`--- After SVGtoPDF for Verovio page ${i}: Current PDF page range: {start: ${doc.bufferedPageRange().start}, count: ${doc.bufferedPageRange().count}}`);
 
-                    console.log(`--- Before SVGtoPDF for Verovio page ${i}: Current PDF page range:`, doc.bufferedPageRange());
+                        doc.fontSize(10).text(`Page ${i} of ${pageCount}`, 0, doc.page.height - 30, {
+                            align: 'center',
+                            width: doc.page.width
+                        });
+                        console.log(`--- After page number text for Verovio page ${i}: Current PDF page range: {start: ${doc.bufferedPageRange().start}, count: ${doc.bufferedPageRange().count}}`);
 
-                    await SVGtoPDF(doc, svgString, doc.page.margins.left, doc.page.margins.top, { // THIS LINE IS CRITICAL
-                        width: drawableWidth,
-                        height: drawableHeight,
-                        preserveAspectRatio: 'xMidYMid meet',
-                        assumeGIsCursive: true
-                    });
-                    console.log(`--- After SVGtoPDF for Verovio page ${i}: Current PDF page range: {start: ${doc.bufferedPageRange().start}, count: ${doc.bufferedPageRange().count}}`);
-
-                    doc.fontSize(10).text(`Page ${i} of ${pageCount}`, 0, doc.page.height - 30, {
-                        align: 'center',
-                        width: doc.page.width
-                    });
-                    console.log(`--- After page number text for Verovio page ${i}: Current PDF page range: {start: ${doc.bufferedPageRange().start}, count: ${doc.bufferedPageRange().count}}`);
-                }
+                        // IMPORTANT CHANGE FOR THE TRAILING BLANK PAGE:
+                        // Only add a new page if this is NOT the last Verovio page.
+                        // This prevents an implicit page break for the *final* page.
+                        if (i < pageCount) {
+                            doc.addPage({
+                                margins: { top: 50, bottom: 50, left: 72, right: 72}
+                            });
+                            console.log(`--- Explicitly added new PDF page for next Verovio page (${i + 1}): Current PDF page range: {start: ${doc.bufferedPageRange().start}, count: ${doc.bufferedPageRange().count}}`);
+                        }
+                    } // End of for loop
 
             // Debug logs remain here
             console.log("--- DEBUG: State before final page check ---");
