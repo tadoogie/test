@@ -123,7 +123,8 @@
                     return;
                 }
 
-                try {
+                try { // <--- Start of the try block
+
                     // Temporarily store current options to restore later if needed
                     const originalOptions = tk.getOptions();
 
@@ -153,90 +154,78 @@
                         console.error("Error creating PDF stream:", err);
                         alert("An error occurred during PDF creation.");
                     });
-                  
-                    // ... (inside the printPDF.addEventListener and after doc/stream setup) ...
+                    
+                    // Ensure current Verovio options are set before getting page count
+                    tk.setOptions({
+                        scale: 60, // Adjust scale for print output
+                        pageWidth: 800, // Standard paper width (e.g., for A4/Letter)
+                        pageHeight: 1100, // Standard paper height
+                        adjustPageHeight: true // Adjusts page height to fit content
+                    });
+                    console.log("Verovio options set for PDF generation before rendering pages.");
 
-            // Ensure current Verovio options are set before getting page count
-            tk.setOptions({
-                scale: 60, // Adjust scale for print output
-                pageWidth: 800, // Standard paper width (e.g., for A4/Letter)
-                pageHeight: 1100, // Standard paper height
-                adjustPageHeight: true // Adjusts page height to fit content
-                // header: true,  Adds page numbers in the header
-                // footer: true Adds page numbers in the footer
-            });
-            console.log("Verovio options set for PDF generation before rendering pages.");
+                    const pageCount = tk.getPageCount();
+                    if (pageCount === 0) {
+                        throw new Error("Verovio reports no pages to render. Check MEI data.");
+                    }
+                    console.log("Total pages to render:", pageCount);
 
-            const pageCount = tk.getPageCount();
-            if (pageCount === 0) {
-                throw new Error("Verovio reports no pages to render. Check MEI data.");
-            }
-            console.log("Total pages to render:", pageCount);
+                    for (let i = 1; i <= pageCount; i++) {
+                        const svgString = tk.renderToSVG(i);
+                        console.log(`Processing SVG page ${i}. Length: ${svgString.length}. First 200 chars:`, svgString.substring(0, 200));
 
-            for (let i = 1; i <= pageCount; i++) {
-                const svgString = tk.renderToSVG(i);
-                console.log(`Processing SVG page ${i}. Length: ${svgString.length}. First 200 chars:`, svgString.substring(0, 200));
+                        if (typeof svgString !== 'string' || svgString.trim() === '' || !svgString.startsWith('<svg')) {
+                            console.error(`SVG string for page ${i} is invalid or empty:`, svgString);
+                            throw new Error(`Invalid or malformed SVG content for page ${i}.`);
+                        }
 
-                if (typeof svgString !== 'string' || svgString.trim() === '' || !svgString.startsWith('<svg')) {
-                    console.error(`SVG string for page ${i} is invalid or empty:`, svgString);
-                    throw new Error(`Invalid or malformed SVG content for page ${i}.`);
-                }
+                        console.log(`--- Before SVGtoPDF for Verovio page ${i}: Current PDF page range:`, doc.bufferedPageRange());
 
-                console.log(`--- Before SVGtoPDF for Verovio page ${i}: Current PDF page range:`, doc.bufferedPageRange());
+                        await SVGtoPDF(doc, svgString, doc.page.margins.left, doc.page.margins.top, {
+                            width: doc.page.width - doc.page.margins.left - doc.page.margins.right,
+                            height: doc.page.height - doc.page.margins.top - doc.page.margins.bottom,
+                            preserveAspectRatio: 'xMidYMid meet',
+                            assumeGIsCursive: true
+                        });
+                        console.log(`--- After SVGtoPDF for Verovio page ${i}: Current PDF page range:`, doc.bufferedPageRange());
 
-                await SVGtoPDF(doc, svgString, doc.page.margins.left, doc.page.margins.top, {
-                    width: doc.page.width - doc.page.margins.left - doc.page.margins.right,
-                    height: doc.page.height - doc.page.margins.top - doc.page.margins.bottom,
-                    preserveAspectRatio: 'xMidYMid meet',
-                    assumeGIsCursive: true
-                });
-                console.log(`--- After SVGtoPDF for Verovio page ${i}: Current PDF page range:`, doc.bufferedPageRange());
+                        doc.fontSize(10).text(`Page ${i} of ${pageCount}`, 0, doc.page.height - 30, {
+                            align: 'center',
+                            width: doc.page.width
+                        });
+                        console.log(`--- After page number text for Verovio page ${i}: Current PDF page range: {start: ${doc.bufferedPageRange().start}, count: ${doc.bufferedPageRange().count}}`);
+                        
+                        // This block should remain commented out as per previous instructions
+                        // if (i < pageCount) {
+                        //     doc.addPage({
+                        //         margins: { top: 50, bottom: 50, left: 72, right: 72}
+                        //     });
+                        //     console.log(`--- After explicit addPage for Verovio page ${i}: Current PDF page range: {start: ${doc.bufferedPageRange().start}, count: ${doc.bufferedPageRange().count}}`);
+                        // }
+                    }
 
-                doc.fontSize(10).text(`Page ${i} of ${pageCount}`, 0, doc.page.height - 30, {
-                    align: 'center',
-                    width: doc.page.width
-                });
-                console.log(`--- After page number text for Verovio page ${i}: Current PDF page range:`, doc.bufferedPageRange());
-                
-                // *** REMOVE THE ENTIRE 'if' BLOCK BELOW ***
-                // This is the duplicate page creation we need to eliminate.
-                // if (i < pageCount) {
-                //     doc.addPage({
-                //         margins: { top: 50, bottom: 50, left: 72, right: 72}
-                //     });
-                //     console.log(`--- After explicit addPage for Verovio page ${i}: Current PDF page range: {start: ${doc.bufferedPageRange().start}, count: ${doc.bufferedPageRange().count}}`);
-                // }
+                    // Debug logs and final page check remain here
+                    console.log("--- DEBUG: State before final page check ---");
+                    console.log("doc object (full):", doc);
+                    console.log("doc.pages property:", doc.pages);
 
-            // --- ADD THESE DEBUG LOGS AND THE DEFENSIVE CHECK HERE ---
-            console.log("--- DEBUG: State before final page check ---");
-            console.log("doc object (full):", doc); // Log the entire doc object
-            console.log("doc.pages property:", doc.pages); // Log the doc.pages property specifically
+                    if (doc.pages && doc.pages.length > pageCount) {
+                        console.log(`Total PDF pages (${doc.pages.length}) is more than score pages (${pageCount}). Removing last page.`);
+                        doc.removePage(doc.pages.length - 1);
+                    } else {
+                        console.log(`Total PDF pages ${doc.pages ? '(' + doc.pages.length + ')' : '(undefined)'} matches score pages (${pageCount}) or an issue occurred. No blank page to remove.`);
+                    }
+                    
+                    doc.end(); // <--- This must be inside the try block for the catch to work for errors before doc.end()
 
-            // Final check: If there are more PDF pages in the document than Verovio score pages,
-            // it means an extra blank page was created at the very end. Remove it.
-            // ADDED 'doc.pages &&' to prevent the TypeError if doc.pages is undefined.
-            if (doc.pages && doc.pages.length > pageCount) { // <--- CHANGE IS HERE: Added 'doc.pages &&'
-                console.log(`Total PDF pages (${doc.pages.length}) is more than score pages (${pageCount}). Removing last page.`);
-                doc.removePage(doc.pages.length - 1); // Remove the very last page
-            } else {
-                // This console.log is also improved to handle if doc.pages is undefined
-                console.log(`Total PDF pages ${doc.pages ? '(' + doc.pages.length + ')' : '(undefined)'} matches score pages (${pageCount}) or an issue occurred. No blank page to remove.`);
-            }
-            // --- END OF ADDITIONS ---
+                    // Restore original options if necessary (optional, but good practice)
+                    tk.setOptions(originalOptions);
 
-                        doc.end();
-
-            // ... (rest of your printPDF.addEventListener code, including catch block) ...
-
-            // ... (rest of your printPDF.addEventListener code, including catch block) ...
-                    // Restore original options if necessary (optional)
-                    // tk.setOptions(originalOptions);
-
-                } catch (error) {
+                } catch (error) { // <--- This catch block MUST directly follow the try block's closing brace
                     console.error("Failed to generate PDF:", error);
                     alert("Failed to generate PDF. Check console for details.");
                 }
-            });
+            }); // <--- Closing brace for printPDF.addEventListener's async function
       
 
             console.log("Verovio and MIDIjs ready!");
