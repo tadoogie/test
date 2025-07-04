@@ -153,10 +153,11 @@
               });
               
               tk.setOptions({
-                scale: 45, // Adjust scale for print output
+                scale: 60, // Adjust scale for print output
                 pageWidth: 2100, // Standard paper width (e.g., for A4/Letter)
                 pageHeight: 2970, // Standard paper height
-                adjustPageHeight: true // Adjusts page height to fit content
+                adjustPageHeight: true, // Adjusts page height to fit content
+                mm-output: true 
               });
               console.log("Verovio options set for PDF generation before rendering pages.");
 
