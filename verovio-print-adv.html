@@ -125,6 +125,15 @@
             }
 
             try {
+              tk2.setOptions({
+                scale: 60, // Adjust scale for print output
+                pageWidth: 2100, // Standard paper width (e.g., for A4/Letter)
+                pageHeight: 2970, // Standard paper height
+                adjustPageHeight: true // Adjusts page height to fit content 
+              });
+              
+              console.log("Verovio options set for PDF generation before rendering pages.");
+              
               const originalOptions = tk2.getOptions();
 
               let doc = new PDFDocument({
@@ -153,14 +162,6 @@
                 console.error("Error creating PDF stream:", err);
                 alert("An error occurred during PDF creation.");
               });
-              
-              tk2.setOptions({
-                scale: 60, // Adjust scale for print output
-                pageWidth: 2100, // Standard paper width (e.g., for A4/Letter)
-                pageHeight: 2970, // Standard paper height
-                adjustPageHeight: true // Adjusts page height to fit content 
-              });
-              console.log("Verovio options set for PDF generation before rendering pages.");
 
               const pageCount = tk2.getPageCount(meiXML);
               if (pageCount === 0) {
