@@ -173,7 +173,7 @@
             }
             console.log("Total pages to render:", pageCount);
 
-            for (let i = 1; i <= pageCount; i++) {
+            for (let i = 1; i <= pageCount; i++) { // Pages are 1-indexed in Verovio
                 const svgString = tk.renderToSVG(i);
                 console.log(`Processing SVG page ${i}. Length: ${svgString.length}. First 200 chars:`, svgString.substring(0, 200));
 
@@ -182,6 +182,7 @@
                     throw new Error(`Invalid or malformed SVG content for page ${i}.`);
                 }
 
+                // --- DEBUGGING PDFKit PAGE STATE ---
                 console.log(`--- Before SVGtoPDF for Verovio page ${i}: Current PDF page range:`, doc.bufferedPageRange());
 
                 await SVGtoPDF(doc, svgString, doc.page.margins.left, doc.page.margins.top, {
@@ -197,28 +198,16 @@
                     width: doc.page.width
                 });
                 console.log(`--- After page number text for Verovio page ${i}: Current PDF page range:`, doc.bufferedPageRange());
-                
-                // IMPORTANT: If this is NOT the last page, add a new page
-                // This ensures a new page is explicitly added for the *next* score page.
-                // This explicitly controls page breaks and prevents reliance on implicit ones
-                // that might lead to an extra blank page at the very end.
-                if (i < pageCount) {
-                    doc.addPage({
-                        margins: { top: 50, bottom: 50, left: 72, right: 72}
-                    });
-                    console.log(`--- After explicit addPage for Verovio page ${i}: Current PDF page range:`, doc.bufferedPageRange());
-                }
-            }
 
-            // Final check: If there are more PDF pages in the document than Verovio score pages,
-            // it means an extra blank page was created at the very end. Remove it.
-            if (doc.pages.length > pageCount) {
-                console.log(`Total PDF pages (${doc.pages.length}) is more than score pages (${pageCount}). Removing last page.`);
-                doc.removePage(doc.pages.length - 1); // Remove the very last page
-            } else {
-                console.log(`Total PDF pages (${doc.pages.length}) matches score pages (${pageCount}). No blank page to remove.`);
+                // *** REMOVE THE FOLLOWING if BLOCK ***
+                // if (i < pageCount) {
+                //     doc.addPage({
+                //         margins: { top: 50, bottom: 50, left: 72, right: 72}
+                //     });
+                //     console.log(`--- After addPage for Verovio page ${i}: Current PDF page range:`, doc.bufferedPageRange());
+                // }
+                // ************************************
             }
-
             doc.end();
 
             // ... (rest of your printPDF.addEventListener code, including catch block) ...
