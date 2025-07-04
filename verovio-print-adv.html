@@ -134,7 +134,7 @@
                   footer: 1 // Adds page numbers in the footer (if supported by the MEI)
                 });
 
-              const svgPages = tk.renderToSVG();
+              const svgPages = tk.renderToSVG(meiXML);
 
               if (!svgPages || svgPages.length === 0) {
                 throw new Error("Verovio did not generate any SVG content. Check MEI or options.");
