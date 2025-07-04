@@ -36,10 +36,9 @@
   <div id="notation"></div>
 
   <script>
-    //Version 1.2
+    //Version 1.1
   document.addEventListener("DOMContentLoaded", () => {
     let tk = null; // Declare tk outside to make it accessible
-    let tk2 = null;
 
     const player = document.querySelector('#verovio-midi-player');
     const printPDF = document.getElementById('printPDF');
@@ -125,16 +124,7 @@
             }
 
             try {
-              tk2.setOptions({
-                scale: 60, // Adjust scale for print output
-                pageWidth: 2100, // Standard paper width (e.g., for A4/Letter)
-                pageHeight: 2970, // Standard paper height
-                adjustPageHeight: true // Adjusts page height to fit content 
-              });
-              
-              console.log("Verovio options set for PDF generation before rendering pages.");
-              
-              const originalOptions = tk2.getOptions();
+              const originalOptions = tk.getOptions();
 
               let doc = new PDFDocument({
                 size: 'LETTER',
@@ -162,8 +152,17 @@
                 console.error("Error creating PDF stream:", err);
                 alert("An error occurred during PDF creation.");
               });
+              
+              tk.setOptions({
+                scale: 60, // Adjust scale for print output
+                pageWidth: 2100, // Standard paper width (e.g., for A4/Letter)
+                pageHeight: 2970, // Standard paper height
+                adjustPageHeight: true, // Adjusts page height to fit content
+                mm-output: true 
+              });
+              console.log("Verovio options set for PDF generation before rendering pages.");
 
-              const pageCount = tk2.getPageCount(meiXML);
+              const pageCount = tk.getPageCount();
               if (pageCount === 0) {
                 throw new Error("Verovio reports no pages to render. Check MEI data.");
               }
@@ -176,7 +175,7 @@
                 // Subsequent pages are implicitly created by doc.text() pushing content
                 // past the bottom margin.
 
-                const svgString = tk2.renderToSVG(i);
+                const svgString = tk.renderToSVG(i);
                 console.log(`Processing SVG page ${i}. Length: ${svgString.length}. First 200 chars:`, svgString.substring(0, 200));
 
                 if (typeof svgString !== 'string' || svgString.trim() === '' || !svgString.startsWith('<svg')) {
@@ -217,7 +216,7 @@
               
               doc.end();
 
-              tk2.setOptions(originalOptions); // Restore original options
+              tk.setOptions(originalOptions); // Restore original options
             } catch (error) {
               console.error("Failed to generate PDF:", error);
               alert("Failed to generate PDF. Check console for details.");
