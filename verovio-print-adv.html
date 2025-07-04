@@ -39,6 +39,7 @@
     //Version 1.1
   document.addEventListener("DOMContentLoaded", () => {
     let tk = null; // Declare tk outside to make it accessible
+    let tk2 = null;
 
     const player = document.querySelector('#verovio-midi-player');
     const printPDF = document.getElementById('printPDF');
@@ -124,7 +125,7 @@
             }
 
             try {
-              const originalOptions = tk.getOptions();
+              const originalOptions = tk2.getOptions();
 
               let doc = new PDFDocument({
                 size: 'LETTER',
@@ -153,7 +154,7 @@
                 alert("An error occurred during PDF creation.");
               });
               
-              tk.setOptions({
+              tk2.setOptions({
                 scale: 60, // Adjust scale for print output
                 pageWidth: 2100, // Standard paper width (e.g., for A4/Letter)
                 pageHeight: 2970, // Standard paper height
@@ -162,7 +163,7 @@
               });
               console.log("Verovio options set for PDF generation before rendering pages.");
 
-              const pageCount = tk.getPageCount();
+              const pageCount = tk2.getPageCount(meiXML);
               if (pageCount === 0) {
                 throw new Error("Verovio reports no pages to render. Check MEI data.");
               }
@@ -175,7 +176,7 @@
                 // Subsequent pages are implicitly created by doc.text() pushing content
                 // past the bottom margin.
 
-                const svgString = tk.renderToSVG(i);
+                const svgString = tk2.renderToSVG(i);
                 console.log(`Processing SVG page ${i}. Length: ${svgString.length}. First 200 chars:`, svgString.substring(0, 200));
 
                 if (typeof svgString !== 'string' || svgString.trim() === '' || !svgString.startsWith('<svg')) {
@@ -216,7 +217,7 @@
               
               doc.end();
 
-              tk.setOptions(originalOptions); // Restore original options
+              tk2.setOptions(originalOptions); // Restore original options
             } catch (error) {
               console.error("Failed to generate PDF:", error);
               alert("Failed to generate PDF. Check console for details.");
