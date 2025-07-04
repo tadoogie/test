@@ -142,24 +142,34 @@
               
         const doc = new PDFDocument({
           size: 'LETTER',
+          layout: 'portrait',
           margins: { top: 50, bottom: 50, left: 72, right: 72}
       });
 
       const stream = doc.pipe(blobStream());
-        doc.fontSize(25).text('My First PDF Document', {
-          align: 'center'
-        });
-        doc.moveDown();
-        doc.fontSize(12).text(
-          'This PDF was generated on the fly in the browser using PDFKit. ' +
-                'The next step would be to take the SVG music from Verovio and draw it onto this PDF. ' +
-                'For now, we are just proving that the PDF generation works.',
-                { align: 'left' }
-            );
-            // --- End of content ---
 
-            // Finalize the PDF
-            doc.end();
+      for (let i = 0; i < svgPages.length; i++) {
+        const svgString = svgPages[i];
+
+        if (i > 0) {
+          doc.addPage({
+            margins: { top: 50, bottom: 50, left: 72, right: 72}
+          });
+        }
+
+        await SVGtoPDF(doc, svgString, doc.page.margins.left, doc.page.margins.top, {
+          width: doc.page.width = doc.page.margins.left - doc.page.margins.right,
+          height: doc.page.height - doc.page.margins.top - doc.page.margins.bottom,
+          preserveAspectRatio: 'xMidYMid meet',
+          assumeGIsCursive: true
+        });
+
+        doc.fontSize(10).text('Page ${i + 1} of ${svgPages.length}`, 0, doc.page.height - 30, {
+          align: 'center',
+          width: doc.page.width
+        });
+
+        doc.end();
 
         stream.on('finish', function() {
           const blob = stream.toBlob('application/pdf');
@@ -173,10 +183,20 @@
           window.URL.revokeObjectURL(url);
           document.body.removeChild(a);
 
-          console.log('PDF download should have started.');
-        });
-      });
+          console.log('PDF download initiated from Verovio SVG.');
+          });
 
+          stream.on('error', function(err) {
+            console.error("Error creating PDF stream:", err);
+            alert("An error occurred during PDF creation.");
+          });
+
+          } catch (error) {
+              console.error("Failed to generate PDF:", error);
+              alert("Failed to generate PDF.");
+            }
+      });
+      
 
             console.log("Verovio and MIDIjs ready!");
           })
