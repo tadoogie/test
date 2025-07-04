@@ -174,36 +174,38 @@
                     });
 
                     // Loop through each page and render it individually
-                    for (let i = 1; i <= pageCount; i++) { // Pages are 1-indexed in Verovio
-                        const svgString = tk.renderToSVG(i); // Render each page individually
-                        console.log(`Processing SVG page ${i}. Length: ${svgString.length}. First 200 chars:`, svgString.substring(0, 200));
+                                for (let i = 1; i <= pageCount; i++) { // Pages are 1-indexed in Verovio
+                const svgString = tk.renderToSVG(i);
+                console.log(`Processing SVG page ${i}. Length: ${svgString.length}. First 200 chars:`, svgString.substring(0, 200));
 
-                        if (typeof svgString !== 'string' || svgString.trim() === '' || !svgString.startsWith('<svg')) {
-                            console.error(`SVG string for page ${i} is invalid or empty:`, svgString);
-                            throw new Error(`Invalid or malformed SVG content for page ${i}.`);
-                        }
+                if (typeof svgString !== 'string' || svgString.trim() === '' || !svgString.startsWith('<svg')) {
+                    console.error(`SVG string for page ${i} is invalid or empty:`, svgString);
+                    throw new Error(`Invalid or malformed SVG content for page ${i}.`);
+                }
 
-                        if (i > 1) { // Add page only if it's not the first page
-                            doc.addPage({
-                                margins: { top: 50, bottom: 50, left: 72, right: 72}
-                            });
-                        }
+                await SVGtoPDF(doc, svgString, doc.page.margins.left, doc.page.margins.top, {
+                    width: doc.page.width - doc.page.margins.left - doc.page.margins.right,
+                    height: doc.page.height - doc.page.margins.top - doc.page.margins.bottom,
+                    preserveAspectRatio: 'xMidYMid meet',
+                    assumeGIsCursive: true
+                });
 
-                        await SVGtoPDF(doc, svgString, doc.page.margins.left, doc.page.margins.top, {
-                            width: doc.page.width - doc.page.margins.left - doc.page.margins.right,
-                            height: doc.page.height - doc.page.margins.top - doc.page.margins.bottom,
-                            preserveAspectRatio: 'xMidYMid meet',
-                            assumeGIsCursive: true
-                        });
+                doc.fontSize(10).text(`Page ${i} of ${pageCount}`, 0, doc.page.height - 30, {
+                    align: 'center',
+                    width: doc.page.width
+                });
 
-                        // Page numbering (optional, Verovio's footer option might also handle this)
-                        doc.fontSize(10).text(`Page ${i} of ${pageCount}`, 0, doc.page.height - 30, {
-                            align: 'center',
-                            width: doc.page.width
-                        });
-                    }
+                // --- MODIFIED LOGIC HERE ---
+                // Add a new page AFTER drawing the current content,
+                // BUT ONLY if this is NOT the last page of the score.
+                if (i < pageCount) {
+                    doc.addPage({
+                        margins: { top: 50, bottom: 50, left: 72, right: 72}
+                    });
+                }
+            }
 
-                    doc.end();
+            doc.end();
 
                     // Restore original options if necessary (optional)
                     // tk.setOptions(originalOptions);
