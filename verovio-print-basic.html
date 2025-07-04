@@ -41,7 +41,9 @@
 
       const player = document.querySelector('#verovio-midi-player');
 
-      const printPDF = document.getElementById('printPDF');
+      const printPdfButton = document.getElementById('printPDF');
+      const playMIDI = document.getElementById('playMIDI');
+      const stopMIDI = document.getElementById('stopMIDI');
 
       verovio.module.onRuntimeInitialized = () => {
         tk = new verovio.toolkit();
@@ -110,49 +112,70 @@
             document.getElementById("notation").innerHTML = tk.renderToSVG(currentPage);
 
             // --- Attach Event Listeners and Callbacks after data is loaded ---
-            document.getElementById("playMIDI").addEventListener("click", playMIDIHandler);
-            document.getElementById("stopMIDI").addEventListener("click", stopMIDIHandler);
+            playMIDI.addEventListener("click", playMIDIHandler);
+            stopMIDI.addEventListener("click", stopMIDIHandler);
             player.addEventListener('timeupdate', midiHighlightingHandler); // This is the crucial change
 
-             printPDF.addEventListener('click', function() {
-        console.log('Button clicked! Generating PDF...');
+          
 
-        const doc = new PDFDocument({
-          size: 'LETTER',
-          margins: { top: 50, bottom: 50, left: 72, right: 72}
-      });
+if (printPdfButton) {
+    printPdfButton.addEventListener('click', async () => {
+        console.log("Print Preview PDF button clicked (client-side Verovio PDF).");
 
-      const stream = doc.pipe(blobStream());
-        doc.fontSize(25).text('My First PDF Document', {
-          align: 'center'
-        });
-        doc.moveDown();
-        doc.fontSize(12).text(
-          'This PDF was generated on the fly in the browser using PDFKit. ' +
-                'The next step would be to take the SVG music from Verovio and draw it onto this PDF. ' +
-                'For now, we are just proving that the PDF generation works.',
-                { align: 'left' }
-            );
-            // --- End of content ---
+        // Ensure Verovio Toolkit (tk) is initialized and MEI data is loaded
+        if (!tk || typeof tk.renderToPDF !== 'function' || tk.getMEI() === '') {
+            alert("Verovio is not ready or does not support PDF rendering, or no MEI data loaded. Please check your Verovio Toolkit version.");
+            console.error("Verovio Toolkit issues. Is 'tk.renderToPDF' a function? Is MEI loaded?");
+            return;
+        }
 
-            // Finalize the PDF
-            doc.end();
+        const currentMEI = tk.getMEI(); // Get the current MEI XML string from the toolkit
 
-        stream.on('finish', function() {
-          const blob = stream.toBlob('application/pdf');
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.style.display = 'none';
-          a.href = url;
-          a.download = 'verovio-output.pdf';
-          document.body.appendChild(a);
-          a.click();
-          window.URL.revokeObjectURL(url);
-          document.body.removeChild(a);
+        try {
+            console.log("Generating PDF using Verovio Toolkit...");
 
-          console.log('PDF download should have started.');
-        });
-      });
+            // Use tk.renderToPDF() directly.
+            // This method returns an ArrayBuffer containing the PDF data.
+            const pdfArrayBuffer = await tk.renderToPDF(currentMEI, {
+                // You can add Verovio rendering options here for PDF output.
+                // These are similar to those for SVG, but tailored for print layout.
+                // Examples to consider for print quality:
+                // scale: 40,        // Adjust overall scaling for print
+                // pageWidth: 1000,  // Verovio units (e.g., 1000 for standard score width)
+                // pageHeight: 1500, // Verovio units (e.g., 1500 for standard score height)
+                // page: 'all',      // Very important: Renders ALL pages of the score for the PDF
+                // adjustPageHeight: true, // Adjusts page height to fit content if true
+                // header: 1,        // Add page numbers in the header
+                // footer: 1         // Add page numbers in the footer
+                page: all,
+                footer: 1
+            });
+
+            console.log("PDF ArrayBuffer generated. Size:", pdfArrayBuffer.byteLength, "bytes.");
+
+            // Convert the ArrayBuffer to a Blob
+            const pdfBlob = new Blob([pdfArrayBuffer], { type: 'application/pdf' });
+
+            // Create a temporary URL for the Blob
+            const pdfUrl = URL.createObjectURL(pdfBlob);
+
+            // Create a temporary link element to trigger the download
+            const a = document.createElement('a');
+            a.href = pdfUrl;
+            a.download = 'music_score_verovio.pdf'; // Suggested filename
+            document.body.appendChild(a); // Append to body (required for Firefox to trigger click)
+            a.click(); // Programmatically click the link to start download
+            document.body.removeChild(a); // Clean up the temporary link
+            URL.revokeObjectURL(pdfUrl); // Release the temporary URL resource
+
+            console.log("PDF 'music_score_verovio.pdf' downloaded.");
+
+        } catch (error) {
+            console.error("Error generating PDF with Verovio Toolkit:", error);
+            alert("Failed to generate PDF. Please ensure your Verovio Toolkit version supports PDF rendering and check the console for details.");
+        }
+    });
+}
 
 
             console.log("Verovio and MIDIjs ready!");
