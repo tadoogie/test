@@ -127,10 +127,10 @@
                     // Temporarily store current options to restore later if needed
                     const originalOptions = tk.getOptions();
 
-                    // Set options for Verovio specifically for PDF rendering
-                    // IMPORTANT: We need to render page by page if we want separate PDFs
-                    // If 'page: "all"' is used, it returns ONE large SVG.
-                    tk.setOptions({
+                    // ... (inside the printPDF.addEventListener and after doc/stream setup) ...
+
+            // Ensure current Verovio options are set before getting page count
+            tk.setOptions({
                 scale: 60, // Adjust scale for print output
                 pageWidth: 800, // Standard paper width (e.g., for A4/Letter)
                 pageHeight: 1100, // Standard paper height
@@ -184,6 +184,7 @@
 
             doc.end();
 
+            // ... (rest of your printPDF.addEventListener code, including catch block) ...
                     // Restore original options if necessary (optional)
                     // tk.setOptions(originalOptions);
 
