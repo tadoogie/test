@@ -212,10 +212,10 @@
             // Check if the current page index (bufferedPageRange().start) indicates an extra page.
             // If 'pageCount' actual score pages exist, and doc.text moved to 'pageCount' (0-indexed),
             // then there are 'pageCount + 1' total pages (0 to pageCount).
-            if (doc.bufferedPageRange().start === pageCount) {
-                console.log(`Implicit blank page detected after last score page. Attempting to remove it.`);
-                doc.removePage(doc.bufferedPageRange().start); // Remove the current (blank) page
-            }
+            //if (doc.bufferedPageRange().start === pageCount) {
+            //    console.log(`Implicit blank page detected after last score page. Attempting to remove it.`);
+            //    doc.removePage(doc.bufferedPageRange().start); // Remove the current (blank) page
+            //}
             // --- END OF NEW LOGIC ---
 
             doc.end();
