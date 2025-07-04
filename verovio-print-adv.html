@@ -114,89 +114,98 @@
             document.getElementById("stopMIDI").addEventListener("click", stopMIDIHandler);
             player.addEventListener('timeupdate', midiHighlightingHandler); // This is the crucial change
 
-            printPDF.addEventListener('click', async function() {
-            console.log('Button clicked! Generating PDF from Verovio SVG...');
+             printPDF.addEventListener('click', async function() {
+                console.log('Button clicked! Generating PDF from Verovio SVG...');
 
-            if (!tk || tk.getMEI() === '') {
-                alert("Verovio is not ready or no MEI data loaded. Please load a score first.");
-                console.error("Verovio Toolkit (tk) not initialized or MEI data is empty.");
-                return;
-            }
+                if (!tk || tk.getMEI() === '') {
+                    alert("Verovio is not ready or no MEI data loaded. Please load a score first.");
+                    console.error("Verovio Toolkit (tk) not initialized or MEI data is empty.");
+                    return;
+                }
 
-            try {
-              tk.setOptions({
-                  scale: 60, // Adjust scale for print output (e.g., 60-70 is common for good print resolution)
-                  pageWidth: 800, // Roughly standard paper width in Verovio units (e.g., A4/Letter equivalent)
-                  pageHeight: 1100, // Roughly standard paper height in Verovio units
-                  page: 'all', // Crucial: tells Verovio to render ALL pages of the score
-                  adjustPageHeight: true, // Adjusts page height to fit content
-                  header: 1, // Adds page numbers in the header (if supported by the MEI)
-                  footer: 1 // Adds page numbers in the footer (if supported by the MEI)
-                });
+                try {
+                    // Set options for Verovio specifically for PDF rendering
+                    tk.setOptions({
+                        scale: 60,
+                        pageWidth: 800,
+                        pageHeight: 1100,
+                        page: 'all', // Ensure all pages are rendered
+                        adjustPageHeight: true,
+                        header: 1,
+                        footer: 1
+                    });
+                    console.log("Verovio options set for PDF generation."); // DEBUG LOG 1
 
-              const svgPages = tk.renderToSVG(meiXML);
+                    const svgPages = tk.renderToSVG();
+                    console.log("SVG Pages returned by Verovio:", svgPages); // DEBUG LOG 2: Check the array content
 
-              if (!svgPages || svgPages.length === 0) {
-                throw new Error("Verovio did not generate any SVG content. Check MEI or options.");
-              }
-              
-        const doc = new PDFDocument({
-          size: 'LETTER',
-          layout: 'portrait',
-          margins: { top: 50, bottom: 50, left: 72, right: 72}
-      });
+                    if (!svgPages || svgPages.length === 0) {
+                        throw new Error("Verovio did not generate any SVG content. Check MEI or options.");
+                    }
 
-      const stream = doc.pipe(blobStream());
+                    const doc = new PDFDocument({
+                        size: 'LETTER',
+                        layout: 'portrait',
+                        margins: { top: 50, bottom: 50, left: 72, right: 72}
+                    });
 
-      stream.on('finish', function() {
-        const blob = stream.toBlob('application/pdf');
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.style.display = 'none';
-        a.href = url;
-        a.download = 'verovio-output.pdf';
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
+                    const stream = doc.pipe(blobStream());
 
-        console.log('PDF download initiated from Verovio SVG.');
-      });
+                    stream.on('finish', function() {
+                        const blob = stream.toBlob('application/pdf');
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.style.display = 'none';
+                        a.href = url;
+                        a.download = 'verovio-output.pdf';
+                        document.body.appendChild(a);
+                        a.click();
+                        window.URL.revokeObjectURL(url);
+                        document.body.removeChild(a);
+                        console.log('PDF download initiated from Verovio SVG.');
+                    });
 
-      stream.on('error', function(err) {
-        console.error("Error creating PDF stream:", err);
-        alert("An error occurred during PDF creation.");
-      });
-              
-      for (let i = 0; i < svgPages.length; i++) {
-        const svgString = svgPages[i];
+                    stream.on('error', function(err) {
+                        console.error("Error creating PDF stream:", err);
+                        alert("An error occurred during PDF creation.");
+                    });
 
-        if (i > 0) {
-          doc.addPage({
-            margins: { top: 50, bottom: 50, left: 72, right: 72}
-          });
-        }
+                    for (let i = 0; i < svgPages.length; i++) {
+                        const svgString = svgPages[i];
+                        console.log(`Processing SVG page ${i + 1}. Length: ${svgString.length}. First 200 chars:`, svgString.substring(0, 200)); // DEBUG LOG 3: Inspect individual SVG string
 
-        await SVGtoPDF(doc, svgString, doc.page.margins.left, doc.page.margins.top, {
-          width: doc.page.width - doc.page.margins.left - doc.page.margins.right,
-          height: doc.page.height - doc.page.margins.top - doc.page.margins.bottom,
-          preserveAspectRatio: 'xMidYMid meet',
-          assumeGIsCursive: true
-        });
+                        // Add an explicit check here
+                        if (typeof svgString !== 'string' || svgString.trim() === '' || !svgString.startsWith('<svg')) {
+                            console.error(`SVG string for page ${i + 1} is invalid or empty:`, svgString); // DEBUG LOG 4
+                            throw new Error(`Invalid or malformed SVG content for page ${i + 1}.`);
+                        }
 
-        doc.fontSize(10).text(`Page ${i + 1} of ${svgPages.length}`, 0, doc.page.height - 30, {
-          align: 'center',
-          width: doc.page.width
-        });
-      }
+                        if (i > 0) {
+                            doc.addPage({
+                                margins: { top: 50, bottom: 50, left: 72, right: 72}
+                            });
+                        }
 
-      doc.end();
-              
-    } catch (error) {
-        console.error("Failed to generate PDF:", error);
-        alert("Failed to generate PDF.");
-    }
-  });
+                        await SVGtoPDF(doc, svgString, doc.page.margins.left, doc.page.margins.top, {
+                            width: doc.page.width - doc.page.margins.left - doc.page.margins.right,
+                            height: doc.page.height - doc.page.margins.top - doc.page.margins.bottom,
+                            preserveAspectRatio: 'xMidYMid meet',
+                            assumeGIsCursive: true
+                        });
+
+                        doc.fontSize(10).text(`Page ${i + 1} of ${svgPages.length}`, 0, doc.page.height - 30, {
+                            align: 'center',
+                            width: doc.page.width
+                        });
+                    }
+
+                    doc.end();
+
+                } catch (error) {
+                    console.error("Failed to generate PDF:", error);
+                    alert("Failed to generate PDF. Check console for details.");
+                }
+            });
       
 
             console.log("Verovio and MIDIjs ready!");
