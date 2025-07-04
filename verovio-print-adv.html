@@ -127,6 +127,33 @@
                     // Temporarily store current options to restore later if needed
                     const originalOptions = tk.getOptions();
 
+                    let doc = new PDFDocument({
+                        size: 'LETTER',
+                        layout: 'portrait',
+                        margins: { top: 50, bottom: 50, left: 72, right: 72}
+                    });
+                    
+                    const stream = doc.pipe(blobStream());
+                    
+                    stream.on('finish', function() {
+                        const blob = stream.toBlob('application/pdf');
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.style.display = 'none';
+                        a.href = url;
+                        a.download = 'verovio-output.pdf';
+                        document.body.appendChild(a);
+                        a.click();
+                        window.URL.revokeObjectURL(url);
+                        document.body.removeChild(a);
+                        console.log('PDF download initiated from Verovio SVG.');
+                    });
+                    
+                    stream.on('error', function(err) {
+                        console.error("Error creating PDF stream:", err);
+                        alert("An error occurred during PDF creation.");
+                    });
+                  
                     // ... (inside the printPDF.addEventListener and after doc/stream setup) ...
 
             // Ensure current Verovio options are set before getting page count
