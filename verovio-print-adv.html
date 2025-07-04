@@ -131,50 +131,22 @@
                     // IMPORTANT: We need to render page by page if we want separate PDFs
                     // If 'page: "all"' is used, it returns ONE large SVG.
                     tk.setOptions({
-                        scale: 60, // Adjust scale for print output
-                        pageWidth: 800, // Standard paper width (e.g., for A4/Letter)
-                        pageHeight: 1100, // Standard paper height
-                        adjustPageHeight: true, // Adjusts page height to fit content
-                        header: 1, // Adds page numbers in the header
-                        footer: 1 // Adds page numbers in the footer
-                    });
-                    console.log("Verovio options set for PDF generation.");
+                scale: 60, // Adjust scale for print output
+                pageWidth: 800, // Standard paper width (e.g., for A4/Letter)
+                pageHeight: 1100, // Standard paper height
+                adjustPageHeight: true, // Adjusts page height to fit content
+                header: 1, // Adds page numbers in the header
+                footer: 1 // Adds page numbers in the footer
+            });
+            console.log("Verovio options set for PDF generation before rendering pages.");
 
-                    const pageCount = tk.getPageCount();
-                    if (pageCount === 0) {
-                        throw new Error("Verovio reports no pages to render. Check MEI data.");
-                    }
-                    console.log("Total pages to render:", pageCount);
+            const pageCount = tk.getPageCount();
+            if (pageCount === 0) {
+                throw new Error("Verovio reports no pages to render. Check MEI data.");
+            }
+            console.log("Total pages to render:", pageCount);
 
-                    const doc = new PDFDocument({
-                        size: 'LETTER',
-                        layout: 'portrait',
-                        margins: { top: 50, bottom: 50, left: 72, right: 72}
-                    });
-
-                    const stream = doc.pipe(blobStream());
-
-                    stream.on('finish', function() {
-                        const blob = stream.toBlob('application/pdf');
-                        const url = URL.createObjectURL(blob);
-                        const a = document.createElement('a');
-                        a.style.display = 'none';
-                        a.href = url;
-                        a.download = 'verovio-output.pdf';
-                        document.body.appendChild(a);
-                        a.click();
-                        window.URL.revokeObjectURL(url);
-                        document.body.removeChild(a);
-                        console.log('PDF download initiated from Verovio SVG.');
-                    });
-
-                    stream.on('error', function(err) {
-                        console.error("Error creating PDF stream:", err);
-                        alert("An error occurred during PDF creation.");
-                    });
-
-                    // Loop through each page and render it individually
-                                for (let i = 1; i <= pageCount; i++) { // Pages are 1-indexed in Verovio
+            for (let i = 1; i <= pageCount; i++) { // Pages are 1-indexed in Verovio
                 const svgString = tk.renderToSVG(i);
                 console.log(`Processing SVG page ${i}. Length: ${svgString.length}. First 200 chars:`, svgString.substring(0, 200));
 
@@ -183,25 +155,30 @@
                     throw new Error(`Invalid or malformed SVG content for page ${i}.`);
                 }
 
+                // --- DEBUGGING PDFKit PAGE STATE ---
+                console.log(`--- Before SVGtoPDF for Verovio page ${i}: Current PDF page range:`, doc.bufferedPageRange());
+
                 await SVGtoPDF(doc, svgString, doc.page.margins.left, doc.page.margins.top, {
                     width: doc.page.width - doc.page.margins.left - doc.page.margins.right,
                     height: doc.page.height - doc.page.margins.top - doc.page.margins.bottom,
                     preserveAspectRatio: 'xMidYMid meet',
                     assumeGIsCursive: true
                 });
+                console.log(`--- After SVGtoPDF for Verovio page ${i}: Current PDF page range:`, doc.bufferedPageRange());
 
                 doc.fontSize(10).text(`Page ${i} of ${pageCount}`, 0, doc.page.height - 30, {
                     align: 'center',
                     width: doc.page.width
                 });
+                console.log(`--- After page number text for Verovio page ${i}: Current PDF page range:`, doc.bufferedPageRange());
 
-                // --- MODIFIED LOGIC HERE ---
                 // Add a new page AFTER drawing the current content,
                 // BUT ONLY if this is NOT the last page of the score.
                 if (i < pageCount) {
                     doc.addPage({
                         margins: { top: 50, bottom: 50, left: 72, right: 72}
                     });
+                    console.log(`--- After addPage for Verovio page ${i}: Current PDF page range:`, doc.bufferedPageRange());
                 }
             }
 
