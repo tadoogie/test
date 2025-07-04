@@ -170,7 +170,7 @@
                     }
                     console.log("Total pages to render:", pageCount);
 
-                    for (let i = 1; i <= pageCount; i++) {
+                    for (let i = 1; i < pageCount; i++) {
                      // IMPORTANT: NO doc.addPage() HERE OR AT THE END OF THE LOOP.
                      // We will rely on PDFKit's implicit page advancement after doc.text()
                      // to move to the next page for the next score.
