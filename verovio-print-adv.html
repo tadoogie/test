@@ -171,13 +171,13 @@
                     console.log("Total pages to render:", pageCount);
 
                     for (let i = 1; i <= pageCount; i++) {
-                    // Add a new page ONLY for subsequent pages (i.e., not the very first page)
-                    if (i > 1) {
-                        doc.addPage({
-                            margins: { top: 50, bottom: 50, left: 72, right: 72}
-                        });
-                        console.log(`--- Added new PDF page for Verovio page ${i}. PDF page count after add: ${doc.bufferedPageRange().start + doc.bufferedPageRange().count}`);
-                    }
+                     // IMPORTANT: NO doc.addPage() HERE OR AT THE END OF THE LOOP.
+                     // We will rely on PDFKit's implicit page advancement after doc.text()
+                     // to move to the next page for the next score.
+
+                    // If this is not the first Verovio page, the previous doc.text() call
+                    // would have already advanced the cursor to a new, potentially blank, page.
+                    // We will draw the SVG content directly onto that page.
 
                     const svgString = tk.renderToSVG(i); // THIS LINE IS CRITICAL
                     console.log(`Processing SVG page ${i}. Length: ${svgString.length}. First 200 chars:`, svgString.substring(0, 200));
