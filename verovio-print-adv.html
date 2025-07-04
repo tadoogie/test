@@ -123,6 +123,7 @@
             }
 
             try {
+              // Store original options to restore later
               const originalOptions = tk.getOptions();
 
               let doc = new PDFDocument({
@@ -152,6 +153,7 @@
                 alert("An error occurred during PDF creation.");
               });
               
+              // Set options for PDF generation (different from display options)
               tk.setOptions({
                 scale: 60, // Adjust scale for print output
                 pageWidth: 800, // Standard paper width (e.g., for A4/Letter)
@@ -166,12 +168,11 @@
               }
               console.log("Total pages to render:", pageCount);
 
-              // *** THIS IS THE CRITICAL FOR-LOOP SECTION - NO doc.addPage() INSIDE ***
+              // Loop through each Verovio page and add its SVG to the PDF
               for (let i = 1; i <= pageCount; i++) {
-                // ABSOLUTELY NO doc.addPage() CALLS INSIDE THIS LOOP.
-                // The first page is created by new PDFDocument().
-                // Subsequent pages are implicitly created by doc.text() pushing content
-                // past the bottom margin.
+                // IMPORTANT: Do NOT call doc.addPage() inside this loop.
+                // PDFKit will implicitly create a new page if content (like the page number)
+                // overflows the current page's bottom margin. This ensures a clean flow.
 
                 const svgString = tk.renderToSVG(i);
                 console.log(`Processing SVG page ${i}. Length: ${svgString.length}. First 200 chars:`, svgString.substring(0, 200));
@@ -199,8 +200,8 @@
                 });
                 console.log(`--- After SVGtoPDF for Verovio page ${i}: Current PDF page range: {start: ${doc.bufferedPageRange().start}, count: ${doc.bufferedPageRange().count}}`);
 
-                // This doc.text() call will implicitly create a new page if it overflows,
-                // which it consistently does at this position.
+                // Add page number at the bottom. This text call will likely trigger a new page
+                // for the *next* score page or cause the final blank page.
                 doc.fontSize(10).text(`Page ${i} of ${pageCount}`, 0, doc.page.height - 30, {
                   align: 'center',
                   width: doc.page.width
@@ -212,9 +213,20 @@
               console.log("doc object (full):", doc);
               console.log("doc.pages property:", doc.pages);
               
-              doc.end();
+              // --- LOGIC TO REMOVE TRAILING BLANK PAGE ---
+              // After the loop, if PDFKit has implicitly advanced to a new page
+              // (because the last page number text caused an overflow),
+              // this new page will be a blank trailing page.
+              // We check if the current buffered page index equals the total content pages.
+              if (doc.bufferedPageRange().start === pageCount) {
+                  console.log(`Detected potential trailing blank page (current PDF page index ${doc.bufferedPageRange().start}). Attempting to remove it.`);
+                  doc.removePage(); // Removes the current (blank) page
+                  console.log(`Trailing blank page removed. New current PDF page range: {start: ${doc.bufferedPageRange().start}, count: ${doc.bufferedPageRange().count}}`);
+              }
 
-              tk.setOptions(originalOptions); // Restore original options
+              doc.end(); // Finalize the PDF document
+
+              tk.setOptions(originalOptions); // Restore original Verovio options
             } catch (error) {
               console.error("Failed to generate PDF:", error);
               alert("Failed to generate PDF. Check console for details.");
