@@ -124,24 +124,27 @@
                 }
 
                 try {
+                    // Temporarily store current options to restore later if needed
+                    const originalOptions = tk.getOptions();
+
                     // Set options for Verovio specifically for PDF rendering
+                    // IMPORTANT: We need to render page by page if we want separate PDFs
+                    // If 'page: "all"' is used, it returns ONE large SVG.
                     tk.setOptions({
-                        scale: 60,
-                        pageWidth: 800,
-                        pageHeight: 1100,
-                        page: 'all', // Ensure all pages are rendered
-                        adjustPageHeight: true,
-                        header: 1,
-                        footer: 1
+                        scale: 60, // Adjust scale for print output
+                        pageWidth: 800, // Standard paper width (e.g., for A4/Letter)
+                        pageHeight: 1100, // Standard paper height
+                        adjustPageHeight: true, // Adjusts page height to fit content
+                        header: 1, // Adds page numbers in the header
+                        footer: 1 // Adds page numbers in the footer
                     });
-                    console.log("Verovio options set for PDF generation."); // DEBUG LOG 1
+                    console.log("Verovio options set for PDF generation.");
 
-                    const svgPages = tk.renderToSVG();
-                    console.log("SVG Pages returned by Verovio:", svgPages); // DEBUG LOG 2: Check the array content
-
-                    if (!svgPages || svgPages.length === 0) {
-                        throw new Error("Verovio did not generate any SVG content. Check MEI or options.");
+                    const pageCount = tk.getPageCount();
+                    if (pageCount === 0) {
+                        throw new Error("Verovio reports no pages to render. Check MEI data.");
                     }
+                    console.log("Total pages to render:", pageCount);
 
                     const doc = new PDFDocument({
                         size: 'LETTER',
@@ -170,17 +173,17 @@
                         alert("An error occurred during PDF creation.");
                     });
 
-                    for (let i = 0; i < svgPages.length; i++) {
-                        const svgString = svgPages[i];
-                        console.log(`Processing SVG page ${i + 1}. Length: ${svgString.length}. First 200 chars:`, svgString.substring(0, 200)); // DEBUG LOG 3: Inspect individual SVG string
+                    // Loop through each page and render it individually
+                    for (let i = 1; i <= pageCount; i++) { // Pages are 1-indexed in Verovio
+                        const svgString = tk.renderToSVG(i); // Render each page individually
+                        console.log(`Processing SVG page ${i}. Length: ${svgString.length}. First 200 chars:`, svgString.substring(0, 200));
 
-                        // Add an explicit check here
                         if (typeof svgString !== 'string' || svgString.trim() === '' || !svgString.startsWith('<svg')) {
-                            console.error(`SVG string for page ${i + 1} is invalid or empty:`, svgString); // DEBUG LOG 4
-                            throw new Error(`Invalid or malformed SVG content for page ${i + 1}.`);
+                            console.error(`SVG string for page ${i} is invalid or empty:`, svgString);
+                            throw new Error(`Invalid or malformed SVG content for page ${i}.`);
                         }
 
-                        if (i > 0) {
+                        if (i > 1) { // Add page only if it's not the first page
                             doc.addPage({
                                 margins: { top: 50, bottom: 50, left: 72, right: 72}
                             });
@@ -193,13 +196,17 @@
                             assumeGIsCursive: true
                         });
 
-                        doc.fontSize(10).text(`Page ${i + 1} of ${svgPages.length}`, 0, doc.page.height - 30, {
+                        // Page numbering (optional, Verovio's footer option might also handle this)
+                        doc.fontSize(10).text(`Page ${i} of ${pageCount}`, 0, doc.page.height - 30, {
                             align: 'center',
                             width: doc.page.width
                         });
                     }
 
                     doc.end();
+
+                    // Restore original options if necessary (optional)
+                    // tk.setOptions(originalOptions);
 
                 } catch (error) {
                     console.error("Failed to generate PDF:", error);
