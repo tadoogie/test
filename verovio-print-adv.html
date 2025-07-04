@@ -171,22 +171,48 @@
                     console.log("Total pages to render:", pageCount);
 
                     for (let i = 1; i <= pageCount; i++) {
-                // ... (your existing code for rendering SVG and adding page number) ...
+                    // Add a new page ONLY for subsequent pages (i.e., not the very first page)
+                    if (i > 1) {
+                        doc.addPage({
+                            margins: { top: 50, bottom: 50, left: 72, right: 72}
+                        });
+                        console.log(`--- Added new PDF page for Verovio page ${i}. PDF page count after add: ${doc.bufferedPageRange().start + doc.bufferedPageRange().count}`);
+                    }
 
-                doc.fontSize(10).text(`Page ${i} of ${pageCount}`, 0, doc.page.height - 30, {
-                    align: 'center',
-                    width: doc.page.width
-                });
-                console.log(`--- After page number text for Verovio page ${i}: Current PDF page range: {start: ${doc.bufferedPageRange().start}, count: ${doc.bufferedPageRange().count}}`);
-                
-                // This block should remain commented out as per previous instructions
-                // if (i < pageCount) {
-                //     doc.addPage({
-                //         margins: { top: 50, bottom: 50, left: 72, right: 72}
-                //     });
-                //     console.log(`--- After explicit addPage for Verovio page ${i}: Current PDF page range: {start: ${doc.bufferedPageRange().start}, count: ${doc.bufferedPageRange().count}}`);
-                // }
-            }
+                    const svgString = tk.renderToSVG(i); // THIS LINE IS CRITICAL
+                    console.log(`Processing SVG page ${i}. Length: ${svgString.length}. First 200 chars:`, svgString.substring(0, 200));
+
+                    if (typeof svgString !== 'string' || svgString.trim() === '' || !svgString.startsWith('<svg')) {
+                        console.error(`SVG string for page ${i} is invalid or empty:`, svgString);
+                        throw new Error(`Invalid or malformed SVG content for page ${i}.`);
+                    }
+
+                    // --- NEW DIAGNOSTIC LOGS ADDED IN PREVIOUS STEP ---
+                    const drawableWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+                    const drawableHeight = doc.page.height - doc.page.margins.top - doc.page.margins.bottom;
+                    console.log(`--- SVGtoPDF parameters for Verovio page ${i} (PDF page ${doc.bufferedPageRange().start}):`);
+                    console.log(`   - x: ${doc.page.margins.left}`);
+                    console.log(`   - y: ${doc.page.margins.top}`);
+                    console.log(`   - width: ${drawableWidth}`);
+                    console.log(`   - height: ${drawableHeight}`);
+                    // --- END NEW DIAGNOSTIC LOGS ---
+
+                    console.log(`--- Before SVGtoPDF for Verovio page ${i}: Current PDF page range:`, doc.bufferedPageRange());
+
+                    await SVGtoPDF(doc, svgString, doc.page.margins.left, doc.page.margins.top, { // THIS LINE IS CRITICAL
+                        width: drawableWidth,
+                        height: drawableHeight,
+                        preserveAspectRatio: 'xMidYMid meet',
+                        assumeGIsCursive: true
+                    });
+                    console.log(`--- After SVGtoPDF for Verovio page ${i}: Current PDF page range: {start: ${doc.bufferedPageRange().start}, count: ${doc.bufferedPageRange().count}}`);
+
+                    doc.fontSize(10).text(`Page ${i} of ${pageCount}`, 0, doc.page.height - 30, {
+                        align: 'center',
+                        width: doc.page.width
+                    });
+                    console.log(`--- After page number text for Verovio page ${i}: Current PDF page range: {start: ${doc.bufferedPageRange().start}, count: ${doc.bufferedPageRange().count}}`);
+                }
 
             // Debug logs remain here
             console.log("--- DEBUG: State before final page check ---");
