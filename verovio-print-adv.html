@@ -171,52 +171,54 @@
                     console.log("Total pages to render:", pageCount);
 
                     for (let i = 1; i <= pageCount; i++) {
-                        const svgString = tk.renderToSVG(i);
-                        console.log(`Processing SVG page ${i}. Length: ${svgString.length}. First 200 chars:`, svgString.substring(0, 200));
+                // ... (your existing code for rendering SVG and adding page number) ...
 
-                        if (typeof svgString !== 'string' || svgString.trim() === '' || !svgString.startsWith('<svg')) {
-                            console.error(`SVG string for page ${i} is invalid or empty:`, svgString);
-                            throw new Error(`Invalid or malformed SVG content for page ${i}.`);
-                        }
+                doc.fontSize(10).text(`Page ${i} of ${pageCount}`, 0, doc.page.height - 30, {
+                    align: 'center',
+                    width: doc.page.width
+                });
+                console.log(`--- After page number text for Verovio page ${i}: Current PDF page range: {start: ${doc.bufferedPageRange().start}, count: ${doc.bufferedPageRange().count}}`);
+                
+                // This block should remain commented out as per previous instructions
+                // if (i < pageCount) {
+                //     doc.addPage({
+                //         margins: { top: 50, bottom: 50, left: 72, right: 72}
+                //     });
+                //     console.log(`--- After explicit addPage for Verovio page ${i}: Current PDF page range: {start: ${doc.bufferedPageRange().start}, count: ${doc.bufferedPageRange().count}}`);
+                // }
+            }
 
-                        console.log(`--- Before SVGtoPDF for Verovio page ${i}: Current PDF page range:`, doc.bufferedPageRange());
+            // Debug logs remain here
+            console.log("--- DEBUG: State before final page check ---");
+            console.log("doc object (full):", doc);
+            console.log("doc.pages property:", doc.pages);
 
-                        await SVGtoPDF(doc, svgString, doc.page.margins.left, doc.page.margins.top, {
-                            width: doc.page.width - doc.page.margins.left - doc.page.margins.right,
-                            height: doc.page.height - doc.page.margins.top - doc.page.margins.bottom,
-                            preserveAspectRatio: 'xMidYMid meet',
-                            assumeGIsCursive: true
-                        });
-                        console.log(`--- After SVGtoPDF for Verovio page ${i}: Current PDF page range:`, doc.bufferedPageRange());
+            // --- NEW LOGIC TO HANDLE TRAILING BLANK PAGE ---
+            // We know 'pageCount' is the number of actual score pages.
+            // If PDFKit adds an implicit page after the last doc.text() for the final score,
+            // then the total PDF pages will be 'pageCount + 1'.
+            // However, since doc.pages is undefined, we can't directly check doc.pages.length.
+            // Instead, we can force a removePage if the bufferedPageRange suggests an extra page was made,
+            // or if we just want to remove the last page always, unless it's the only page.
 
-                        doc.fontSize(10).text(`Page ${i} of ${pageCount}`, 0, doc.page.height - 30, {
-                            align: 'center',
-                            width: doc.page.width
-                        });
-                        console.log(`--- After page number text for Verovio page ${i}: Current PDF page range: {start: ${doc.bufferedPageRange().start}, count: ${doc.bufferedPageRange().count}}`);
-                        
-                        // This block should remain commented out as per previous instructions
-                        // if (i < pageCount) {
-                        //     doc.addPage({
-                        //         margins: { top: 50, bottom: 50, left: 72, right: 72}
-                        //     });
-                        //     console.log(`--- After explicit addPage for Verovio page ${i}: Current PDF page range: {start: ${doc.bufferedPageRange().start}, count: ${doc.bufferedPageRange().count}}`);
-                        // }
-                    }
+            // Use doc.bufferedPageRange().start as a proxy for the current page index.
+            // If the start page is greater than or equal to the actual score page count,
+            // it implies an extra page was implicitly added.
+            // doc.bufferedPageRange() gives {start: current_page_index, count: number_of_buffered_pages}.
+            // So if start is N, it means pages 0 to N-1 are buffered, and N is current.
+            // If we have 'pageCount' score pages, and the last doc.text() moved us to 'pageCount',
+            // then PDF page 'pageCount' is the blank one.
+            
+            // Check if the current page index (bufferedPageRange().start) indicates an extra page.
+            // If 'pageCount' actual score pages exist, and doc.text moved to 'pageCount' (0-indexed),
+            // then there are 'pageCount + 1' total pages (0 to pageCount).
+            if (doc.bufferedPageRange().start === pageCount) {
+                console.log(`Implicit blank page detected after last score page. Attempting to remove it.`);
+                doc.removePage(doc.bufferedPageRange().start); // Remove the current (blank) page
+            }
+            // --- END OF NEW LOGIC ---
 
-                    // Debug logs and final page check remain here
-                    console.log("--- DEBUG: State before final page check ---");
-                    console.log("doc object (full):", doc);
-                    console.log("doc.pages property:", doc.pages);
-
-                    if (doc.pages && doc.pages.length > pageCount) {
-                        console.log(`Total PDF pages (${doc.pages.length}) is more than score pages (${pageCount}). Removing last page.`);
-                        doc.removePage(doc.pages.length - 1);
-                    } else {
-                        console.log(`Total PDF pages ${doc.pages ? '(' + doc.pages.length + ')' : '(undefined)'} matches score pages (${pageCount}) or an issue occurred. No blank page to remove.`);
-                    }
-                    
-                    doc.end(); // <--- This must be inside the try block for the catch to work for errors before doc.end()
+            doc.end();
 
                     // Restore original options if necessary (optional, but good practice)
                     tk.setOptions(originalOptions);
