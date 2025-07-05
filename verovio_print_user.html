@@ -96,7 +96,7 @@
   </style>
 </head>
 <body>
-  <!-- Version 2.4 -->
+  <!-- Version 2.5 -->
   <h1>Hello Verovio!</h1>
   <button id="playMIDI">Play</button>
   <button id="stopMIDI">Stop</button>
@@ -253,7 +253,7 @@
                     },
                     'A4': {
                         pdfkitSize: 'A4',
-                        verovioPageWidth: 1500, // Keep width consistent
+                        verovioPageWidth: 2000, // Keep width consistent
                         verovioPageHeight: 1180, // Slightly taller for A4 aspect ratio
                         verovioScale: 40
                     },
@@ -276,7 +276,7 @@
                 let doc = new PDFDocument({
                   size: currentPaperSettings.pdfkitSize, // Use selected size for PDFKit
                   layout: 'portrait',
-                  margins: { top: 50, bottom: 50, left: 36, right: 36 } // User's preferred margins (0.5 inches)
+                  margins: { top: 0, bottom: 0, left: 0, right: 0 } // User's preferred margins (0.5 inches)
                 });
                 
                 const stream = doc.pipe(blobStream());
