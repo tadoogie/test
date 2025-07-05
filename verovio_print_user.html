@@ -95,7 +95,7 @@
   </style>
 </head>
 <body>
-  <!-- Version 3.1 -->
+  <!-- Version 3.2 -->
   <h1>Hello Verovio!</h1>
   <button id="playMIDI">Play</button>
   <button id="stopMIDI">Stop</button>
@@ -121,7 +121,7 @@
   </div>
 
   <script>
-    //Version 4.2 (Fixed AudioContext suspended issue, with debugging logs for MIDI highlighting)
+    //Version 4.4 (Fixed MIDI playback synchronization for highlighting)
   document.addEventListener("DOMContentLoaded", () => {
     let tk = null;     // Verovio toolkit instance for display
     let tk_pdf = null; // Verovio toolkit instance for PDF generation
@@ -152,18 +152,33 @@
       let currentPage = 1;
 
       // --- Event Handlers for MIDI Playback and Display ---
-      const playMIDIHandler = async () => { // Made async to allow await Tone.start()
-        // --- FIX: Resume the AudioContext on user interaction ---
+      const playMIDIHandler = async () => { // Made async to allow await Tone.start() and midi-loaded promise
+        console.log("Play button clicked. Entering playMIDIHandler.");
+
+        // --- Step 1: Resume the AudioContext on user interaction ---
         if (Tone.context.state !== 'running') {
             await Tone.start();
             console.log('AudioContext resumed!');
+        } else {
+            console.log('AudioContext is already running.');
         }
 
+        // --- Step 2: Generate MIDI data from Verovio ---
         let base64midi = tk.renderToMIDI(); // Use tk for MIDI (display context)
         console.log("Verovio MIDI data length:", base64midi.length);
         console.log("Verovio MIDI data (first 50 chars):", base64midi.substring(0, 50));
+        
+        // --- Step 3: Set MIDI data to player ---
         player.src = 'data:audio/midi;base64,' + base64midi;
-        player.start();
+        console.log("MIDI data set to player. Waiting for midi-loaded event...");
+
+        // --- Step 4: Wait for the midi-loaded event before starting playback ---
+        // This ensures the player is fully ready after setting a new src
+        await new Promise(resolve => {
+            player.addEventListener('midi-loaded', resolve, { once: true });
+        });
+        console.log("MIDI loaded, starting playback.");
+        player.start(); // Now call start, knowing the player is ready
       };
 
       const stopMIDIHandler = () => {
@@ -375,7 +390,7 @@
                 tk_pdf.setOptions(originalPdfOptions); // <--- Restore original Verovio PDF options
               } catch (error) {
                 console.error("Failed to generate PDF:", error);
-                alert("Failed to generate PDF. Check console for details.");
+                alert("An error occurred during PDF creation.");
               }
           } // end of generatePDF function
         }) // end of fetch .then
