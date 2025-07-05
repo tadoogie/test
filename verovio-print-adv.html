@@ -36,7 +36,7 @@
   <div id="notation"></div>
 
   <script>
-    //Version 2.4
+    //Version 2.5
   document.addEventListener("DOMContentLoaded", () => {
     let tk = null;     // Verovio toolkit instance for display
     let tk_pdf = null; // Verovio toolkit instance for PDF generation
@@ -197,10 +197,10 @@
                 
                 // Add page number at the bottom. This text call will likely trigger a new page
                 // for the *next* score page or cause the final blank page.
-                doc.fontSize(10).text(`Page ${i} of ${pageCount}`, 0, doc.page.height - 30, {
-                  align: 'center',
-                  width: doc.page.width
-                });
+                //doc.fontSize(10).text(`Page ${i} of ${pageCount}`, 0, doc.page.height - 30, {
+                //  align: 'center',
+                //  width: doc.page.width
+                //});
               } // END OF FOR LOOP
               
               // We'll address the single trailing blank page after confirming this works.
