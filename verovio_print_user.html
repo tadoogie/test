@@ -96,7 +96,7 @@
   </style>
 </head>
 <body>
-  <!-- Version 2.7 -->
+  <!-- Version 2.8 -->
   <h1>Hello Verovio!</h1>
   <button id="playMIDI">Play</button>
   <button id="stopMIDI">Stop</button>
@@ -122,7 +122,6 @@
   </div>
 
   <script>
-    //Version 4.0
   document.addEventListener("DOMContentLoaded", () => {
     let tk = null;     // Verovio toolkit instance for display
     let tk_pdf = null; // Verovio toolkit instance for PDF generation
@@ -259,15 +258,15 @@
                     },
                     'A5': { // New A5 option
                         pdfkitSize: 'A5', // PDFKit directly supports 'A5'
-                        verovioPageWidth: 1300, // Adjusted Verovio width for A5
+                        verovioPageWidth: 1600, // Adjusted Verovio width for A5
                         verovioPageHeight: 830, // Adjusted Verovio height for A5 (proportional to A4)
-                        verovioScale: 30
+                        verovioScale: 40
                     },
                     'OCTAVO': { // New Choral (Octavo) option
                         pdfkitSize: [486, 756], // Custom size for PDFKit (width, height in points) for 6.75" x 10.5"
                         verovioPageWidth: 1000, // Adjusted Verovio width for Octavo
                         verovioPageHeight: 1050, // Adjusted Verovio height for Octavo
-                        verovioScale: 20
+                        verovioScale: 40
                     }
                 };
 
