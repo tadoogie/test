@@ -27,7 +27,7 @@
 
     /* --- New CSS for the Paper Size Modal --- */
     #paperSizeModal {
-      display: none; /* Hidden by default */
+      display: none; /* Changed from 'flex' to 'none' */
       position: fixed; /* Stay in place */
       z-index: 1000; /* Sit on top */
       left: 0;
@@ -38,6 +38,7 @@
       background-color: rgba(0,0,0,0.6); /* Black w/ opacity */
       justify-content: center; /* Center horizontally */
       align-items: center; /* Center vertically */
+      /* display: flex; will be set by JS when needed */
     }
 
     #paperSizeModal > div {
@@ -95,7 +96,7 @@
   </style>
 </head>
 <body>
-  <!-- Version 1.3 -->
+  <!-- Version 2.0 -->
   <h1>Hello Verovio!</h1>
   <button id="playMIDI">Play</button>
   <button id="stopMIDI">Stop</button>
@@ -111,13 +112,17 @@
       <label for="paperLetter">Letter (8.5" x 11")</label><br><br>
       <input type="radio" id="paperA4" name="paperSize" value="A4">
       <label for="paperA4">A4 (210mm x 297mm)</label><br><br>
+      <input type="radio" id="paperA5" name="paperSize" value="A5">
+      <label for="paperA5">A5 (148mm x 210mm)</label><br><br>
+      <input type="radio" id="paperOctavo" name="paperSize" value="OCTAVO">
+      <label for="paperOctavo">Choral (Octavo ~6.75" x 10.5")</label><br><br>
       <button id="generatePdfButton">Generate PDF</button>
       <button id="cancelPdfButton">Cancel</button>
     </div>
   </div>
 
   <script>
-    //Version 3.0
+    //Version 4.0
   document.addEventListener("DOMContentLoaded", () => {
     let tk = null;     // Verovio toolkit instance for display
     let tk_pdf = null; // Verovio toolkit instance for PDF generation
@@ -242,13 +247,23 @@
                 const paperSizeOptions = {
                     'LETTER': {
                         pdfkitSize: 'LETTER',
-                        verovioPageWidth: 2000, // Verovio's internal page width
+                        verovioPageWidth: 800, // Verovio's internal page width
                         verovioPageHeight: 1100 // Verovio's internal page height for Letter aspect ratio
                     },
                     'A4': {
                         pdfkitSize: 'A4',
-                        verovioPageWidth: 1700, // Keep width consistent
+                        verovioPageWidth: 800, // Keep width consistent
                         verovioPageHeight: 1180 // Slightly taller for A4 aspect ratio
+                    },
+                    'A5': { // New A5 option
+                        pdfkitSize: 'A5', // PDFKit directly supports 'A5'
+                        verovioPageWidth: 580, // Adjusted Verovio width for A5
+                        verovioPageHeight: 830 // Adjusted Verovio height for A5 (proportional to A4)
+                    },
+                    'OCTAVO': { // New Choral (Octavo) option
+                        pdfkitSize: [486, 756], // Custom size for PDFKit (width, height in points) for 6.75" x 10.5"
+                        verovioPageWidth: 640, // Adjusted Verovio width for Octavo
+                        verovioPageHeight: 1050 // Adjusted Verovio height for Octavo
                     }
                 };
 
@@ -257,7 +272,7 @@
                 let doc = new PDFDocument({
                   size: currentPaperSettings.pdfkitSize, // Use selected size for PDFKit
                   layout: 'portrait',
-                  margins: { top: 50, bottom: 50, left: 20, right: 20 } // Keep user's preferred margins
+                  margins: { top: 50, bottom: 50, left: 36, right: 36 } // User's preferred margins (0.5 inches)
                 });
                 
                 const stream = doc.pipe(blobStream());
