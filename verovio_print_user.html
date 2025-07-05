@@ -95,7 +95,7 @@
   </style>
 </head>
 <body>
-  <!-- Version 3.2 -->
+  <!-- Version 3.3 -->
   <h1>Hello Verovio!</h1>
   <button id="playMIDI">Play</button>
   <button id="stopMIDI">Stop</button>
@@ -121,7 +121,7 @@
   </div>
 
   <script>
-    //Version 4.4 (Fixed MIDI playback synchronization for highlighting)
+    //Version 4.5 (Robust MIDI playback sync with force reload)
   document.addEventListener("DOMContentLoaded", () => {
     let tk = null;     // Verovio toolkit instance for display
     let tk_pdf = null; // Verovio toolkit instance for PDF generation
@@ -168,17 +168,27 @@
         console.log("Verovio MIDI data length:", base64midi.length);
         console.log("Verovio MIDI data (first 50 chars):", base64midi.substring(0, 50));
         
-        // --- Step 3: Set MIDI data to player ---
-        player.src = 'data:audio/midi;base64,' + base64midi;
+        // --- Step 3: Create a promise to wait for the 'midi-loaded' event ---
+        const midiLoadedPromise = new Promise(resolve => {
+            const listener = () => {
+                console.log("midi-loaded event fired!"); // This new log should now appear
+                player.removeEventListener('midi-loaded', listener); // Clean up listener
+                resolve();
+            };
+            player.addEventListener('midi-loaded', listener, { once: true }); // Use { once: true } for cleaner event handling
+        });
+
+        // --- Step 4: Force player to reload MIDI and trigger 'midi-loaded' ---
+        player.src = ''; // Clear src to force a reload even if data is the same
+        player.src = 'data:audio/midi;base64,' + base64midi; // Set the new/current MIDI data
         console.log("MIDI data set to player. Waiting for midi-loaded event...");
 
-        // --- Step 4: Wait for the midi-loaded event before starting playback ---
-        // This ensures the player is fully ready after setting a new src
-        await new Promise(resolve => {
-            player.addEventListener('midi-loaded', resolve, { once: true });
-        });
+        // --- Step 5: Wait for the MIDI to be fully loaded ---
+        await midiLoadedPromise; 
+
+        // --- Step 6: Start playback only after MIDI is confirmed loaded ---
         console.log("MIDI loaded, starting playback.");
-        player.start(); // Now call start, knowing the player is ready
+        player.start(); 
       };
 
       const stopMIDIHandler = () => {
