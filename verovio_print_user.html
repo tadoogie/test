@@ -94,7 +94,7 @@
   </style>
 </head>
 <body>
-  <!-- Version 3.7 -->
+  <!-- Version 3.8 -->
   <h1>Hello Verovio!</h1>
   <button id="playMIDI">Play</button>
   <button id="stopMIDI">Stop</button>
@@ -121,7 +121,7 @@
   <script src="https://cdn.jsdelivr.net/combine/npm/@magenta/music@1.23.1/es6/core.js,npm/tonejs-midi@2.0.0,npm/focus-visible@5"></script>
 
   <script>
-    //Version 5.4 (Verovio initialization, options, and rendering revised)
+    //Version 5.5 (Robust Verovio/MEI loading with Promises)
 
     // Global variables for Verovio toolkits and current page
     let tk = null;     // Verovio toolkit instance for display
@@ -129,81 +129,90 @@
     let currentPage = 1; 
     let highlightLoopId = null; 
 
-    // Initialize Tone.js synthesizer globally (can be done early)
+    // Initialize Tone.js synthesizer globally
     const synth = new Tone.PolySynth(Tone.Synth, {
         oscillator: {
             type: "sine" 
         }
     }).toDestination();
 
-    // Define Verovio's runtime initialization callback globally
-    // This runs as soon as the verovio-toolkit-wasm.js is loaded and initialized.
-    // It's used to create the toolkit instances and load the MEI data.
-    verovio.module.onRuntimeInitialized = () => {
-      tk = new verovio.toolkit();
-      tk_pdf = new verovio.toolkit();
+    // Create a Promise that resolves when Verovio's runtime is initialized AND MEI data is loaded
+    const verovioReadyPromise = new Promise(resolve => {
+        verovio.module.onRuntimeInitialized = () => {
+            tk = new verovio.toolkit();
+            tk_pdf = new verovio.toolkit();
 
-      fetch("https://www.verovio.org/examples/downloads/Schubert_Lindenbaum.mei")
-        .then(response => {
-          if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-          }
-          return response.text();
-        })
-        .then(meiXML => {
-          tk.loadData(meiXML);     
-          tk_pdf.loadData(meiXML); 
-          console.log("Verovio toolkits initialized and MEI data loaded. Waiting for DOMContentLoaded for initial rendering and event handlers.");
-        })
-        .catch(error => {
-          console.error("Error loading or processing MEI data in onRuntimeInitialized:", error);
-        });
-    }; 
+            fetch("https://www.verovio.org/examples/downloads/Schubert_Lindenbaum.mei")
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.text();
+                })
+                .then(meiXML => {
+                    tk.loadData(meiXML);     
+                    tk_pdf.loadData(meiXML); 
+                    console.log("Verovio toolkits initialized and MEI data loaded. Resolving verovioReadyPromise.");
+                    resolve(); // Resolve the promise once MEI is loaded
+                })
+                .catch(error => {
+                    console.error("Error loading or processing MEI data within onRuntimeInitialized:", error);
+                    // Resolve the promise even on error to prevent blocking DOMContentLoaded indefinitely
+                    resolve(); 
+                });
+        }; 
+    });
 
     // All DOM-dependent operations (setting display options, initial render, event listeners)
-    // should happen after the DOM is fully loaded.
-    document.addEventListener("DOMContentLoaded", () => {
-      // Ensure toolkits are ready. If onRuntimeInitialized hasn't finished, there might be a slight delay.
-      // We can add a check or rely on the console message from onRuntimeInitialized.
-      if (!tk || !tk_pdf || tk.getMEI() === '') {
-        console.warn("Verovio toolkits or MEI data not yet available in DOMContentLoaded. This might indicate a timing issue, but should resolve shortly.");
-        // A simple timeout or a more sophisticated promise-based approach could be used here for robustness.
-        // For now, we proceed assuming they will be ready due to the script loading order.
-      }
+    // should happen after the DOM is fully loaded AND Verovio/MEI are ready.
+    document.addEventListener("DOMContentLoaded", async () => {
+        // Wait for Verovio to be ready and MEI data loaded
+        await verovioReadyPromise;
 
-      // Set Verovio's DISPLAY options (uses DOM elements like clientWidth)
-      tk.setOptions({
-        pageWidth: document.body.clientWidth,
-        pageHeight: window.innerHeight - 100,
-        scale: 70, 
-        scaleToPageSize: true
-      });
-      console.log("Verovio display options set in DOMContentLoaded.");
+        // Now, tk and tk_pdf should be initialized and have MEI data loaded.
+        if (tk && tk.getMEI() !== '') {
+            // Set Verovio's DISPLAY options (uses DOM elements like clientWidth)
+            tk.setOptions({
+                pageWidth: document.body.clientWidth,
+                pageHeight: window.innerHeight - 100,
+                scale: 70, 
+                scaleToPageSize: true
+            });
+            console.log("Verovio display options set in DOMContentLoaded after promise.");
 
-      // Render the initial SVG for display
-      document.getElementById("notation").innerHTML = tk.renderToSVG(currentPage);
-      console.log("Initial Verovio SVG rendered to #notation div.");
+            // Render the initial SVG for display
+            document.getElementById("notation").innerHTML = tk.renderToSVG(currentPage);
+            console.log("Initial Verovio SVG rendered to #notation div after promise.");
+        } else {
+            console.error("Verovio toolkit or MEI data not available after verovioReadyPromise resolved. Displaying fallback message.");
+            document.getElementById("notation").innerHTML = "<p>Error: Could not load musical score. Please check the console for details.</p>";
+            // Disable buttons if score isn't loaded
+            document.getElementById('playMIDI').disabled = true;
+            document.getElementById('stopMIDI').disabled = true;
+            document.getElementById('printPDF').disabled = true;
+            return; // Stop further execution if core functionality isn't ready
+        }
 
-      // Get references to DOM elements
-      const playMIDIButton = document.getElementById('playMIDI');
-      const stopMIDIButton = document.getElementById('stopMIDI');
-      const printPDFButton = document.getElementById('printPDF');
-      const paperSizeModal = document.getElementById('paperSizeModal');
-      const generatePdfButton = document.getElementById('generatePdfButton');
-      const cancelPdfButton = document.getElementById('cancelPdfButton');
-      
-      // Attach all button event listeners
-      if (playMIDIButton) playMIDIButton.addEventListener("click", playMIDIHandler);
-      if (stopMIDIButton) stopMIDIButton.addEventListener("click", stopMIDIHandler);
-      if (printPDFButton) printPDFButton.addEventListener('click', function() { paperSizeModal.style.display = 'flex'; });
-      if (cancelPdfButton) cancelPdfButton.addEventListener('click', function() { paperSizeModal.style.display = 'none'; });
-      if (generatePdfButton) generatePdfButton.addEventListener('click', async function() { 
-          paperSizeModal.style.display = 'none'; 
-          const selectedSizeElement = document.querySelector('input[name="paperSize"]:checked');
-          const selectedPaperSize = selectedSizeElement ? selectedSizeElement.value : 'LETTER'; 
-          await generatePDF(selectedPaperSize);
-      });
-      console.log("Event listeners attached.");
+        // Get references to DOM elements
+        const playMIDIButton = document.getElementById('playMIDI');
+        const stopMIDIButton = document.getElementById('stopMIDI');
+        const printPDFButton = document.getElementById('printPDF');
+        const paperSizeModal = document.getElementById('paperSizeModal');
+        const generatePdfButton = document.getElementById('generatePdfButton');
+        const cancelPdfButton = document.getElementById('cancelPdfButton');
+        
+        // Attach all button event listeners
+        if (playMIDIButton) playMIDIButton.addEventListener("click", playMIDIHandler);
+        if (stopMIDIButton) stopMIDIButton.addEventListener("click", stopMIDIHandler);
+        if (printPDFButton) printPDFButton.addEventListener('click', function() { paperSizeModal.style.display = 'flex'; });
+        if (cancelPdfButton) cancelPdfButton.addEventListener('click', function() { paperSizeModal.style.display = 'none'; });
+        if (generatePdfButton) generatePdfButton.addEventListener('click', async function() { 
+            paperSizeModal.style.display = 'none'; 
+            const selectedSizeElement = document.querySelector('input[name="paperSize"]:checked');
+            const selectedPaperSize = selectedSizeElement ? selectedSizeElement.value : 'LETTER'; 
+            await generatePDF(selectedPaperSize);
+        });
+        console.log("Event listeners attached.");
 
     }); // end of DOMContentLoaded
 
