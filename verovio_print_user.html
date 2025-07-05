@@ -5,7 +5,7 @@
   <title>Verovio MIDI Player</title>
   <link href="https://book.verovio.org/tutorials/midi.css" rel="stylesheet" type="text/css" />
   <script src="https://www.verovio.org/javascript/latest/verovio-toolkit-wasm.js" defer></script>
-  <script src="https://cdn.jsdelivr.net/combine/npm/tone@14.7.58,npm/@magenta/music@1.23.1/es6/core.js,npm/focus-visible@5"></script>
+  <script src="https://cdn.jsdelivr.net/combine/npm/tone@14.7.58,npm/@magenta/music@1.23.1/es6/core.js,npm/tonejs-midi@2.0.0,npm/focus-visible@5"></script>
 
   <script src="js/pdfkit.standalone.js"></script>
   <script src="js/blob-stream.js"></script>
@@ -95,7 +95,7 @@
   </style>
 </head>
 <body>
-  <!-- Version 3.4 -->
+  <!-- Version 3.5 -->
   <h1>Hello Verovio!</h1>
   <button id="playMIDI">Play</button>
   <button id="stopMIDI">Stop</button>
@@ -119,7 +119,7 @@
   </div>
 
   <script>
-    //Version 5.0 (Direct Tone.js playback and highlighting)
+    //Version 5.1 (Direct Tone.js playback and highlighting - Midi defined, base64 parsed)
   document.addEventListener("DOMContentLoaded", () => {
     let tk = null;     // Verovio toolkit instance for display
     let tk_pdf = null; // Verovio toolkit instance for PDF generation
@@ -179,13 +179,21 @@
             note.classList.remove("playing");
         });
 
-        // Step 3: Generate MIDI data from Verovio
+        // Step 3: Generate MIDI data from Verovio (base64 string)
         let base64midi = tk.renderToMIDI(); 
         console.log("Verovio MIDI data length:", base64midi.length);
+        console.log("Verovio MIDI data (first 50 chars):", base64midi.substring(0, 50)); // Debug log for the base64 string
         
         // Step 4: Parse the MIDI data using @tonejs/midi
-        // Midi.fromBase64 is a convenient way to parse the string
-        const midi = new Midi(base64midi); 
+        // Convert base64 string to Uint8Array (binary data)
+        const binaryString = atob(base64midi); // Decode base64 to a binary string
+        const len = binaryString.length;
+        const bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+        }
+        
+        const midi = new Midi(bytes); // Pass the Uint8Array to Midi constructor
         console.log("MIDI data parsed by @tonejs/midi:", midi);
 
         // Step 5: Schedule all notes from the MIDI file onto Tone.Transport
@@ -194,10 +202,10 @@
                 // Schedule note playback
                 Tone.Transport.scheduleOnce((time) => {
                     synth.triggerAttackRelease(
-                        note.name, // e.g., "C4"
-                        note.duration, // duration in seconds
-                        time, // scheduled time in Tone.Transport's timeline
-                        note.velocity // velocity (0-1)
+                        note.name,       // e.g., "C4"
+                        note.duration,   // duration in seconds
+                        time,            // scheduled time in Tone.Transport's timeline
+                        note.velocity    // velocity (0-1)
                     );
                 }, note.time); // note.time is the start time in seconds
             });
@@ -237,7 +245,7 @@
 
       // This handler now directly receives the time from Tone.Transport
       const midiHighlightingHandler = (currentTimeInSeconds) => {
-        console.log("Highlighting event. Current time:", currentTimeInSeconds);
+        // console.log("Highlighting event. Current time:", currentTimeInSeconds); // Can be very verbose, uncomment for deep debugging
         
         // Remove 'playing' class from previously highlighted notes
         document.querySelectorAll('g.note.playing').forEach(playingNote => {
@@ -247,7 +255,7 @@
         // Get elements at current MIDI time from Verovio (tk instance)
         // Convert seconds to milliseconds for Verovio
         let currentElements = tk.getElementsAtTime(currentTimeInSeconds * 1000); 
-        console.log("Elements at current time from Verovio:", currentElements);
+        // console.log("Elements at current time from Verovio:", currentElements); // Can be very verbose
 
         // Page change logic (renders new SVG if page changes)
         if (currentElements.page > 0 && currentElements.page !== currentPage) {
@@ -258,17 +266,18 @@
         
         // Add 'playing' class to currently playing notes
         if (currentElements.notes && currentElements.notes.length > 0) {
-          console.log("Notes Verovio wants to highlight:", currentElements.notes);
+          // console.log("Notes Verovio wants to highlight:", currentElements.notes); // Can be very verbose
           for (let noteId of currentElements.notes) {
             let noteElement = document.getElementById(noteId);
             if (noteElement) {
               noteElement.classList.add("playing");
             } else {
-              console.warn("Could not find note element with ID in DOM for highlighting:", noteId, "Is this note on the current page?", currentPage);
+              // This is a warning, common if a note ID is valid but not currently in the DOM (e.g., on a different page)
+              // console.warn("Could not find note element with ID in DOM for highlighting:", noteId, "Is this note on the current page?", currentPage);
             }
           }
         } else {
-          console.log("No notes returned by Verovio for current time (or current page).");
+          // console.log("No notes returned by Verovio for current time (or current page)."); // Can be very verbose
         }
       };
 
@@ -290,7 +299,6 @@
           // --- Attach Event Listeners and Callbacks after data is loaded ---
           document.getElementById("playMIDI").addEventListener("click", playMIDIHandler);
           document.getElementById("stopMIDI").addEventListener("click", stopMIDIHandler);
-          // Removed player.addEventListener('timeupdate', midiHighlightingHandler);
           // Highlighting is now driven by Tone.Transport.scheduleRepeat
 
           // --- Event Listener for Print Button (shows modal) ---
