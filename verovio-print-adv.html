@@ -133,7 +133,7 @@
               let doc = new PDFDocument({
                 size: 'LETTER',
                 layout: 'portrait',
-                margins: { top: 50, bottom: 50, left: 72, right: 72 }
+                margins: { top: 50, bottom: 50, left: 20, right: 20 }
               });
               
               const stream = doc.pipe(blobStream());
