@@ -4,9 +4,8 @@
   <meta charset="utf-8">
   <title>Verovio MIDI Player</title>
   <link href="https://book.verovio.org/tutorials/midi.css" rel="stylesheet" type="text/css" />
-  <script src="https://www.verovio.org/javascript/latest/verovio-toolkit-wasm.js" defer></script>
-  <script src="https://cdn.jsdelivr.net/combine/npm/tone@14.7.58,npm/@magenta/music@1.23.1/es6/core.js,npm/tonejs-midi@2.0.0,npm/focus-visible@5"></script>
-
+  <script src="https://www.verovio.org/javascript/latest/verovio-toolkit-wasm.js"></script> 
+  
   <script src="js/pdfkit.standalone.js"></script>
   <script src="js/blob-stream.js"></script>
   <script src="js/svg-to-pdfkit.js"></script>
@@ -70,7 +69,7 @@
         padding: 10px 20px;
         margin: 10px 5px;
         border: none;
-        border-radius: 5px; /* Corrected from 55px to 5px */
+        border-radius: 5px;
         cursor: pointer;
         font-size: 1em;
     }
@@ -95,7 +94,7 @@
   </style>
 </head>
 <body>
-  <!-- Version 3.5 -->
+  <!-- Version 3.6 -->
   <h1>Hello Verovio!</h1>
   <button id="playMIDI">Play</button>
   <button id="stopMIDI">Stop</button>
@@ -118,14 +117,17 @@
     </div>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/tone@14.7.58"></script>
+  <script src="https://cdn.jsdelivr.net/combine/npm/@magenta/music@1.23.1/es6/core.js,npm/tonejs-midi@2.0.0,npm/focus-visible@5"></script>
+
   <script>
-    //Version 5.1 (Direct Tone.js playback and highlighting - Midi defined, base64 parsed)
+    //Version 5.2 (Tone.js import strategy revised)
   document.addEventListener("DOMContentLoaded", () => {
     let tk = null;     // Verovio toolkit instance for display
     let tk_pdf = null; // Verovio toolkit instance for PDF generation
 
     // Initialize a Tone.js synthesizer globally
-    // We use PolySynth for polyphony, and toDestination() sends output to speakers.
+    // This code will now run after Tone.js should be definitively loaded
     const synth = new Tone.PolySynth(Tone.Synth, {
         oscillator: {
             type: "sine" // Simple sine wave. Could be "triangle", "sawtooth", etc.
@@ -182,7 +184,7 @@
         // Step 3: Generate MIDI data from Verovio (base64 string)
         let base64midi = tk.renderToMIDI(); 
         console.log("Verovio MIDI data length:", base64midi.length);
-        console.log("Verovio MIDI data (first 50 chars):", base64midi.substring(0, 50)); // Debug log for the base64 string
+        console.log("Verovio MIDI data (first 50 chars):", base64midi.substring(0, 50)); 
         
         // Step 4: Parse the MIDI data using @tonejs/midi
         // Convert base64 string to Uint8Array (binary data)
@@ -255,7 +257,7 @@
         // Get elements at current MIDI time from Verovio (tk instance)
         // Convert seconds to milliseconds for Verovio
         let currentElements = tk.getElementsAtTime(currentTimeInSeconds * 1000); 
-        // console.log("Elements at current time from Verovio:", currentElements); // Can be very verbose
+        // console.log("Elements at current time from Verovio:", currentElements); 
 
         // Page change logic (renders new SVG if page changes)
         if (currentElements.page > 0 && currentElements.page !== currentPage) {
@@ -266,7 +268,7 @@
         
         // Add 'playing' class to currently playing notes
         if (currentElements.notes && currentElements.notes.length > 0) {
-          // console.log("Notes Verovio wants to highlight:", currentElements.notes); // Can be very verbose
+          // console.log("Notes Verovio wants to highlight:", currentElements.notes); 
           for (let noteId of currentElements.notes) {
             let noteElement = document.getElementById(noteId);
             if (noteElement) {
@@ -277,7 +279,7 @@
             }
           }
         } else {
-          // console.log("No notes returned by Verovio for current time (or current page)."); // Can be very verbose
+          // console.log("No notes returned by Verovio for current time (or current page)."); 
         }
       };
 
@@ -299,7 +301,6 @@
           // --- Attach Event Listeners and Callbacks after data is loaded ---
           document.getElementById("playMIDI").addEventListener("click", playMIDIHandler);
           document.getElementById("stopMIDI").addEventListener("click", stopMIDIHandler);
-          // Highlighting is now driven by Tone.Transport.scheduleRepeat
 
           // --- Event Listener for Print Button (shows modal) ---
           printPDF.addEventListener('click', function() {
@@ -315,7 +316,6 @@
           generatePdfButton.addEventListener('click', async function() {
               paperSizeModal.style.display = 'none'; // Hide the modal
               const selectedSizeElement = document.querySelector('input[name="paperSize"]:checked');
-              // Default to 'LETTER' if nothing is selected (shouldn't happen with checked default)
               const selectedPaperSize = selectedSizeElement ? selectedSizeElement.value : 'LETTER'; 
 
               await generatePDF(selectedPaperSize);
@@ -325,7 +325,6 @@
           async function generatePDF(selectedPaperSize) {
               console.log(`Generating PDF for ${selectedPaperSize} paper size...`);
 
-              // IMPORTANT: Use tk_pdf for all PDF-related Verovio operations
               if (!tk_pdf || tk_pdf.getMEI() === '') {
                 alert("Verovio PDF toolkit is not ready or no MEI data loaded. Please load a score first.");
                 console.error("Verovio PDF Toolkit (tk_pdf) not initialized or MEI data is empty.");
@@ -333,39 +332,37 @@
               }
 
               try {
-                // Store original options from tk_pdf to restore later
                 const originalPdfOptions = tk_pdf.getOptions();
 
-                // Define paper size specific options for PDFKit and Verovio
                 const paperSizeOptions = {
                     'LETTER': {
                         pdfkitSize: 'LETTER',
-                        verovioPageWidth: 800, // Verovio's internal page width
-                        verovioPageHeight: 1100 // Verovio's internal page height for Letter aspect ratio
+                        verovioPageWidth: 800, 
+                        verovioPageHeight: 1100 
                     },
                     'A4': {
                         pdfkitSize: 'A4',
-                        verovioPageWidth: 800, // Keep width consistent
-                        verovioPageHeight: 1180 // Slightly taller for A4 aspect ratio
+                        verovioPageWidth: 800, 
+                        verovioPageHeight: 1180 
                     },
-                    'A5': { // New A5 option
-                        pdfkitSize: 'A5', // PDFKit directly supports 'A5'
-                        verovioPageWidth: 580, // Adjusted Verovio width for A5
-                        verovioPageHeight: 830 // Adjusted Verovio height for A5 (proportional to A4)
+                    'A5': { 
+                        pdfkitSize: 'A5', 
+                        verovioPageWidth: 580, 
+                        verovioPageHeight: 830 
                     },
-                    'OCTAVO': { // New Choral (Octavo) option
-                        pdfkitSize: [486, 756], // Custom size for PDFKit (width, height in points) for 6.75" x 10.5"
-                        verovioPageWidth: 640, // Adjusted Verovio width for Octavo
-                        verovioPageHeight: 1050 // Adjusted Verovio height for Octavo
+                    'OCTAVO': { 
+                        pdfkitSize: [486, 756], 
+                        verovioPageWidth: 640, 
+                        verovioPageHeight: 1050 
                     }
                 };
 
                 const currentPaperSettings = paperSizeOptions[selectedPaperSize];
 
                 let doc = new PDFDocument({
-                  size: currentPaperSettings.pdfkitSize, // Use selected size for PDFKit
+                  size: currentPaperSettings.pdfkitSize, 
                   layout: 'portrait',
-                  margins: { top: 50, bottom: 50, left: 36, right: 36 } // User's preferred margins (0.5 inches)
+                  margins: { top: 50, bottom: 50, left: 36, right: 36 } 
                 });
                 
                 const stream = doc.pipe(blobStream());
@@ -376,7 +373,6 @@
                   const a = document.createElement('a');
                   a.style.display = 'none';
                   a.href = url;
-                  // Dynamic filename based on selected paper size
                   a.download = `verovio-output-${selectedPaperSize.toLowerCase()}.pdf`; 
                   document.body.appendChild(a);
                   a.click();
@@ -390,24 +386,22 @@
                   alert("An error occurred during PDF creation.");
                 });
                 
-                // Set options for Verovio PDF GENERATION (these will *only* apply to the PDF)
-                tk_pdf.setOptions({ // <--- Using tk_pdf here
-                  scale: 40, // Keep user's preferred music scale
-                  pageWidth: currentPaperSettings.verovioPageWidth, // Use selected Verovio page width
-                  pageHeight: currentPaperSettings.verovioPageHeight, // Use selected Verovio page height
+                tk_pdf.setOptions({ 
+                  scale: 40, 
+                  pageWidth: currentPaperSettings.verovioPageWidth, 
+                  pageHeight: currentPaperSettings.verovioPageHeight, 
                   adjustPageHeight: true
                 });
                 console.log("Verovio PDF options set for PDF generation before rendering pages.");
 
-                const pageCount = tk_pdf.getPageCount(); // <--- Using tk_pdf here
+                const pageCount = tk_pdf.getPageCount(); 
                 if (pageCount === 0) {
                   throw new Error("Verovio PDF toolkit reports no pages to render. Check MEI data.");
                 }
                 console.log("Total pages to render for PDF:", pageCount);
 
-                // Loop through each Verovio page and add its SVG to the PDF
                 for (let i = 1; i <= pageCount; i++) {
-                  const svgString = tk_pdf.renderToSVG(i); // <--- Using tk_pdf here
+                  const svgString = tk_pdf.renderToSVG(i); 
                   console.log(`Processing SVG page ${i} from PDF toolkit. Length: ${svgString.length}. First 200 chars:`, svgString.substring(0, 200));
 
                   if (typeof svgString !== 'string' || svgString.trim() === '' || !svgString.startsWith('<svg')) {
@@ -424,24 +418,21 @@
                     preserveAspectRatio: 'xMidYMid meet',
                     assumeGIsCursive: true
                   });
-                  
-                  // No page numbers added here, as confirmed previously it caused a blank page.
                 }
                 
-                doc.end(); // Finalize the PDF document
-
-                tk_pdf.setOptions(originalPdfOptions); // <--- Restore original Verovio PDF options
+                doc.end(); 
+                tk_pdf.setOptions(originalPdfOptions); 
               } catch (error) {
                 console.error("Failed to generate PDF:", error);
                 alert("An error occurred during PDF creation.");
               }
-          } // end of generatePDF function
-        }) // end of fetch .then
+          } 
+        }) 
         .catch(error => {
           console.error("Error loading or processing MEI data:", error);
         });
-    }; // end of verovio.module.onRuntimeInitialized
-  }); // end of DOMContentLoaded
+    }; 
+  }); 
   </script>
 </body>
 </html>
