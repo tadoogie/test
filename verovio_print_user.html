@@ -70,7 +70,7 @@
         padding: 10px 20px;
         margin: 10px 5px;
         border: none;
-        border-radius: 55px; /* Typo from previous versions, corrected to 5px */
+        border-radius: 5px; /* Corrected from 55px to 5px */
         cursor: pointer;
         font-size: 1em;
     }
@@ -95,7 +95,7 @@
   </style>
 </head>
 <body>
-  <!-- Version 1.0 -->
+  <!-- Version 3.1 -->
   <h1>Hello Verovio!</h1>
   <button id="playMIDI">Play</button>
   <button id="stopMIDI">Stop</button>
@@ -121,7 +121,7 @@
   </div>
 
   <script>
-    //Version 4.1 (with debugging logs for MIDI highlighting)
+    //Version 4.2 (Fixed AudioContext suspended issue, with debugging logs for MIDI highlighting)
   document.addEventListener("DOMContentLoaded", () => {
     let tk = null;     // Verovio toolkit instance for display
     let tk_pdf = null; // Verovio toolkit instance for PDF generation
@@ -152,7 +152,13 @@
       let currentPage = 1;
 
       // --- Event Handlers for MIDI Playback and Display ---
-      const playMIDIHandler = () => {
+      const playMIDIHandler = async () => { // Made async to allow await Tone.start()
+        // --- FIX: Resume the AudioContext on user interaction ---
+        if (Tone.context.state !== 'running') {
+            await Tone.start();
+            console.log('AudioContext resumed!');
+        }
+
         let base64midi = tk.renderToMIDI(); // Use tk for MIDI (display context)
         console.log("Verovio MIDI data length:", base64midi.length);
         console.log("Verovio MIDI data (first 50 chars):", base64midi.substring(0, 50));
@@ -168,7 +174,7 @@
       };
 
       const midiHighlightingHandler = (event) => {
-        // --- START DEBUGGING LOGS ---
+        // --- START DEBUGGING LOGS (KEEP THESE FOR NOW) ---
         console.log("MIDI timeupdate event received. Current time:", event.time);
         // --- END DEBUGGING LOGS ---
         
@@ -179,7 +185,7 @@
 
         // Get elements at current MIDI time from Verovio (tk instance)
         let currentElements = tk.getElementsAtTime(event.time * 1000); // event.time is in seconds, Verovio expects milliseconds
-        // --- START DEBUGGING LOGS ---
+        // --- START DEBUGGING LOGS (KEEP THESE FOR NOW) ---
         console.log("Elements at current time from Verovio:", currentElements);
         // --- END DEBUGGING LOGS ---
 
@@ -187,14 +193,14 @@
         if (currentElements.page > 0 && currentElements.page !== currentPage) {
           currentPage = currentElements.page;
           document.getElementById("notation").innerHTML = tk.renderToSVG(currentPage); // Use tk for display rendering
-          // --- START DEBUGGING LOGS ---
+          // --- START DEBUGGING LOGS (KEEP THESE FOR NOW) ---
           console.log("Page changed. Now displaying page:", currentPage);
           // --- END DEBUGGING LOGS ---
         }
         
         // Add 'playing' class to currently playing notes
         if (currentElements.notes && currentElements.notes.length > 0) {
-          // --- START DEBUGGING LOGS ---
+          // --- START DEBUGGING LOGS (KEEP THESE FOR NOW) ---
           console.log("Notes Verovio wants to highlight:", currentElements.notes);
           // --- END DEBUGGING LOGS ---
           for (let noteId of currentElements.notes) {
