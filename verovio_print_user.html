@@ -5,7 +5,7 @@
   <title>Verovio MIDI Player</title>
   <link href="https://book.verovio.org/tutorials/midi.css" rel="stylesheet" type="text/css" />
   <script src="https://www.verovio.org/javascript/latest/verovio-toolkit-wasm.js" defer></script>
-  <script src="https://cdn.jsdelivr.net/combine/npm/tone@14.7.58,npm/@magenta/music@1.23.1/es6/core.js,npm/focus-visible@5,npm/html-midi-player@1.5.0"></script>
+  <script src="https://cdn.jsdelivr.net/combine/npm/tone@14.7.58,npm/@magenta/music@1.23.1/es6/core.js,npm/focus-visible@5"></script>
 
   <script src="js/pdfkit.standalone.js"></script>
   <script src="js/blob-stream.js"></script>
@@ -95,13 +95,11 @@
   </style>
 </head>
 <body>
-  <!-- Version 3.3 -->
+  <!-- Version 3.4 -->
   <h1>Hello Verovio!</h1>
   <button id="playMIDI">Play</button>
   <button id="stopMIDI">Stop</button>
   <button id="printPDF">Print</button>
-  <midi-player id="verovio-midi-player" sound-font="https://storage.googleapis.com/magentadata/js/soundfonts/sgm_plus" controls="false">
-            </midi-player>
   <div id="notation"></div>
 
   <div id="paperSizeModal">
@@ -121,12 +119,19 @@
   </div>
 
   <script>
-    //Version 4.5 (Robust MIDI playback sync with force reload)
+    //Version 5.0 (Direct Tone.js playback and highlighting)
   document.addEventListener("DOMContentLoaded", () => {
     let tk = null;     // Verovio toolkit instance for display
     let tk_pdf = null; // Verovio toolkit instance for PDF generation
 
-    const player = document.querySelector('#verovio-midi-player');
+    // Initialize a Tone.js synthesizer globally
+    // We use PolySynth for polyphony, and toDestination() sends output to speakers.
+    const synth = new Tone.PolySynth(Tone.Synth, {
+        oscillator: {
+            type: "sine" // Simple sine wave. Could be "triangle", "sawtooth", etc.
+        }
+    }).toDestination();
+
     const printPDF = document.getElementById('printPDF');
 
     // Get references to modal elements
@@ -134,6 +139,8 @@
     const generatePdfButton = document.getElementById('generatePdfButton');
     const cancelPdfButton = document.getElementById('cancelPdfButton');
 
+    // Variable to hold the ID of the repeating highlighting event
+    let highlightLoopId = null; 
 
     verovio.module.onRuntimeInitialized = () => {
       // Initialize the display toolkit
@@ -152,10 +159,10 @@
       let currentPage = 1;
 
       // --- Event Handlers for MIDI Playback and Display ---
-      const playMIDIHandler = async () => { // Made async to allow await Tone.start() and midi-loaded promise
+      const playMIDIHandler = async () => {
         console.log("Play button clicked. Entering playMIDIHandler.");
 
-        // --- Step 1: Resume the AudioContext on user interaction ---
+        // Step 1: Resume the AudioContext (if not already running)
         if (Tone.context.state !== 'running') {
             await Tone.start();
             console.log('AudioContext resumed!');
@@ -163,45 +170,74 @@
             console.log('AudioContext is already running.');
         }
 
-        // --- Step 2: Generate MIDI data from Verovio ---
-        let base64midi = tk.renderToMIDI(); // Use tk for MIDI (display context)
-        console.log("Verovio MIDI data length:", base64midi.length);
-        console.log("Verovio MIDI data (first 50 chars):", base64midi.substring(0, 50));
-        
-        // --- Step 3: Create a promise to wait for the 'midi-loaded' event ---
-        const midiLoadedPromise = new Promise(resolve => {
-            const listener = () => {
-                console.log("midi-loaded event fired!"); // This new log should now appear
-                player.removeEventListener('midi-loaded', listener); // Clean up listener
-                resolve();
-            };
-            player.addEventListener('midi-loaded', listener, { once: true }); // Use { once: true } for cleaner event handling
+        // Step 2: Stop any previous playback and clear scheduled events on Tone.Transport
+        Tone.Transport.stop();
+        Tone.Transport.cancel(); // Clears all notes and events
+
+        // Clear previous highlighting
+        document.querySelectorAll('g.note.playing').forEach(note => {
+            note.classList.remove("playing");
         });
 
-        // --- Step 4: Force player to reload MIDI and trigger 'midi-loaded' ---
-        player.src = ''; // Clear src to force a reload even if data is the same
-        player.src = 'data:audio/midi;base64,' + base64midi; // Set the new/current MIDI data
-        console.log("MIDI data set to player. Waiting for midi-loaded event...");
+        // Step 3: Generate MIDI data from Verovio
+        let base64midi = tk.renderToMIDI(); 
+        console.log("Verovio MIDI data length:", base64midi.length);
+        
+        // Step 4: Parse the MIDI data using @tonejs/midi
+        // Midi.fromBase64 is a convenient way to parse the string
+        const midi = new Midi(base64midi); 
+        console.log("MIDI data parsed by @tonejs/midi:", midi);
 
-        // --- Step 5: Wait for the MIDI to be fully loaded ---
-        await midiLoadedPromise; 
+        // Step 5: Schedule all notes from the MIDI file onto Tone.Transport
+        midi.tracks.forEach(track => {
+            track.notes.forEach(note => {
+                // Schedule note playback
+                Tone.Transport.scheduleOnce((time) => {
+                    synth.triggerAttackRelease(
+                        note.name, // e.g., "C4"
+                        note.duration, // duration in seconds
+                        time, // scheduled time in Tone.Transport's timeline
+                        note.velocity // velocity (0-1)
+                    );
+                }, note.time); // note.time is the start time in seconds
+            });
+        });
 
-        // --- Step 6: Start playback only after MIDI is confirmed loaded ---
-        console.log("MIDI loaded, starting playback.");
-        player.start(); 
+        console.log("MIDI notes scheduled on Tone.Transport.");
+
+        // Step 6: Set up the repeating highlighting loop
+        if (highlightLoopId) {
+            Tone.Transport.clear(highlightLoopId); // Clear any old loop
+        }
+        highlightLoopId = Tone.Transport.scheduleRepeat((time) => {
+            // `time` here is the current time in Tone.Transport's timeline (seconds)
+            // Call the highlighting function with this time
+            midiHighlightingHandler(time); 
+        }, '8n'); // Update highlighting every eighth note (adjust '8n', '16n', etc., for smoother or less frequent updates)
+
+        // Step 7: Start Tone.js Transport
+        Tone.Transport.start(); 
+        console.log("Tone.Transport started. Playback and highlighting should begin.");
       };
 
       const stopMIDIHandler = () => {
-        player.stop();
+        Tone.Transport.stop(); // Stop Tone.js Transport
+        Tone.Transport.cancel(); // Clear all scheduled events
+        // Clear any active highlighting loop
+        if (highlightLoopId) {
+            Tone.Transport.clear(highlightLoopId);
+            highlightLoopId = null;
+        }
+        // Remove 'playing' class from all notes
         document.querySelectorAll('g.note.playing').forEach(note => {
           note.classList.remove("playing");
         });
+        console.log("Tone.Transport stopped and notes cleared.");
       };
 
-      const midiHighlightingHandler = (event) => {
-        // --- START DEBUGGING LOGS (KEEP THESE FOR NOW) ---
-        console.log("MIDI timeupdate event received. Current time:", event.time);
-        // --- END DEBUGGING LOGS ---
+      // This handler now directly receives the time from Tone.Transport
+      const midiHighlightingHandler = (currentTimeInSeconds) => {
+        console.log("Highlighting event. Current time:", currentTimeInSeconds);
         
         // Remove 'playing' class from previously highlighted notes
         document.querySelectorAll('g.note.playing').forEach(playingNote => {
@@ -209,42 +245,30 @@
         });
 
         // Get elements at current MIDI time from Verovio (tk instance)
-        let currentElements = tk.getElementsAtTime(event.time * 1000); // event.time is in seconds, Verovio expects milliseconds
-        // --- START DEBUGGING LOGS (KEEP THESE FOR NOW) ---
+        // Convert seconds to milliseconds for Verovio
+        let currentElements = tk.getElementsAtTime(currentTimeInSeconds * 1000); 
         console.log("Elements at current time from Verovio:", currentElements);
-        // --- END DEBUGGING LOGS ---
 
         // Page change logic (renders new SVG if page changes)
         if (currentElements.page > 0 && currentElements.page !== currentPage) {
           currentPage = currentElements.page;
           document.getElementById("notation").innerHTML = tk.renderToSVG(currentPage); // Use tk for display rendering
-          // --- START DEBUGGING LOGS (KEEP THESE FOR NOW) ---
           console.log("Page changed. Now displaying page:", currentPage);
-          // --- END DEBUGGING LOGS ---
         }
         
         // Add 'playing' class to currently playing notes
         if (currentElements.notes && currentElements.notes.length > 0) {
-          // --- START DEBUGGING LOGS (KEEP THESE FOR NOW) ---
           console.log("Notes Verovio wants to highlight:", currentElements.notes);
-          // --- END DEBUGGING LOGS ---
           for (let noteId of currentElements.notes) {
             let noteElement = document.getElementById(noteId);
             if (noteElement) {
               noteElement.classList.add("playing");
-              // --- START DEBUGGING LOGS (Optional, can be very verbose) ---
-              // console.log("Successfully highlighted note with ID:", noteId); 
-              // --- END DEBUGGING LOGS ---
             } else {
-              // --- START DEBUGGING LOGS ---
-              console.warn("Could not find note element with ID in DOM:", noteId, "Is this note on the current page?", currentPage);
-              // --- END DEBUGGING LOGS ---
+              console.warn("Could not find note element with ID in DOM for highlighting:", noteId, "Is this note on the current page?", currentPage);
             }
           }
         } else {
-          // --- START DEBUGGING LOGS ---
           console.log("No notes returned by Verovio for current time (or current page).");
-          // --- END DEBUGGING LOGS ---
         }
       };
 
@@ -266,7 +290,8 @@
           // --- Attach Event Listeners and Callbacks after data is loaded ---
           document.getElementById("playMIDI").addEventListener("click", playMIDIHandler);
           document.getElementById("stopMIDI").addEventListener("click", stopMIDIHandler);
-          player.addEventListener('timeupdate', midiHighlightingHandler);
+          // Removed player.addEventListener('timeupdate', midiHighlightingHandler);
+          // Highlighting is now driven by Tone.Transport.scheduleRepeat
 
           // --- Event Listener for Print Button (shows modal) ---
           printPDF.addEventListener('click', function() {
