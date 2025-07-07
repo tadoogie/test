@@ -5,7 +5,8 @@
   <title>Verovio MIDI Player</title>
   <link href="https://book.verovio.org/tutorials/midi.css" rel="stylesheet" type="text/css" />
   <script src="https://www.verovio.org/javascript/latest/verovio-toolkit-wasm.js" defer></script>
-  
+  <script src="https://cdn.jsdelivr.net/combine/npm/tone@14.7.58,npm/@magenta/music@1.23.1/es6/core.js,npm/focus-visible@5"></script>
+
   <script src="js/pdfkit.standalone.js"></script>
   <script src="js/blob-stream.js"></script>
   <script src="js/svg-to-pdfkit.js"></script>
@@ -69,7 +70,7 @@
         padding: 10px 20px;
         margin: 10px 5px;
         border: none;
-        border-radius: 5px; /* Corrected from 55px to 5px - I'll keep this small fix as it's CSS only */
+        border-radius: 5px; 
         cursor: pointer;
         font-size: 1em;
     }
@@ -94,7 +95,7 @@
   </style>
 </head>
 <body>
-  <!-- Version 1.0 -->
+  <!-- Version 1.1 -->
   <h1>Hello Verovio!</h1>
   <button id="playMIDI">Play</button>
   <button id="stopMIDI">Stop</button>
@@ -117,11 +118,9 @@
     </div>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/combine/npm/tone@14.7.58,npm/@magenta/music@1.23.1/es6/core.js,npm/tonejs-midi@2.0.0,npm/focus-visible@5"></script>
-
   <script>
-    // Version 5.6 (Reverting to previous working display, fixing MIDI parsing for Tone.js/Midi)
-
+    // Version 5.7 - Reverting to your exact last provided "working" code.
+    // This version should display the score, but MIDI playback might have issues due to Midi object parsing.
     document.addEventListener("DOMContentLoaded", () => {
       let tk = null;     // Verovio toolkit instance for display
       let tk_pdf = null; // Verovio toolkit instance for PDF generation
@@ -142,9 +141,8 @@
 
       // Variable to hold the ID of the repeating highlighting event
       let highlightLoopId = null; 
-      let currentPage = 1; // Moved to higher scope for playMIDIHandler to access it reliably
+      let currentPage = 1; 
 
-      // Verovio's onRuntimeInitialized callback
       verovio.module.onRuntimeInitialized = () => {
         // Initialize the display toolkit
         tk = new verovio.toolkit();
@@ -191,16 +189,9 @@
           console.log("Verovio MIDI data length:", base64midi.length);
           console.log("Verovio MIDI data (first 50 chars):", base64midi.substring(0, 50)); 
           
-          // ** FIX for @tonejs/midi parsing **
-          // Convert base64 MIDI string to a Uint8Array
-          const binaryString = atob(base64midi); 
-          const len = binaryString.length;
-          const bytes = new Uint8Array(len);
-          for (let i = 0; i < len; i++) {
-              bytes[i] = binaryString.charCodeAt(i);
-          }
-          
-          const midi = new Midi(bytes); // Use Uint8Array here
+          // ** NOTE: The 'Midi' object here might not be globally available or might require specific parsing if tonejs-midi is not included. **
+          // ** This section might be the source of MIDI playback issues in this specific version. **
+          const midi = new Midi(base64midi); // This line is prone to error if Midi is not correctly imported/parsed
           console.log("MIDI data parsed by @tonejs/midi:", midi);
 
           // Step 5: Schedule all notes from the MIDI file onto Tone.Transport
@@ -308,7 +299,6 @@
             generatePdfButton.addEventListener('click', async function() {
                 paperSizeModal.style.display = 'none'; // Hide the modal
                 const selectedSizeElement = document.querySelector('input[name="paperSize"]:checked');
-                // Default to 'LETTER' if nothing is selected (shouldn't happen with checked default)
                 const selectedPaperSize = selectedSizeElement ? selectedSizeElement.value : 'LETTER'; 
 
                 await generatePDF(selectedPaperSize);
@@ -318,7 +308,6 @@
             async function generatePDF(selectedPaperSize) {
                 console.log(`Generating PDF for ${selectedPaperSize} paper size...`);
 
-                // IMPORTANT: Use tk_pdf for all PDF-related Verovio operations
                 if (!tk_pdf || tk_pdf.getMEI() === '') {
                   alert("Verovio PDF toolkit is not ready or no MEI data loaded. Please load a score first.");
                   console.error("Verovio PDF Toolkit (tk_pdf) not initialized or MEI data is empty.");
@@ -326,10 +315,8 @@
                 }
 
                 try {
-                  // Store original options from tk_pdf to restore later
                   const originalPdfOptions = tk_pdf.getOptions();
 
-                  // Define paper size specific options for PDFKit and Verovio
                   const paperSizeOptions = {
                       'LETTER': {
                           pdfkitSize: 'LETTER',
@@ -369,7 +356,6 @@
                     const a = document.createElement('a');
                     a.style.display = 'none';
                     a.href = url;
-                    // Dynamic filename based on selected paper size
                     a.download = `verovio-output-${selectedPaperSize.toLowerCase()}.pdf`; 
                     document.body.appendChild(a);
                     a.click();
@@ -383,7 +369,6 @@
                     alert("An error occurred during PDF creation.");
                   });
                   
-                  // Set options for Verovio PDF GENERATION (these will *only* apply to the PDF)
                   tk_pdf.setOptions({ 
                     scale: 40, 
                     pageWidth: currentPaperSettings.verovioPageWidth, 
@@ -398,7 +383,6 @@
                   }
                   console.log("Total pages to render for PDF:", pageCount);
 
-                  // Loop through each Verovio page and add its SVG to the PDF
                   for (let i = 1; i <= pageCount; i++) {
                     const svgString = tk_pdf.renderToSVG(i); 
                     console.log(`Processing SVG page ${i} from PDF toolkit. Length: ${svgString.length}. First 200 chars:`, svgString.substring(0, 200));
@@ -419,9 +403,8 @@
                     });
                   }
                   
-                  doc.end(); // Finalize the PDF document
-
-                  tk_pdf.setOptions(originalPdfOptions); // Restore original Verovio PDF options
+                  doc.end(); 
+                  tk_pdf.setOptions(originalPdfOptions); 
                 } catch (error) {
                   console.error("Failed to generate PDF:", error);
                   alert("An error occurred during PDF creation.");
