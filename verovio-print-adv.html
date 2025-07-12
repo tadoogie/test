@@ -96,7 +96,7 @@
   </style>
 </head>
 <body>
-  <!-- Version 3.9 -->      
+  <!-- Version 3.10 -->      
   <h1>Hello Verovio!</h1>
   <button id="loadAudio">Load Audio</button>
   <button id="stopMIDI">Stop</button>   <button id="printPDF">Print</button>
@@ -122,7 +122,7 @@
 
   <script>
 document.addEventListener("DOMContentLoaded", () => {
-    let tk = null;      // Verovio toolkit instance for display
+    let tk = null;       // Verovio toolkit instance for display
     let tk_pdf = null; // Verovio toolkit instance for PDF generation
 
     const player = document.querySelector('#verovio-midi-player');
@@ -182,25 +182,57 @@ document.addEventListener("DOMContentLoaded", () => {
         };
 
         // Event handler for 'note' events (MIDI note starts playing)
-        // Event handler for 'note' events (MIDI note starts playing)
-const midiNoteHighlightingHandler = (event) => {
-    const noteData = event.detail.note; // This object will have properties like 'midi', 'startTime', 'endTime', 'velocity'
+        const midiNoteHighlightingHandler = (event) => {
+            const noteData = event.detail.note; // This object will have properties like 'midi', 'startTime', 'endTime', 'velocity'
 
-    // Use noteData.startTime instead of noteData.time
-    const eventTimeMs = noteData.startTime * 1000; // Convert start time to milliseconds for Verovio toolkit
+            // Use noteData.startTime for the current time
+            const eventTimeMs = noteData.startTime * 1000; // Convert start time to milliseconds for Verovio toolkit
 
-    // Calculate duration for logging if needed, or just use startTime
-    const durationSeconds = noteData.endTime - noteData.startTime;
+            // Calculate duration for logging if needed
+            const durationSeconds = noteData.endTime - noteData.startTime;
 
-    console.log(`Note event! MIDI Note: ${noteData.midi}, Time: ${noteData.startTime}s, Duration: ${durationSeconds}s`);
+            console.log(`Note event! MIDI Note: ${noteData.midi}, Time: ${noteData.startTime}s, Duration: ${durationSeconds}s`);
 
-    // Get the set of Verovio SVG note IDs that *should* be highlighted at this precise `eventTimeMs`
-    let elementsAtCurrentTime = tk.getElementsAtTime(eventTimeMs);
-    let notesThatShouldBeHighlighted = new Set(elementsAtCurrentTime.notes);
+            // Get the set of Verovio SVG note IDs that *should* be highlighted at this precise `eventTimeMs`
+            let elementsAtCurrentTime = tk.getElementsAtTime(eventTimeMs);
+            let notesThatShouldBeHighlighted = new Set(elementsAtCurrentTime.notes);
 
-    console.log(`Verovio elements at time ${noteData.startTime}s:`, notesThatShouldBeHighlighted);
+            console.log(`Verovio elements at time ${noteData.startTime}s:`, notesThatShouldBeHighlighted);
 
-    // ... rest of your highlighting logic remains the same ...
+            // 1. Remove highlights from notes that were previously active but are no longer active at this time
+            // Iterate over a copy of the Set to allow modification during iteration
+            Array.from(currentlyHighlightedVerovioIds).forEach(id => {
+                if (!notesThatShouldBeHighlighted.has(id)) {
+                    const noteElement = document.getElementById(id);
+                    if (noteElement && noteElement.classList.contains("playing")) {
+                        noteElement.classList.remove("playing");
+                        console.log(`Un-highlighted (no longer active): ${id}`);
+                    }
+                    currentlyHighlightedVerovioIds.delete(id); // Remove from our tracking set
+                }
+            });
+
+            // 2. Add highlights to notes that should be active but are not yet highlighted
+            notesThatShouldBeHighlighted.forEach(noteId => {
+                if (!currentlyHighlightedVerovioIds.has(noteId)) {
+                    const noteElement = document.getElementById(noteId);
+                    if (noteElement) {
+                        noteElement.classList.add("playing");
+                        currentlyHighlightedVerovioIds.add(noteId); // Add to our tracking set
+                        console.log(`Highlighted: ${noteId}`);
+                    } else {
+                        console.log("Note element NOT found for ID:", noteId);
+                    }
+                }
+            });
+
+            // Page turning logic for display toolkit
+            const pageForCurrentTime = elementsAtCurrentTime.page;
+            if (pageForCurrentTime > 0 && pageForCurrentTime !== currentPage) {
+                currentPage = pageForCurrentTime;
+                document.getElementById("notation").innerHTML = tk.renderToSVG(currentPage);
+            }
+        };
 
         // --- Load MEI Data and Render SVG ---
         fetch("https://www.verovio.org/examples/downloads/Schubert_Lindenbaum.mei")
@@ -211,7 +243,7 @@ const midiNoteHighlightingHandler = (event) => {
                 return response.text();
             })
             .then(meiXML => {
-                tk.loadData(meiXML);      // Load data into display toolkit
+                tk.loadData(meiXML);     // Load data into display toolkit
                 tk_pdf.loadData(meiXML); // Load data into PDF toolkit
 
                 // Render the initial SVG for display
