@@ -98,10 +98,9 @@
 <body>
   <!-- Version 3.2 -->
   <h1>Hello Verovio!</h1>
-  <button id="playMIDI">Play</button>
-  <button id="stopMIDI">Stop</button>
+  <button id="loadAudio">Load Audio</button>
   <button id="printPDF">Print</button>
-  <midi-player id="verovio-midi-player" sound-font="https://storage.googleapis.com/magentadata/js/soundfonts/sgm_plus" controls="false">
+  <midi-player id="verovio-midi-player" sound-font="https://storage.googleapis.com/magentadata/js/soundfonts/sgm_plus" controls="false" style="display: none;">
             </midi-player>
   <div id="notation"></div>
 
@@ -153,17 +152,22 @@
 
       // --- Event Handlers for MIDI Playback and Display ---
       // Find this function in your <script> block:
-      const playMIDIHandler = async () => { // <<< ADD 'async' here
-          // ADD THIS LINE:
-          // This resumes the AudioContext on user interaction (the button click)
-          await Tone.start();
-      
-          let base64midi = tk.renderToMIDI(); // Use tk for MIDI (display context)
-          console.log("Verovio MIDI data length:", base64midi.length);
-          console.log("Verovio MIDI data (first 50 chars):", base64midi.substring(0, 50));
-          player.src = 'data:audio/midi;base64,' + base64midi;
-          player.start();
-      };
+       const loadAudio = document.getElementById('loadAudio'); // Get the new button reference
+
+    // ... existing verovio.module.onRuntimeInitialized block ...
+
+    verovio.module.onRuntimeInitialized = () => {
+        // ... existing toolkit initializations and options ...
+
+        // Remove or comment out your old playMIDIHandler if it's only meant for playback
+        // const playMIDIHandler = async () => { ... }; // This function will no longer be attached to the button
+
+        // New handler for the 'Display MIDI Player' button
+        const displayPlayerHandler = () => {
+            player.style.display = 'block'; // Or 'inline-block', 'flex', depending on how you want it to appear
+            // If you want it to automatically play when displayed, add player.start() here
+            // However, it's better to let the user click the player's own play button
+        };
       
       const stopMIDIHandler = () => {
         player.stop();
