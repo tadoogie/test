@@ -183,6 +183,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // Event handler for 'note' events (MIDI note starts playing)
         const midiNoteHighlightingHandler = (event) => {
+            // Re-enabling detailed logging to check startTime
+            console.log("Raw event.detail.note:", event.detail ? event.detail.note : 'event.detail is undefined');
+
             const noteData = event.detail.note; 
 
             // Use noteData.startTime for the current time
