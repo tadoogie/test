@@ -96,7 +96,7 @@
   </style>
 </head>
 <body>
-  <!-- Version 3.10 -->      
+  <!-- Version 3.11 -->      
   <h1>Hello Verovio!</h1>
   <button id="loadAudio">Load Audio</button>
   <button id="stopMIDI">Stop</button>   <button id="printPDF">Print</button>
@@ -120,7 +120,7 @@
     </div>
   </div>
 
-  <script>
+ <script>
 document.addEventListener("DOMContentLoaded", () => {
     let tk = null;       // Verovio toolkit instance for display
     let tk_pdf = null; // Verovio toolkit instance for PDF generation
@@ -183,6 +183,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // Event handler for 'note' events (MIDI note starts playing)
         const midiNoteHighlightingHandler = (event) => {
+            // --- NEW DEBUGGING LOGS ---
+            console.log("Raw event.detail:", event.detail);
+            console.log("Raw event.detail.note:", event.detail ? event.detail.note : 'event.detail is undefined');
+            // --- END NEW DEBUGGING LOGS ---
+
             const noteData = event.detail.note; // This object will have properties like 'midi', 'startTime', 'endTime', 'velocity'
 
             // Use noteData.startTime for the current time
