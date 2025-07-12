@@ -96,7 +96,7 @@
   </style>
 </head>
 <body>
-  <!-- Version 3.1 -->
+  <!-- Version 3.2 -->
   <h1>Hello Verovio!</h1>
   <button id="playMIDI">Play</button>
   <button id="stopMIDI">Stop</button>
@@ -152,14 +152,19 @@
       let currentPage = 1;
 
       // --- Event Handlers for MIDI Playback and Display ---
-      const playMIDIHandler = () => {
-        let base64midi = tk.renderToMIDI(); // Use tk for MIDI (display context)
-        console.log("Verovio MIDI data length:", base64midi.length);
-        console.log("Verovio MIDI data (first 50 chars):", base64midi.substring(0, 50));
-        player.src = 'data:audio/midi;base64,' + base64midi;
-        player.start();
+      // Find this function in your <script> block:
+      const playMIDIHandler = async () => { // <<< ADD 'async' here
+          // ADD THIS LINE:
+          // This resumes the AudioContext on user interaction (the button click)
+          await Tone.start();
+      
+          let base64midi = tk.renderToMIDI(); // Use tk for MIDI (display context)
+          console.log("Verovio MIDI data length:", base64midi.length);
+          console.log("Verovio MIDI data (first 50 chars):", base64midi.substring(0, 50));
+          player.src = 'data:audio/midi;base64,' + base64midi;
+          player.start();
       };
-
+      
       const stopMIDIHandler = () => {
         player.stop();
         document.querySelectorAll('g.note.playing').forEach(note => {
