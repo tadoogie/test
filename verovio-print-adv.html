@@ -96,7 +96,7 @@
   </style>
 </head>
 <body>
-  <!-- Version 3.2 -->
+  <!-- Version 3.3 -->
   <h1>Hello Verovio!</h1>
   <button id="loadAudio">Load Audio</button>
   <button id="printPDF">Print</button>
@@ -163,7 +163,7 @@
         // const playMIDIHandler = async () => { ... }; // This function will no longer be attached to the button
 
         // New handler for the 'Display MIDI Player' button
-        const displayPlayerHandler = () => {
+        const loadAudioHandler = () => {
             player.style.display = 'block'; // Or 'inline-block', 'flex', depending on how you want it to appear
             // If you want it to automatically play when displayed, add player.start() here
             // However, it's better to let the user click the player's own play button
