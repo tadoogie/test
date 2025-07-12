@@ -158,7 +158,6 @@ document.addEventListener("DOMContentLoaded", () => {
             await Tone.start(); // Resume AudioContext
 
             // Only load MIDI and play if not already playing or loaded
-            // This simple check prevents re-loading the MIDI every time 'loadAudio' is clicked
             if (!player.src || player.src.length < 50) {
                 let base64midi = tk.renderToMIDI();
                 console.log("Verovio MIDI data length:", base64midi.length);
@@ -167,35 +166,47 @@ document.addEventListener("DOMContentLoaded", () => {
             }
             player.start();
         };
-
+        
         const stopMIDIHandler = () => {
             player.stop();
             document.querySelectorAll('g.note.playing').forEach(note => {
                 note.classList.remove("playing");
             });
+            // Also clear highlighting when stopping
+            document.querySelectorAll('g.note.playing').forEach(note => note.classList.remove("playing"));
+            document.querySelectorAll('g.note.highlighted').forEach(note => note.classList.remove("highlighted"));
         };
 
-        const midiHighlightingHandler = (event) => {
-            console.log("midiHighlightingHandler called!"); // NEW LOG HERE
-            console.log("MIDI timeupdate event fired. Current time:", event.time);
+        // NEW: Event handler for 'note' events
+        const midiNoteHighlightingHandler = (event) => {
+            console.log("midiNoteHighlightingHandler called! Note event:", event.detail.note);
 
-            // Clear previous highlighting
+            // The 'note' event provides the note object directly.
+            // Highlight this specific note.
+            const noteData = event.detail.note; // This 'noteData' object contains start time, end time, etc.
+
+            // Remove 'playing' class from all notes first to ensure only current notes are highlighted
             document.querySelectorAll('g.note.playing').forEach(playingNote => {
                 playingNote.classList.remove("playing");
             });
 
-            let currentElements = tk.getElementsAtTime(event.time * 1000);
-            console.log("Elements at time:", currentElements);
+            // Get elements at the *start* time of the current note (in milliseconds for Verovio)
+            // Assuming noteData.time or noteData.startTime is available and in seconds
+            const currentTimeMs = (noteData.time || noteData.startTime) * 1000;
+            let currentElements = tk.getElementsAtTime(currentTimeMs);
+            
+            console.log("Elements at current note time:", currentElements);
 
             for (let noteId of currentElements.notes) {
                 let noteElement = document.getElementById(noteId);
                 if (noteElement) {
-                    console.log("Found note element:", noteId);
+                    console.log("Found note element for highlighting:", noteId);
                     noteElement.classList.add("playing");
                 } else {
                     console.log("Note element NOT found for ID:", noteId);
                 }
             }
+
             // Page turning logic for display toolkit
             if (currentElements.page > 0 && currentElements.page !== currentPage) {
                 currentPage = currentElements.page;
@@ -221,8 +232,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 // --- Attach Event Listeners and Callbacks after data is loaded ---
                 loadAudioButton.addEventListener("click", loadAudioAndPlayHandler);
                 stopMIDIButton.addEventListener("click", stopMIDIHandler);
-                player.addEventListener('timeupdate', midiHighlightingHandler);
-                console.log("Attempted to attach timeupdate listener to midi-player."); // NEW LOG HERE
+                
+                // CHANGED: Use 'note' event instead of 'timeupdate'
+                player.addEventListener('note', midiNoteHighlightingHandler);
+                console.log("Attempted to attach 'note' listener to midi-player.");
 
                 // --- Event Listener for Print Button (shows modal) ---
                 printPDFButton.addEventListener('click', function() {
@@ -290,9 +303,9 @@ document.addEventListener("DOMContentLoaded", () => {
                             layout: 'portrait',
                             margins: { top: 10, bottom: 10, left: 10, right: 10 }
                         });
-
+                        
                         const stream = doc.pipe(blobStream());
-
+                        
                         stream.on('finish', function() {
                             const blob = stream.toBlob('application/pdf');
                             const url = URL.createObjectURL(blob);
@@ -306,12 +319,12 @@ document.addEventListener("DOMContentLoaded", () => {
                             document.body.removeChild(a);
                             console.log('PDF download initiated from Verovio SVG.');
                         });
-
+                        
                         stream.on('error', function(err) {
                             console.error("Error creating PDF stream:", err);
                             alert("An error occurred during PDF creation.");
                         });
-
+                        
                         tk_pdf.setOptions({
                             scale: currentPaperSettings.verovioScale,
                             pageWidth: currentPaperSettings.verovioPageWidth,
@@ -337,7 +350,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
                             const drawableWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
                             const drawableHeight = doc.page.height - doc.page.margins.top - doc.page.margins.bottom;
-
+                            
                             await SVGtoPDF(doc, svgString, doc.page.margins.left, doc.page.margins.top, {
                                 width: drawableWidth,
                                 height: drawableHeight,
@@ -345,7 +358,7 @@ document.addEventListener("DOMContentLoaded", () => {
                                 assumeGIsCursive: true
                             });
                         }
-
+                        
                         doc.end();
 
                         tk_pdf.setOptions(originalPdfOptions);
