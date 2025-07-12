@@ -1,370 +1,371 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="utf-8">
-  <title>Verovio MIDI Player</title>
-  <link href="https://book.verovio.org/tutorials/midi.css" rel="stylesheet" type="text/css" />
-  <script src="https://www.verovio.org/javascript/latest/verovio-toolkit-wasm.js" defer></script>
-  <script src="https://cdn.jsdelivr.net/combine/npm/tone@14.7.58,npm/@magenta/music@1.23.1/es6/core.js,npm/focus-visible@5,npm/html-midi-player@1.5.0"></script>
+  <meta charset="utf-8">
+  <title>Verovio MIDI Player</title>
+  <link href="https://book.verovio.org/tutorials/midi.css" rel="stylesheet" type="text/css" />
+  <script src="https://www.verovio.org/javascript/latest/verovio-toolkit-wasm.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/combine/npm/tone@14.7.58,npm/@magenta/music@1.23.1/es6/core.js,npm/focus-visible@5,npm/html-midi-player@1.5.0"></script>
 
-  <script src="js/pdfkit.standalone.js"></script>
-  <script src="js/blob-stream.js"></script>
-  <script src="js/svg-to-pdfkit.js"></script>
-  <style>
-    body {
-      font-family: sans-serif;
-      margin: 20px;
-    }
-    #notation {
-      border: 1px solid #ccc;
-      margin-top: 20px;
-      overflow-x: auto; /* For horizontal scrolling if content is wider */
-    }
-    .playing {
-      fill: #ff0000; /* Highlight notes in red */
-      stroke: #ff0000;
-    }
+  <script src="js/pdfkit.standalone.js"></script>
+  <script src="js/blob-stream.js"></script>
+  <script src="js/svg-to-pdfkit.js"></script>
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 20px;
+    }
+    #notation {
+      border: 1px solid #ccc;
+      margin-top: 20px;
+      overflow-x: auto; /* For horizontal scrolling if content is wider */
+    }
+    .playing {
+      fill: #ff0000; /* Highlight notes in red */
+      stroke: #ff0000;
+    }
 
-    /* --- New CSS for the Paper Size Modal --- */
-    #paperSizeModal {
-      display: none; /* Changed from 'flex' to 'none' */
-      position: fixed; /* Stay in place */
-      z-index: 1000; /* Sit on top */
-      left: 0;
-      top: 0;
-      width: 100%; /* Full width */
-      height: 100%; /* Full height */
-      overflow: auto; /* Enable scroll if needed */
-      background-color: rgba(0,0,0,0.6); /* Black w/ opacity */
-      justify-content: center; /* Center horizontally */
-      align-items: center; /* Center vertically */
-      /* display: flex; will be set by JS when needed */
-    }
+    /* --- New CSS for the Paper Size Modal --- */
+    #paperSizeModal {
+      display: none; /* Changed from 'flex' to 'none' */
+      position: fixed; /* Stay in place */
+      z-index: 1000; /* Sit on top */
+      left: 0;
+      top: 0;
+      width: 100%; /* Full width */
+      height: 100%; /* Full height */
+      overflow: auto; /* Enable scroll if needed */
+      background-color: rgba(0,0,0,0.6); /* Black w/ opacity */
+      justify-content: center; /* Center horizontally */
+      align-items: center; /* Center vertically */
+      /* display: flex; will be set by JS when needed */
+    }
 
-    #paperSizeModal > div {
-      background-color: #fefefe;
-      margin: auto; /* For browsers that don't support flex centering */
-      padding: 30px;
-      border: 1px solid #888;
-      width: 90%; /* Could be more specific */
-      max-width: 350px; /* Max width for larger screens */
-      border-radius: 8px;
-      box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2), 0 6px 20px 0 rgba(0,0,0,0.19);
-      text-align: center;
-    }
+    #paperSizeModal > div {
+      background-color: #fefefe;
+      margin: auto; /* For browsers that don't support flex centering */
+      padding: 30px;
+      border: 1px solid #888;
+      width: 90%; /* Could be more specific */
+      max-width: 350px; /* Max width for larger screens */
+      border-radius: 8px;
+      box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2), 0 6px 20px 0 rgba(0,0,0,0.19);
+      text-align: center;
+    }
 
-    #paperSizeModal h2 {
-        margin-top: 0;
-        color: #333;
-    }
+    #paperSizeModal h2 {
+        margin-top: 0;
+        color: #333;
+    }
 
-    #paperSizeModal label {
-        margin-left: 5px;
-        font-size: 1.1em;
-    }
+    #paperSizeModal label {
+        margin-left: 5px;
+        font-size: 1.1em;
+    }
 
-    #paperSizeModal input[type="radio"] {
-        margin-bottom: 10px;
-    }
+    #paperSizeModal input[type="radio"] {
+        margin-bottom: 10px;
+    }
 
-    #paperSizeModal button {
-        padding: 10px 20px;
-        margin: 10px 5px;
-        border: none;
-        border-radius: 5px;
-        cursor: pointer;
-        font-size: 1em;
-    }
+    #paperSizeModal button {
+        padding: 10px 20px;
+        margin: 10px 5px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 1em;
+    }
 
-    #paperSizeModal button#generatePdfButton {
-        background-color: #4CAF50; /* Green */
-        color: white;
-    }
+    #paperSizeModal button#generatePdfButton {
+        background-color: #4CAF50; /* Green */
+        color: white;
+    }
 
-    #paperSizeModal button#generatePdfButton:hover {
-        background-color: #45a049;
-    }
+    #paperSizeModal button#generatePdfButton:hover {
+        background-color: #45a049;
+    }
 
-    #paperSizeModal button#cancelPdfButton {
-        background-color: #f44336; /* Red */
-        color: white;
-    }
+    #paperSizeModal button#cancelPdfButton {
+        background-color: #f44336; /* Red */
+        color: white;
+    }
 
-    #paperSizeModal button#cancelPdfButton:hover {
-        background-color: #da190b;
-    }
-  </style>
+    #paperSizeModal button#cancelPdfButton:hover {
+        background-color: #da190b;
+    }
+  </style>
 </head>
 <body>
-  <!-- Version 3.4 -->
-  <h1>Hello Verovio!</h1>
-  <button id="loadAudio">Load Audio</button>
-  <button id="printPDF">Print</button>
-  <midi-player id="verovio-midi-player" sound-font="https://storage.googleapis.com/magentadata/js/soundfonts/sgm_plus" controls="false" style="display: none;">
-            </midi-player>
-  <div id="notation"></div>
+    <h1>Hello Verovio!</h1>
+  <button id="loadAudio">Load Audio</button>
+  <button id="stopMIDI">Stop</button>   <button id="printPDF">Print</button>
+  <midi-player id="verovio-midi-player" sound-font="https://storage.googleapis.com/magentadata/js/soundfonts/sgm_plus" controls="false" style="display: none;">
+            </midi-player>
+  <div id="notation"></div>
 
-  <div id="paperSizeModal">
-    <div>
-      <h2>Choose Paper Size</h2>
-      <input type="radio" id="paperLetter" name="paperSize" value="LETTER" checked>
-      <label for="paperLetter">Letter (8.5" x 11")</label><br><br>
-      <input type="radio" id="paperA4" name="paperSize" value="A4">
-      <label for="paperA4">A4 (210mm x 297mm)</label><br><br>
-      <input type="radio" id="paperA5" name="paperSize" value="A5">
-      <label for="paperA5">A5 (148mm x 210mm)</label><br><br>
-      <input type="radio" id="paperOctavo" name="paperSize" value="OCTAVO">
-      <label for="paperOctavo">Choral (Octavo ~6.75" x 10.5")</label><br><br>
-      <button id="generatePdfButton">Generate PDF</button>
-      <button id="cancelPdfButton">Cancel</button>
-    </div>
-  </div>
+  <div id="paperSizeModal">
+    <div>
+      <h2>Choose Paper Size</h2>
+      <input type="radio" id="paperLetter" name="paperSize" value="LETTER" checked>
+      <label for="paperLetter">Letter (8.5" x 11")</label><br><br>
+      <input type="radio" id="paperA4" name="paperSize" value="A4">
+      <label for="paperA4">A4 (210mm x 297mm)</label><br><br>
+      <input type="radio" id="paperA5" name="paperSize" value="A5">
+      <label for="paperA5">A5 (148mm x 210mm)</label><br><br>
+      <input type="radio" id="paperOctavo" name="paperSize" value="OCTAVO">
+      <label for="paperOctavo">Choral (Octavo ~6.75" x 10.5")</label><br><br>
+      <button id="generatePdfButton">Generate PDF</button>
+      <button id="cancelPdfButton">Cancel</button>
+    </div>
+  </div>
 
-  <script>
-  document.addEventListener("DOMContentLoaded", () => {
-    let tk = null;     // Verovio toolkit instance for display
-    let tk_pdf = null; // Verovio toolkit instance for PDF generation
+  <script>
+  document.addEventListener("DOMContentLoaded", () => {
+    let tk = null;     // Verovio toolkit instance for display
+    let tk_pdf = null; // Verovio toolkit instance for PDF generation
 
-    const player = document.querySelector('#verovio-midi-player');
-    const printPDF = document.getElementById('printPDF');
+    const player = document.querySelector('#verovio-midi-player');
+    const loadAudioButton = document.getElementById('loadAudio'); // Corrected variable name
+    const stopMIDIButton = document.getElementById('stopMIDI'); // Get the stop button
+    const printPDFButton = document.getElementById('printPDF'); // Corrected variable name
 
-    // Get references to modal elements
-    const paperSizeModal = document.getElementById('paperSizeModal');
-    const generatePdfButton = document.getElementById('generatePdfButton');
-    const cancelPdfButton = document.getElementById('cancelPdfButton');
+    // Get references to modal elements
+    const paperSizeModal = document.getElementById('paperSizeModal');
+    const generatePdfButton = document.getElementById('generatePdfButton');
+    const cancelPdfButton = document.getElementById('cancelPdfButton');
 
 
-    verovio.module.onRuntimeInitialized = () => {
-      // Initialize the display toolkit
-      tk = new verovio.toolkit();
-      // Initialize the PDF toolkit
-      tk_pdf = new verovio.toolkit();
+    verovio.module.onRuntimeInitialized = () => {
+      // Initialize the display toolkit
+      tk = new verovio.toolkit();
+      // Initialize the PDF toolkit
+      tk_pdf = new verovio.toolkit();
 
-      // Set options for Verovio DISPLAY (how it looks on the webpage)
-      tk.setOptions({
-        pageWidth: document.body.clientWidth,
-        pageHeight: window.innerHeight - 100,
-        scale: 70, // Display scale (you can adjust this for your webpage)
-        scaleToPageSize: true
-      });
+      // Set options for Verovio DISPLAY (how it looks on the webpage)
+      tk.setOptions({
+        pageWidth: document.body.clientWidth,
+        pageHeight: window.innerHeight - 100,
+        scale: 70, // Display scale (you can adjust this for your webpage)
+        scaleToPageSize: true
+      });
 
-      let currentPage = 1;
+      let currentPage = 1;
 
-      // --- Event Handlers for MIDI Playback and Display ---
-      // Find this function in your <script> block:
-       const loadAudio = document.getElementById('loadAudio'); // Get the new button reference
+      // Unified handler for 'Load Audio' button - displays player AND starts MIDI
+      const loadAudioAndPlayHandler = async () => {
+        player.style.display = 'block'; // Make player visible
+        await Tone.start(); // Resume AudioContext
 
-    // ... existing verovio.module.onRuntimeInitialized block ...
+        // Only load MIDI and play if not already playing or loaded
+        // This simple check prevents re-loading the MIDI every time 'loadAudio' is clicked
+        if (!player.src || player.src.length < 50) {
+            let base64midi = tk.renderToMIDI();
+            console.log("Verovio MIDI data length:", base64midi.length);
+            console.log("Verovio MIDI data (first 50 chars):", base64midi.substring(0, 50));
+            player.src = 'data:audio/midi;base64,' + base64midi;
+        }
+        player.start();
+      };
+      
+      const stopMIDIHandler = () => {
+        player.stop();
+        document.querySelectorAll('g.note.playing').forEach(note => {
+          note.classList.remove("playing");
+        });
+      };
 
-    verovio.module.onRuntimeInitialized = () => {
-        // ... existing toolkit initializations and options ...
+      const midiHighlightingHandler = (event) => {
+        console.log("MIDI timeupdate event fired. Current time:", event.time); // ADD THIS LINE
 
-        // Remove or comment out your old playMIDIHandler if it's only meant for playback
-        // const playMIDIHandler = async () => { ... }; // This function will no longer be attached to the button
+        // Clear previous highlighting
+        document.querySelectorAll('g.note.playing').forEach(playingNote => {
+            playingNote.classList.remove("playing");
+        });
 
-        // New handler for the 'Display MIDI Player' button
-        const loadAudioHandler = () => {
-            player.style.display = 'block'; // Or 'inline-block', 'flex', depending on how you want it to appear
-            // If you want it to automatically play when displayed, add player.start() here
-            // However, it's better to let the user click the player's own play button
-        };
-    }
-      
-      const stopMIDIHandler = () => {
-        player.stop();
-        document.querySelectorAll('g.note.playing').forEach(note => {
-          note.classList.remove("playing");
-        });
-      };
+        let currentElements = tk.getElementsAtTime(event.time * 1000);
+        console.log("Elements at time:", currentElements); // ADD THIS LINE (after currentElements is defined)
 
-      const midiHighlightingHandler = (event) => {
-    console.log("MIDI timeupdate event fired. Current time:", event.time); // ADD THIS LINE
-
-    // Clear previous highlighting
-    document.querySelectorAll('g.note.playing').forEach(playingNote => {
-        playingNote.classList.remove("playing");
-    });
-
-    let currentElements = tk.getElementsAtTime(event.time * 1000);
-    console.log("Elements at time:", currentElements); // ADD THIS LINE (after currentElements is defined)
-
-    // ... rest of your handler code ...
-    for (let noteId of currentElements.notes) {
-        let noteElement = document.getElementById(noteId);
-        if (noteElement) {
-            console.log("Found note element:", noteId); // ADD THIS LINE
-            noteElement.classList.add("playing");
-        } else {
-            console.log("Note element NOT found for ID:", noteId); // ADD THIS LINE
+        for (let noteId of currentElements.notes) {
+            let noteElement = document.getElementById(noteId);
+            if (noteElement) {
+                console.log("Found note element:", noteId); // ADD THIS LINE
+                noteElement.classList.add("playing");
+            } else {
+                console.log("Note element NOT found for ID:", noteId); // ADD THIS LINE
+            }
+        }
+        // Page turning logic for display toolkit
+        if (currentElements.page > 0 && currentElements.page !== currentPage) {
+            currentPage = currentElements.page;
+            document.getElementById("notation").innerHTML = tk.renderToSVG(currentPage);
         }
-    }
-};
+    };
 
-      // --- Load MEI Data and Render SVG ---
-      fetch("https://www.verovio.org/examples/downloads/Schubert_Lindenbaum.mei")
-        .then(response => {
-          if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-          }
-          return response.text();
-        })
-        .then(meiXML => {
-          tk.loadData(meiXML);     // Load data into display toolkit
-          tk_pdf.loadData(meiXML); // Load data into PDF toolkit
+      // --- Load MEI Data and Render SVG ---
+      fetch("https://www.verovio.org/examples/downloads/Schubert_Lindenbaum.mei")
+        .then(response => {
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          return response.text();
+        })
+        .then(meiXML => {
+          tk.loadData(meiXML);     // Load data into display toolkit
+          tk_pdf.loadData(meiXML); // Load data into PDF toolkit
 
-          // Render the initial SVG for display
-          document.getElementById("notation").innerHTML = tk.renderToSVG(currentPage);
+          // Render the initial SVG for display
+          document.getElementById("notation").innerHTML = tk.renderToSVG(currentPage);
 
-          // --- Attach Event Listeners and Callbacks after data is loaded ---
-          document.getElementById("playMIDI").addEventListener("click", playMIDIHandler);
-          document.getElementById("stopMIDI").addEventListener("click", stopMIDIHandler);
-          player.addEventListener('timeupdate', midiHighlightingHandler);
+          // --- Attach Event Listeners and Callbacks after data is loaded ---
+          loadAudioButton.addEventListener("click", loadAudioAndPlayHandler); // Changed from playMIDI to loadAudio
+          stopMIDIButton.addEventListener("click", stopMIDIHandler); // Attached to the new stopMIDIButton
+          player.addEventListener('timeupdate', midiHighlightingHandler);
 
-          // --- Event Listener for Print Button (shows modal) ---
-          printPDF.addEventListener('click', function() {
-              paperSizeModal.style.display = 'flex'; // Show the modal using flex for centering
-          });
+          // --- Event Listener for Print Button (shows modal) ---
+          printPDFButton.addEventListener('click', function() { // Corrected variable name
+              paperSizeModal.style.display = 'flex'; // Show the modal using flex for centering
+          });
 
-          // --- Event Listener for Cancel Button in Modal ---
-          cancelPdfButton.addEventListener('click', function() {
-              paperSizeModal.style.display = 'none'; // Hide the modal
-          });
+          // --- Event Listener for Cancel Button in Modal ---
+          cancelPdfButton.addEventListener('click', function() {
+              paperSizeModal.style.display = 'none'; // Hide the modal
+          });
 
-          // --- Event Listener for Generate PDF Button in Modal ---
-          generatePdfButton.addEventListener('click', async function() {
-              paperSizeModal.style.display = 'none'; // Hide the modal
-              const selectedSizeElement = document.querySelector('input[name="paperSize"]:checked');
-              // Default to 'LETTER' if nothing is selected (shouldn't happen with checked default)
-              const selectedPaperSize = selectedSizeElement ? selectedSizeElement.value : 'LETTER'; 
+          // --- Event Listener for Generate PDF Button in Modal ---
+          generatePdfButton.addEventListener('click', async function() {
+              paperSizeModal.style.display = 'none'; // Hide the modal
+              const selectedSizeElement = document.querySelector('input[name="paperSize"]:checked');
+              // Default to 'LETTER' if nothing is selected (shouldn't happen with checked default)
+              const selectedPaperSize = selectedSizeElement ? selectedSizeElement.value : 'LETTER'; 
 
-              await generatePDF(selectedPaperSize);
-          });
+              await generatePDF(selectedPaperSize);
+          });
 
-          // --- PDF Generation Logic (moved into a new function) ---
-          async function generatePDF(selectedPaperSize) {
-              console.log(`Generating PDF for ${selectedPaperSize} paper size...`);
+          // --- PDF Generation Logic (moved into a new function) ---
+          async function generatePDF(selectedPaperSize) {
+              console.log(`Generating PDF for ${selectedPaperSize} paper size...`);
 
-              // IMPORTANT: Use tk_pdf for all PDF-related Verovio operations
-              if (!tk_pdf || tk_pdf.getMEI() === '') {
-                alert("Verovio PDF toolkit is not ready or no MEI data loaded. Please load a score first.");
-                console.error("Verovio PDF Toolkit (tk_pdf) not initialized or MEI data is empty.");
-                return;
-              }
+              // IMPORTANT: Use tk_pdf for all PDF-related Verovio operations
+              if (!tk_pdf || tk_pdf.getMEI() === '') {
+                alert("Verovio PDF toolkit is not ready or no MEI data loaded. Please load a score first.");
+                console.error("Verovio PDF Toolkit (tk_pdf) not initialized or MEI data is empty.");
+                return;
+              }
 
-              try {
-                // Store original options from tk_pdf to restore later
-                const originalPdfOptions = tk_pdf.getOptions();
+              try {
+                // Store original options from tk_pdf to restore later
+                const originalPdfOptions = tk_pdf.getOptions();
 
-                // Define paper size specific options for PDFKit and Verovio
-                const paperSizeOptions = {
-                    'LETTER': {
-                        pdfkitSize: 'LETTER',
-                        verovioPageWidth: 2000, // Verovio's internal page width
-                        verovioPageHeight: 1100, // Verovio's internal page height for Letter aspect ratio
-                        verovioScale: 40
-                    },
-                    'A4': {
-                        pdfkitSize: 'A4',
-                        verovioPageWidth: 2000, // Keep width consistent
-                        verovioPageHeight: 1180, // Slightly taller for A4 aspect ratio
-                        verovioScale: 40
-                    },
-                    'A5': { // New A5 option
-                        pdfkitSize: 'A5', // PDFKit directly supports 'A5'
-                        verovioPageWidth: 2000, // Adjusted Verovio width for A5
-                        verovioPageHeight: 830, // Adjusted Verovio height for A5 (proportional to A4)
-                        verovioScale: 40
-                    },
-                    'OCTAVO': { // New Choral (Octavo) option
-                        pdfkitSize: [486, 756], // Custom size for PDFKit (width, height in points) for 6.75" x 10.5"
-                        verovioPageWidth: 2000, // Adjusted Verovio width for Octavo
-                        verovioPageHeight: 1050, // Adjusted Verovio height for Octavo
-                        verovioScale: 40
-                    }
-                };
+                // Define paper size specific options for PDFKit and Verovio
+                const paperSizeOptions = {
+                    'LETTER': {
+                        pdfkitSize: 'LETTER',
+                        verovioPageWidth: 2000, // Verovio's internal page width
+                        verovioPageHeight: 1100, // Verovio's internal page height for Letter aspect ratio
+                        verovioScale: 40
+                    },
+                    'A4': {
+                        pdfkitSize: 'A4',
+                        verovioPageWidth: 2000, // Keep width consistent
+                        verovioPageHeight: 1180, // Slightly taller for A4 aspect ratio
+                        verovioScale: 40
+                    },
+                    'A5': { // New A5 option
+                        pdfkitSize: 'A5', // PDFKit directly supports 'A5'
+                        verovioPageWidth: 2000, // Adjusted Verovio width for A5
+                        verovioPageHeight: 830, // Adjusted Verovio height for A5 (proportional to A4)
+                        verovioScale: 40
+                    },
+                    'OCTAVO': { // New Choral (Octavo) option
+                        pdfkitSize: [486, 756], // Custom size for PDFKit (width, height in points) for 6.75" x 10.5"
+                        verovioPageWidth: 2000, // Adjusted Verovio width for Octavo
+                        verovioPageHeight: 1050, // Adjusted Verovio height for Octavo
+                        verovioScale: 40
+                    }
+                };
 
-                const currentPaperSettings = paperSizeOptions[selectedPaperSize];
+                const currentPaperSettings = paperSizeOptions[selectedPaperSize];
 
-                let doc = new PDFDocument({
-                  size: currentPaperSettings.pdfkitSize, // Use selected size for PDFKit
-                  layout: 'portrait',
-                  margins: { top: 10, bottom: 10, left: 10, right: 10 } // User's preferred margins (0.5 inches)
-                });
-                
-                const stream = doc.pipe(blobStream());
-                
-                stream.on('finish', function() {
-                  const blob = stream.toBlob('application/pdf');
-                  const url = URL.createObjectURL(blob);
-                  const a = document.createElement('a');
-                  a.style.display = 'none';
-                  a.href = url;
-                  // Dynamic filename based on selected paper size
-                  a.download = `verovio-output-${selectedPaperSize.toLowerCase()}.pdf`; 
-                  document.body.appendChild(a);
-                  a.click();
-                  window.URL.revokeObjectURL(url);
-                  document.body.removeChild(a);
-                  console.log('PDF download initiated from Verovio SVG.');
-                });
-                
-                stream.on('error', function(err) {
-                  console.error("Error creating PDF stream:", err);
-                  alert("An error occurred during PDF creation.");
-                });
-                
-                // Set options for Verovio PDF GENERATION (these will *only* apply to the PDF)
-                tk_pdf.setOptions({ // <--- Using tk_pdf here
-                  scale: currentPaperSettings.verovioScale, // Keep user's preferred music scale
-                  pageWidth: currentPaperSettings.verovioPageWidth, // Use selected Verovio page width
-                  pageHeight: currentPaperSettings.verovioPageHeight, // Use selected Verovio page height
-                  adjustPageHeight: true
-                });
-                console.log("Verovio PDF options set for PDF generation before rendering pages.");
+                let doc = new PDFDocument({
+                  size: currentPaperSettings.pdfkitSize, // Use selected size for PDFKit
+                  layout: 'portrait',
+                  margins: { top: 10, bottom: 10, left: 10, right: 10 } // User's preferred margins (0.5 inches)
+                });
+                
+                const stream = doc.pipe(blobStream());
+                
+                stream.on('finish', function() {
+                  const blob = stream.toBlob('application/pdf');
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.style.display = 'none';
+                  a.href = url;
+                  // Dynamic filename based on selected paper size
+                  a.download = `verovio-output-${selectedPaperSize.toLowerCase()}.pdf`; 
+                  document.body.appendChild(a);
+                  a.click();
+                  window.URL.revokeObjectURL(url);
+                  document.body.removeChild(a);
+                  console.log('PDF download initiated from Verovio SVG.');
+                });
+                
+                stream.on('error', function(err) {
+                  console.error("Error creating PDF stream:", err);
+                  alert("An error occurred during PDF creation.");
+                });
+                
+                // Set options for Verovio PDF GENERATION (these will *only* apply to the PDF)
+                tk_pdf.setOptions({ // <--- Using tk_pdf here
+                  scale: currentPaperSettings.verovioScale, // Keep user's preferred music scale
+                  pageWidth: currentPaperSettings.verovioPageWidth, // Use selected Verovio page width
+                  pageHeight: currentPaperSettings.verovioPageHeight, // Use selected Verovio page height
+                  adjustPageHeight: true
+                });
+                console.log("Verovio PDF options set for PDF generation before rendering pages.");
 
-                const pageCount = tk_pdf.getPageCount(); // <--- Using tk_pdf here
-                if (pageCount === 0) {
-                  throw new Error("Verovio PDF toolkit reports no pages to render. Check MEI data.");
-                }
-                console.log("Total pages to render for PDF:", pageCount);
+                const pageCount = tk_pdf.getPageCount(); // <--- Using tk_pdf here
+                if (pageCount === 0) {
+                  throw new Error("Verovio PDF toolkit reports no pages to render. Check MEI data.");
+                }
+                console.log("Total pages to render for PDF:", pageCount);
 
-                // Loop through each Verovio page and add its SVG to the PDF
-                for (let i = 1; i <= pageCount; i++) {
-                  const svgString = tk_pdf.renderToSVG(i); // <--- Using tk_pdf here
-                  console.log(`Processing SVG page ${i} from PDF toolkit. Length: ${svgString.length}. First 200 chars:`, svgString.substring(0, 200));
+                // Loop through each Verovio page and add its SVG to the PDF
+                for (let i = 1; i <= pageCount; i++) {
+                  const svgString = tk_pdf.renderToSVG(i); // <--- Using tk_pdf here
+                  console.log(`Processing SVG page ${i} from PDF toolkit. Length: ${svgString.length}. First 200 chars:`, svgString.substring(0, 200));
 
-                  if (typeof svgString !== 'string' || svgString.trim() === '' || !svgString.startsWith('<svg')) {
-                    console.error(`SVG string for page ${i} from PDF toolkit is invalid or empty:`, svgString);
-                    throw new Error(`Invalid or malformed SVG content for page ${i}.`);
-                  }
+                  if (typeof svgString !== 'string' || svgString.trim() === '' || !svgString.startsWith('<svg')) {
+                    console.error(`SVG string for page ${i} from PDF toolkit is invalid or empty:`, svgString);
+                    throw new Error(`Invalid or malformed SVG content for page ${i}.`);
+                  }
 
-                  const drawableWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
-                  const drawableHeight = doc.page.height - doc.page.margins.top - doc.page.margins.bottom;
-                  
-                  await SVGtoPDF(doc, svgString, doc.page.margins.left, doc.page.margins.top, {
-                    width: drawableWidth,
-                    height: drawableHeight,
-                    preserveAspectRatio: 'xMidYMid meet',
-                    assumeGIsCursive: true
-                  });
-                  
-                  // No page numbers added here, as confirmed previously it caused a blank page.
-                }
-                
-                doc.end(); // Finalize the PDF document
+                  const drawableWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+                  const drawableHeight = doc.page.height - doc.page.margins.top - doc.page.margins.bottom;
+                  
+                  await SVGtoPDF(doc, svgString, doc.page.margins.left, doc.page.margins.top, {
+                    width: drawableWidth,
+                    height: drawableHeight,
+                    preserveAspectRatio: 'xMidYMid meet',
+                    assumeGIsCursive: true
+                  });
+                  
+                  // No page numbers added here, as confirmed previously it caused a blank page.
+                }
+                
+                doc.end(); // Finalize the PDF document
 
-                tk_pdf.setOptions(originalPdfOptions); // <--- Restore original Verovio PDF options
-              } catch (error) {
-                console.error("Failed to generate PDF:", error);
-                alert("Failed to generate PDF. Check console for details.");
-              }
-          } // end of generatePDF function
-        }) // end of fetch .then
-        .catch(error => {
-          console.error("Error loading or processing MEI data:", error);
-        });
-    }; // end of verovio.module.onRuntimeInitialized
-  }); // end of DOMContentLoaded
-  </script>
+                tk_pdf.setOptions(originalPdfOptions); // <--- Restore original Verovio PDF options
+              } catch (error) {
+                console.error("Failed to generate PDF:", error);
+                alert("Failed to generate PDF. Check console for details.");
+              }
+          } // end of generatePDF function
+        }) // end of fetch .then
+        .catch(error => {
+          console.error("Error loading or processing MEI data:", error);
+        });
+    }; // end of verovio.module.onRuntimeInitialized
+  }); // end of DOMContentLoaded
+  </script>
 </body>
 </html>
