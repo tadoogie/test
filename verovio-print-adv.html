@@ -168,24 +168,27 @@
       };
 
       const midiHighlightingHandler = (event) => {
-        document.querySelectorAll('g.note.playing').forEach(playingNote => {
-          playingNote.classList.remove("playing");
-        });
+    console.log("MIDI timeupdate event fired. Current time:", event.time); // ADD THIS LINE
 
-        let currentElements = tk.getElementsAtTime(event.time * 1000); // Use tk for highlighting (display context)
+    // Clear previous highlighting
+    document.querySelectorAll('g.note.playing').forEach(playingNote => {
+        playingNote.classList.remove("playing");
+    });
 
-        if (currentElements.page > 0 && currentElements.page !== currentPage) {
-          currentPage = currentElements.page;
-          document.getElementById("notation").innerHTML = tk.renderToSVG(currentPage); // Use tk for display rendering
-        }
-        
-        for (let noteId of currentElements.notes) {
-          let noteElement = document.getElementById(noteId);
-          if (noteElement) {
+    let currentElements = tk.getElementsAtTime(event.time * 1000);
+    console.log("Elements at time:", currentElements); // ADD THIS LINE (after currentElements is defined)
+
+    // ... rest of your handler code ...
+    for (let noteId of currentElements.notes) {
+        let noteElement = document.getElementById(noteId);
+        if (noteElement) {
+            console.log("Found note element:", noteId); // ADD THIS LINE
             noteElement.classList.add("playing");
-          }
+        } else {
+            console.log("Note element NOT found for ID:", noteId); // ADD THIS LINE
         }
-      };
+    }
+};
 
       // --- Load MEI Data and Render SVG ---
       fetch("https://www.verovio.org/examples/downloads/Schubert_Lindenbaum.mei")
