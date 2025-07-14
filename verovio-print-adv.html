@@ -158,7 +158,15 @@ document.addEventListener("DOMContentLoaded", () => {
         // Unified handler for 'Load Audio' button - displays player AND starts MIDI
         const loadAudioAndPlayHandler = async () => {
             player.style.display = 'block'; // Make player visible
-            await Tone.start(); // Resume AudioContext
+            
+            try {
+                await Tone.start(); // Resume AudioContext
+                console.log("Tone.js AudioContext resumed.");
+            } catch (error) {
+                console.error("Failed to resume Tone.js AudioContext:", error);
+                alert("Failed to start audio. Please ensure browser allows autoplay or interact with the page.");
+                return; // Stop if audio context cannot be resumed
+            }
 
             // Only load MIDI and play if not already playing or loaded
             if (!player.src || player.src.length < 50) {
@@ -167,7 +175,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 console.log("Verovio MIDI data (first 50 chars):", base64midi.substring(0, 50));
                 player.src = 'data:audio/midi;base64,' + base64midi;
             }
+            
             player.start();
+            console.log("player.start() called."); // Confirm player.start() is invoked
         };
         
         const stopMIDIHandler = () => {
@@ -181,59 +191,60 @@ document.addEventListener("DOMContentLoaded", () => {
             console.log("MIDI stopped. All highlights cleared.");
         };
 
-        // --- REVISED: Highlighting logic now primarily uses 'timeupdate' event ---
+        // --- REVISED: Highlighting logic now primarily focuses on event logging ---
         const midiHighlightingHandler = (event) => {
-            // Check if it's a 'note' event or 'timeupdate' event
-            const currentTimeSeconds = event.detail.currentTime !== undefined ? event.detail.currentTime : (event.detail.note ? event.detail.note.startTime : 0);
-            const eventTimeMs = currentTimeSeconds * 1000; 
+            let currentTimeSeconds = null;
 
-            // Log for debugging
-            if (event.type === 'note') {
+            if (event.type === 'timeupdate') {
+                currentTimeSeconds = event.detail.currentTime;
+                console.log(`Timeupdate event! Current Time: ${currentTimeSeconds}s`);
+            } else if (event.type === 'note') {
                 const noteData = event.detail.note;
+                currentTimeSeconds = noteData.startTime;
                 const durationSeconds = noteData.endTime - noteData.startTime;
                 console.log(`Note event! MIDI Note: ${noteData.pitch}, Time: ${noteData.startTime}s, Duration: ${durationSeconds}s`);
-            } else if (event.type === 'timeupdate') {
-                console.log(`Timeupdate event! Current Time: ${currentTimeSeconds}s`);
+            } else {
+                console.log(`Unhandled event type: ${event.type}`);
+                return; // Skip if it's not a recognized event for highlighting
             }
 
-            // Get the set of Verovio SVG note IDs that *should* be highlighted at this precise `eventTimeMs`
-            let elementsAtCurrentTime = tk.getElementsAtTime(eventTimeMs);
-            let notesThatShouldBeHighlighted = new Set(elementsAtCurrentTime.notes);
+            // Only proceed if a valid time was obtained
+            if (currentTimeSeconds !== null && currentTimeSeconds !== undefined) {
+                const eventTimeMs = currentTimeSeconds * 1000; 
+                let elementsAtCurrentTime = tk.getElementsAtTime(eventTimeMs);
+                let notesThatShouldBeHighlighted = new Set(elementsAtCurrentTime.notes);
+                console.log(`Verovio elements at time ${currentTimeSeconds}s:`, notesThatShouldBeHighlighted);
 
-            console.log(`Verovio elements at time ${currentTimeSeconds}s:`, notesThatShouldBeHighlighted);
+                // --- TEMPORARILY DISABLED HIGHLIGHTING LOGIC FOR DEBUGGING EVENT FIRING ---
+                // currentlyHighlightedVerovioIds.forEach(id => {
+                //     if (!notesThatShouldBeHighlighted.has(id)) {
+                //         const noteElement = document.getElementById(id);
+                //         if (noteElement && noteElement.classList.contains("playing")) {
+                //             noteElement.classList.remove("playing");
+                //         }
+                //     }
+                // });
+                // notesThatShouldBeHighlighted.forEach(noteId => {
+                //     if (!currentlyHighlightedVerovioIds.has(noteId)) {
+                //         const noteElement = document.getElementById(noteId);
+                //         if (noteElement) {
+                //             noteElement.classList.add("playing");
+                //         } else {
+                //             console.log("Note element NOT found for ID:", noteId);
+                //         }
+                //     }
+                // });
+                // currentlyHighlightedVerovioIds = new Set(notesThatShouldBeHighlighted);
+                // --- END TEMPORARY DISABLE ---
 
-            // --- REVISED HIGHLIGHTING LOGIC ---
-            // 1. Determine notes to unhighlight (those in currentlyHighlighted but not in notesThatShouldBeHighlighted)
-            currentlyHighlightedVerovioIds.forEach(id => {
-                if (!notesThatShouldBeHighlighted.has(id)) {
-                    const noteElement = document.getElementById(id);
-                    if (noteElement && noteElement.classList.contains("playing")) {
-                        noteElement.classList.remove("playing");
-                    }
+                // Page turning logic (still active as it's not part of the highlighting class logic)
+                const pageForCurrentTime = elementsAtCurrentTime.page;
+                if (pageForCurrentTime > 0 && pageForCurrentTime !== currentPage) {
+                    currentPage = pageForCurrentTime;
+                    document.getElementById("notation").innerHTML = tk.renderToSVG(currentPage);
                 }
-            });
-
-            // 2. Determine notes to highlight (those in notesThatShouldBeHighlighted but not in currentlyHighlighted)
-            notesThatShouldBeHighlighted.forEach(noteId => {
-                if (!currentlyHighlightedVerovioIds.has(noteId)) {
-                    const noteElement = document.getElementById(noteId);
-                    if (noteElement) {
-                        noteElement.classList.add("playing");
-                    } else {
-                        console.log("Note element NOT found for ID:", noteId);
-                    }
-                }
-            });
-
-            // 3. Update the tracking set to reflect the new state
-            currentlyHighlightedVerovioIds = new Set(notesThatShouldBeHighlighted);
-            // --- END REVISED HIGHLIGHTING LOGIC ---
-
-            // Page turning logic for display toolkit
-            const pageForCurrentTime = elementsAtCurrentTime.page;
-            if (pageForCurrentTime > 0 && pageForCurrentTime !== currentPage) {
-                currentPage = pageForCurrentTime;
-                document.getElementById("notation").innerHTML = tk.renderToSVG(currentPage);
+            } else {
+                 console.log("currentTimeSeconds is null or undefined, skipping highlighting logic.");
             }
         };
 
@@ -256,11 +267,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 loadAudioButton.addEventListener("click", loadAudioAndPlayHandler);
                 stopMIDIButton.addEventListener("click", stopMIDIHandler);
                 
-                // Attach 'timeupdate' listener for continuous highlighting
+                // Attach BOTH 'timeupdate' and 'note' listeners for event debugging
                 player.addEventListener('timeupdate', midiHighlightingHandler);
-                // Optionally keep 'note' listener if specific note-on event logic is needed, but 'timeupdate' is primary
-                // player.addEventListener('note', midiHighlightingHandler); 
-                console.log("Attached 'timeupdate' listener to midi-player.");
+                player.addEventListener('note', midiHighlightingHandler); 
+                console.log("Attached 'timeupdate' and 'note' listeners to midi-player.");
 
                 // --- Event Listener for Print Button (shows modal) ---
                 printPDFButton.addEventListener('click', function() {
