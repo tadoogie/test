@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 3.19 -->  
+<!-- Version 3.20 -->  
 <html>
 <head>
   <meta charset="utf-8">
@@ -11,6 +11,7 @@
   <script src="js/pdfkit.standalone.js"></script>
   <script src="js/blob-stream.js"></script>
   <script src="js/svg-to-pdfkit.js"></script>
+  <script src="js/verovio-worker.js"></script>
   <style>
     body {
       font-family: sans-serif;
@@ -120,393 +121,224 @@
     </div>
   </div>
 
- <script>
-document.addEventListener("DOMContentLoaded", () => {
-    let tk = null;       // Verovio toolkit instance for display
-    let tk_pdf = null;   // Verovio toolkit instance for PDF generation
+ <script type="text/javascript">
+  // Global variables (ensure these are present in your script)
+  var tk; // Main Verovio toolkit instance for display rendering
+  var tk_pdf; // For PDF generation (if you use it)
+  var currentPage = 1; // Assuming you manage current page
+  const player = new MidiPlayer.Player(); // Your MIDI player instance
+  const notationDiv = document.getElementById("notation"); // Your notation display div (adjust ID if different)
 
-    // Define default values for options
-    let zoom = 70; // Set a default for zoom, consistent with your current scale
-    let trInterval = 0; // Default transpose interval (no transpose)
+  // --- NEW/MODIFIED: Web Worker and Timemap Variables ---
+  let vrvWorker; // Our Verovio Web Worker instance
+  let timemap = []; // This will store the timemap received from the worker
+  let timemapIdx = 0; // Index for current position in timemap for highlighting
+  let lastReportedTime = 0; // Last time reported by the MIDI player
+  let initialMidiLoaded = false; // Flag to ensure MIDI/timemap are requested only once
 
-    const player = document.querySelector('#verovio-midi-player');
-    const loadAudioButton = document.getElementById('loadAudio');
-    const stopMIDIButton = document.getElementById('stopMIDI');
-    const printPDFButton = document.getElementById('printPDF');
+  // --- Existing: Functions to handle UI interactions (ensure your buttons call these) ---
+  // Example for a 'Play' button (replace 'playButton' with your actual button ID)
+  document.getElementById('playButton').addEventListener('click', loadAudioAndPlayHandler);
+  // Example for a 'Stop' button (replace 'stopButton' with your actual button ID)
+  document.getElementById('stopButton').addEventListener('click', () => {
+    player.stop();
+    // Optional: clear highlighting on stop
+    const currentElements = notationDiv.querySelectorAll('.highlighted');
+    currentElements.forEach(el => el.classList.remove('highlighted'));
+    timemapIdx = 0; // Reset timemap index on stop
+  });
 
-    // Get references to modal elements
-    const paperSizeModal = document.getElementById('paperSizeModal');
-    const generatePdfButton = document.getElementById('generatePdfButton');
-    const cancelPdfButton = document.getElementById('cancelPdfButton');
+  // --- Your MIDI Player Event Listeners (ensure these are set up correctly) ---
+  player.on('timeupdate', function(event) {
+      if (timemap.length === 0) return; // Don't highlight if timemap isn't loaded yet
 
-    let currentPage = 1;
+      // Convert MIDI Player's tick to approximate time in seconds
+      // NOTE: This conversion might need fine-tuning based on your MIDI files and player setup.
+      const currentTime = event.tick / player.totalTicks * (player.get='duration'); 
+      
+      // Prevent rapid re-highlighting for very small time changes
+      if (Math.abs(currentTime - lastReportedTime) < 0.05) { // 50ms threshold to reduce DOM updates
+          return;
+      }
+      lastReportedTime = currentTime;
 
-    // --- NEW: Global variables for timemap and highlighting logic ---
-    let timemap = [];
-    let timemapIdx = 0;
-    let lastReportedTime = 0; // Time (ms) of last reported event
+      // Call the highlighting function
+      midiHighlightingHandler(currentTime);
+  });
 
-    // --- NEW: Helper functions for highlighting (adapted from mei-friend) ---
-    function highlightNote(noteElement) {
-        if (!noteElement) return;
-        noteElement.classList.add('playing');
-        noteElement.querySelectorAll('g').forEach((g) => g.classList.add('playing'));
-    }
+  player.on('end', function() {
+      console.log('Playback finished.');
+      // Remove all highlighting at the end of playback
+      const currentElements = notationDiv.querySelectorAll('.highlighted');
+      currentElements.forEach(el => el.classList.remove('highlighted'));
+      timemapIdx = 0; // Reset for next playback
+  });
 
-    function unhighlightNote(noteElement) {
-        if (!noteElement) return;
-        noteElement.classList.remove('playing');
-        noteElement.querySelectorAll('.playing').forEach((g) => g.classList.remove('playing'));
-    }
 
-    function unHighlightAllElements() {
-        document.querySelectorAll('.playing').forEach((g) => g.classList.remove('playing'));
-    }
+  // --- MODIFIED: Verovio Initialization and Worker Setup ---
+  verovio.module.onRuntimeInitialized = () => {
+    // Initialize main toolkit for SVG display rendering (as you currently do)
+    tk = new verovio.toolkit();
+    tk_pdf = new verovio.toolkit(); // If you use this for PDF generation
 
-    // --- NEW: Function to generate the timemap from Verovio's MIDI values ---
-    function generateTimemap(toolkitInstance) {
-        const midiEvents = toolkitInstance.getMIDIValues();
-        const tempTimemap = new Map(); // Map<tstamp, {on: Set<string>, off: Set<string>}>
+    // --- NEW: Initialize the Verovio worker ---
+    vrvWorker = new Worker('./verovio-worker.js'); // Path to the worker file you created in Step 1
 
-        for (const event of midiEvents) {
-            if (event.type === 'noteOn') {
-                const onsetTstamp = event.tstamp; // milliseconds
-                const offsetTstamp = event.tstamp + event.duration; // milliseconds
-                const svgId = event.id; // This is the SVG ID for the note
+    // --- NEW: Listen for messages from the worker ---
+    vrvWorker.onmessage = (event) => {
+      const data = event.data;
+      console.log('Main thread received message from worker:', data.cmd, data);
 
-                // Add to 'on' list for the onset timestamp
-                if (!tempTimemap.has(onsetTstamp)) {
-                    tempTimemap.set(onsetTstamp, { on: new Set(), off: new Set() });
-                }
-                tempTimemap.get(onsetTstamp).on.add(svgId);
-
-                // Add to 'off' list for the offset timestamp
-                if (!tempTimemap.has(offsetTstamp)) {
-                    tempTimemap.set(offsetTstamp, { on: new Set(), off: new Set() });
-                }
-                tempTimemap.get(offsetTstamp).off.add(svgId);
-            }
-        }
-
-        // Convert the map to a sorted array, which becomes our final timemap
-        timemap = Array.from(tempTimemap.entries())
-            .map(([tstamp, { on, off }]) => ({
-                tstamp: tstamp,
-                on: Array.from(on),
-                off: Array.from(off)
-            }))
-            .sort((a, b) => a.tstamp - b.tstamp);
-
-        // Reset tracking variables for highlighting
-        timemapIdx = 0;
-        lastReportedTime = 0;
-        console.log("Timemap generated:", timemap);
-    }
-
-    verovio.module.onRuntimeInitialized = () => {
-        // Initialize the display toolkit
-        tk = new verovio.toolkit();
-        // Initialize the PDF toolkit
-        tk_pdf = new verovio.toolkit();
-
-        // Calculate pageWidth and pageHeight based on the logic from user's app-dev snippets
-        let pWidth = window.innerWidth;
-        let pageWidthBase;
-        if (pWidth < 1270) {
-            pageWidthBase = (pWidth - 30) * 100 / zoom;
-        } else {
-            pageWidthBase = 1270 * 100 / zoom;
-        }
-        let pageHeight = window.innerHeight * 100 / zoom;
-
-        // Set options for Verovio DISPLAY (how it looks on the webpage)
-        // Includes options from user's app-dev snippets
-        tk.setOptions({
-            pageHeight: pageHeight,
-            pageWidth: (pageWidthBase - 100) * 0.96,
-            scale: zoom,
-            adjustPageHeight: true,
-            transpose: trInterval,
-            spacingLinear: 0.35,
-            scaleToPageSize: true
-        });
-
-        // Unified handler for 'Load Audio' button - displays player AND starts MIDI
-        const loadAudioAndPlayHandler = async () => {
-            player.style.display = 'block'; // Make player visible
-
-            try {
-                await Tone.start(); // Resume AudioContext
-                console.log("Tone.js AudioContext resumed.");
-            } catch (error) {
-                console.error("Failed to resume Tone.js AudioContext:", error);
-                alert("Failed to start audio. Please ensure browser allows autoplay or interact with the page.");
-                return;
-            }
-
-            // Only load MIDI and play if not already playing or loaded
-            if (!player.src || player.src.length < 50) {
-                let base64midi = tk.renderToMIDI();
-                console.log("Verovio MIDI data length:", base64midi.length);
-                player.src = 'data:audio/midi;base64,' + base64midi;
-            }
-
-            player.start();
-            console.log("player.start() called.");
-        };
-
-        const stopMIDIHandler = () => {
-            player.stop();
-            unHighlightAllElements(); // Use the new helper function
-            console.log("MIDI stopped. All highlights cleared.");
-        };
-
-        // --- NEW: Modified midiHighlightingHandler based on mei-friend's timemap logic ---
-        const midiHighlightingHandler = (event) => {
-            let t; // Time in milliseconds
-
-            // Prioritize 'note' events for precise timing and SVG IDs
-            if (event.type === 'note') {
-                t = event.detail.note.startTime * 1000; // Convert to milliseconds
-                // console.log(`Note event! Time: ${t/1000}s`);
-            } else if (event.type === 'timeupdate') {
-                // 'timeupdate' can be less precise, use it only if note events are not providing enough granularity.
-                // For now, we'll process note events which give us the exact note onset.
-                // If you notice gaps, you might need to use `event.detail.currentTime * 1000;` here
-                // and potentially refine the timemapIdx logic for continuous updates.
-                return;
-            } else {
-                return; // Ignore other event types
-            }
-
-            // If playback seeks backward, reset timemap index and clear highlights
-            if (t < lastReportedTime) {
-                timemapIdx = 0;
-                unHighlightAllElements();
-            }
-            lastReportedTime = t;
-
-            // Advance timemapIdx to the current time, processing all events up to 't'
-            while (timemapIdx < timemap.length && timemap[timemapIdx].tstamp <= t) {
-                timemapIdx++;
-            }
-
-            // Determine which notes should currently be active based on timemap up to the current point
-            const currentlyActiveIds = new Set();
-            for (let i = 0; i < timemapIdx; i++) {
-                const entry = timemap[i];
-                // Only consider events that happened before or at the current time 't'
-                if (entry.tstamp <= t) {
-                    entry.on.forEach(id => currentlyActiveIds.add(id));
-                    entry.off.forEach(id => currentlyActiveIds.delete(id));
-                }
-            }
-            
-            // Get actual elements that are currently highlighted in the DOM
-            const highlightedInDom = new Set(
-                Array.from(document.querySelectorAll('g.note.playing')).map(el => el.id)
-            );
-
-            // Unhighlight notes that should no longer be playing
-            highlightedInDom.forEach(id => {
-                if (!currentlyActiveIds.has(id)) {
-                    const noteElement = document.getElementById(id);
-                    if (noteElement) {
-                        unhighlightNote(noteElement);
-                    }
-                }
-            });
-
-            // Highlight notes that should be playing
-            currentlyActiveIds.forEach(id => {
-                if (!highlightedInDom.has(id)) {
-                    const noteElement = document.getElementById(id);
-                    if (noteElement) {
-                        highlightNote(noteElement);
-                    }
-                }
-            });
-            
-            // Page turning logic (based on the first active ID if available)
-            if (currentlyActiveIds.size > 0) {
-                const firstActiveId = currentlyActiveIds.values().next().value;
-                if (firstActiveId) {
-                    const pageForCurrentElement = tk.getPageWithElement(firstActiveId);
-                    if (pageForCurrentElement > 0 && pageForCurrentElement !== currentPage) {
-                        currentPage = pageForCurrentElement;
-                        document.getElementById("notation").innerHTML = tk.renderToSVG(currentPage);
-                    }
-                }
-            }
-        };
-
-        // --- Load MEI Data and Render SVG ---
-        fetch("https://www.verovio.org/examples/downloads/Schubert_Lindenbaum.mei")
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                return response.text();
-            })
+      switch (data.cmd) {
+        case 'vrvLoaded':
+          // The Verovio toolkit is loaded inside the worker.
+          // Now, send the MEI data to the worker and request rendering and timemap.
+          console.log('Verovio worker toolkit version:', data.version);
+          // Fetch your MEI data here (replace with your actual MEI source)
+          fetch("https://www.verovio.org/examples/downloads/Schubert_Lindenbaum.mei") 
+            .then(response => response.text())
             .then(meiXML => {
-                tk.loadData(meiXML);     // Load data into display toolkit
-                tk_pdf.loadData(meiXML); // Load data into PDF toolkit
+              // --- Send MEI data to the worker and request the timemap ---
+              vrvWorker.postMessage({
+                cmd: 'updateAll', // This command in worker loads data and renders
+                mei: meiXML,
+                options: tk.getOptions(), // Send main thread's current options to worker
+                requestTimemap: true, // CRUCIAL: Ask the worker to send the timemap
+              });
 
-                // --- NEW: Generate the timemap after data is loaded ---
-                generateTimemap(tk);
-
-                // Render the initial SVG for display
-                document.getElementById("notation").innerHTML = tk.renderToSVG(currentPage);
-
-                // --- Attach Event Listeners and Callbacks after data is loaded ---
-                loadAudioButton.addEventListener("click", loadAudioAndPlayHandler);
-                stopMIDIButton.addEventListener("click", stopMIDIHandler);
-
-                // Attach ONLY 'note' listener for precise highlighting control
-                player.addEventListener('note', midiHighlightingHandler);
-                // The 'timeupdate' listener is no longer needed for primary highlighting logic
-                // if you rely solely on note events, but could be re-added for finer updates
-                // if notes are very sparse.
-                // player.addEventListener('timeupdate', midiHighlightingHandler);
-                console.log("Attached 'note' listener to midi-player.");
-
-
-                // --- Event Listener for Print Button (shows modal) ---
-                printPDFButton.addEventListener('click', function() {
-                    paperSizeModal.style.display = 'flex'; // Show the modal using flex for centering
-                });
-
-                // --- Event Listener for Cancel Button in Modal ---
-                cancelPdfButton.addEventListener('click', function() {
-                    paperSizeModal.style.display = 'none'; // Hide the modal
-                });
-
-                // --- Event Listener for Generate PDF Button in Modal ---
-                generatePdfButton.addEventListener('click', async function() {
-                    paperSizeModal.style.display = 'none'; // Hide the modal
-                    const selectedSizeElement = document.querySelector('input[name="paperSize"]:checked');
-                    const selectedPaperSize = selectedSizeElement ? selectedSizeElement.value : 'LETTER';
-
-                    await generatePDF(selectedPaperSize);
-                });
-
-                // --- PDF Generation Logic (moved into a new function) ---
-                async function generatePDF(selectedPaperSize) {
-                    console.log(`Generating PDF for ${selectedPaperSize} paper size...`);
-
-                    if (!tk_pdf || tk_pdf.getMEI() === '') {
-                        alert("Verovio PDF toolkit is not ready or no MEI data loaded. Please load a score first.");
-                        console.error("Verovio PDF Toolkit (tk_pdf) not initialized or MEI data is empty.");
-                        return;
-                    }
-
-                    try {
-                        const originalPdfOptions = tk_pdf.getOptions();
-
-                        const paperSizeOptions = {
-                            'LETTER': {
-                                pdfkitSize: 'LETTER',
-                                verovioPageWidth: 2000,
-                                verovioPageHeight: 1100,
-                                verovioScale: 40
-                            },
-                            'A4': {
-                                pdfkitSize: 'A4',
-                                verovioPageWidth: 2000,
-                                verovioPageHeight: 1180,
-                                verovioScale: 40
-                            },
-                            'A5': {
-                                pdfkitSize: 'A5',
-                                verovioPageWidth: 2000,
-                                verovioPageHeight: 830,
-                                verovioScale: 40
-                            },
-                            'OCTAVO': {
-                                pdfkitSize: [486, 756],
-                                verovioPageWidth: 2000,
-                                verovioPageHeight: 1050,
-                                verovioScale: 40
-                            }
-                        };
-
-                        const currentPaperSettings = paperSizeOptions[selectedPaperSize];
-
-                        let doc = new PDFDocument({
-                            size: currentPaperSettings.pdfkitSize,
-                            layout: 'portrait',
-                            margins: { top: 10, bottom: 10, left: 10, right: 10 }
-                        });
-
-                        const stream = doc.pipe(blobStream());
-
-                        stream.on('finish', function() {
-                            const blob = stream.toBlob('application/pdf');
-                            const url = URL.createObjectURL(blob);
-                            const a = document.createElement('a');
-                            a.style.display = 'none';
-                            a.href = url;
-                            a.download = `verovio-output-${selectedPaperSize.toLowerCase()}.pdf`;
-                            document.body.appendChild(a);
-                            a.click();
-                            window.URL.revokeObjectURL(url);
-                            document.body.removeChild(a);
-                            console.log('PDF download initiated from Verovio SVG.');
-                        });
-
-                        stream.on('error', function(err) {
-                            console.error("Error creating PDF stream:", err);
-                            alert("An error occurred during PDF creation.");
-                        });
-
-                        tk_pdf.setOptions({
-                            scale: currentPaperSettings.verovioScale,
-                            pageWidth: currentPaperSettings.verovioPageWidth,
-                            pageHeight: currentPaperSettings.verovioPageHeight,
-                            adjustPageHeight: true
-                        });
-                        console.log("Verovio PDF options set for PDF generation before rendering pages.");
-
-                        const pageCount = tk_pdf.getPageCount();
-                        if (pageCount === 0) {
-                            throw new Error("Verovio PDF toolkit reports no pages to render. Check MEI data.");
-                        }
-                        console.log("Total pages to render for PDF:", pageCount);
-
-                        for (let i = 1; i <= pageCount; i++) {
-                            const svgString = tk_pdf.renderToSVG(i);
-                            // console.log(`Processing SVG page ${i} from PDF toolkit. Length: ${svgString.length}. First 200 chars:`, svgString.substring(0, 200));
-
-                            if (typeof svgString !== 'string' || svgString.trim() === '' || !svgString.startsWith('<svg')) {
-                                console.error(`SVG string for page ${i} from PDF toolkit is invalid or empty:`, svgString);
-                                throw new Error(`Invalid or malformed SVG content for page ${i}.`);
-                            }
-
-                            const drawableWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
-                            const drawableHeight = doc.page.height - doc.page.margins.top - doc.page.margins.bottom;
-
-                            await SVGtoPDF(doc, svgString, doc.page.margins.left, doc.page.margins.top, {
-                                width: drawableWidth,
-                                height: drawableHeight,
-                                preserveAspectRatio: 'xMidYMid meet',
-                                assumeGIsCursive: true
-                            });
-                        }
-
-                        doc.end();
-
-                        tk_pdf.setOptions(originalPdfOptions);
-                    } catch (error) {
-                        console.error("Failed to generate PDF:", error);
-                        alert("Failed to generate PDF. Check console for details.");
-                    }
-                }
+              // --- Keep your existing main thread rendering logic ---
+              // Load MEI into the main toolkit for displaying the SVG
+              tk.loadData(meiXML);
+              tk_pdf.loadData(meiXML); // If you use tk_pdf
+              notationDiv.innerHTML = tk.renderToSVG(currentPage); // Render initial SVG
             })
             .catch(error => {
-                console.error("Error loading or processing MEI data:", error);
+              console.error("Error loading MEI for worker or main thread:", error);
             });
+          break;
+
+        case 'updated':
+          // The worker has processed an 'updateAll' or 'updateData' command.
+          // Check if it sent back the timemap and initial MIDI data.
+          if (data.timemap) {
+            timemap = data.timemap;
+            console.log("Timemap received from worker (updated cmd):", timemap);
+            // Now timemap is ready for highlighting
+          }
+          if (data.midi && !initialMidiLoaded) {
+            player.src = 'data:audio/midi;base64,' + data.midi;
+            initialMidiLoaded = true;
+          }
+          break;
+
+        case 'midiPlayback':
+          // This command is specifically sent by the worker when it processes an 'exportMidi' request.
+          // It contains the MIDI data and the timemap.
+          if (data.timemap) {
+            timemap = data.timemap;
+            console.log("Timemap received from worker (midiPlayback cmd):", timemap);
+          }
+          if (data.midi) {
+            player.src = 'data:audio/midi;base64,' + data.midi;
+            initialMidiLoaded = true;
+          }
+          break;
+
+        // Handle other messages from your worker if needed (e.g., progress updates, errors)
+        case 'error':
+          console.error('Verovio Worker Error:', data.msg);
+          break;
+        case 'updateProgressbar':
+          console.log(`Worker Progress: ${data.percentage}% for ${data.fileFormat}`);
+          break;
+      }
     };
-});
+
+    // --- NEW: Tell the worker to load its Verovio toolkit ---
+    // Pass the URL to your verovio-toolkit-wasm.js (or similar, e.g., 'verovio-toolkit.js') here.
+    // This URL will be used by `importScripts` inside your verovio-worker.js.
+    vrvWorker.postMessage({ cmd: 'loadVerovio', url: './verovio-toolkit-wasm.js' }); // Adjust path as needed
+  };
+
+  // --- MODIFIED: loadAudioAndPlayHandler to request MIDI/Timemap from worker ---
+  const loadAudioAndPlayHandler = async () => {
+    player.style.display = 'block'; // Make your player visible
+
+    try {
+      await Tone.start(); // Ensure Tone.js AudioContext is resumed
+      console.log("Tone.js AudioContext resumed.");
+    } catch (error) {
+      console.error("Failed to resume Tone.js AudioContext:", error);
+      alert("Failed to start audio. Please ensure browser allows autoplay or interact with the page.");
+      return;
+    }
+
+    // --- NEW: Request MIDI and timemap from the worker if not already loaded ---
+    if (!initialMidiLoaded) {
+      console.log("Requesting MIDI and timemap from worker for playback...");
+      // Send the current MEI data from the main toolkit to the worker.
+      // This ensures the worker has the correct MEI state if it needs to re-load for MIDI/timemap generation.
+      vrvWorker.postMessage({
+        cmd: 'exportMidi',
+        options: tk.getOptions(), // Send current options for consistent MIDI generation
+        requestTimemap: true, // CRUCIAL: Ask the worker to send the timemap
+        mei: tk.getMEI(), // Send the current MEI data (from main thread's tk) to the worker
+      });
+    }
+
+    // Start playback. The player.src will be set when the worker sends the 'midiPlayback' message.
+    player.start();
+    console.log("player.start() called.");
+  };
+
+  // --- Existing: midiHighlightingHandler (uses the global `timemap` variable) ---
+  const midiHighlightingHandler = (currentTime) => {
+    let newElementsToHighlight = new Set();
+
+    // Advance timemapIdx to find current active elements
+    // The timemap stores times in milliseconds, so convert currentTime (seconds) to milliseconds
+    while (timemapIdx < timemap.length && timemap[timemapIdx].t_start <= currentTime * 1000) {
+      timemapIdx++;
+    }
+
+    // Find all elements that should be active at the current time
+    for (let i = 0; i < timemapIdx; i++) {
+      const item = timemap[i];
+      if (item.t_start <= currentTime * 1000 && item.t_end > currentTime * 1000) {
+        // Check if the SVG element exists before adding to set
+        if (notationDiv.querySelector('#' + item.id)) {
+          newElementsToHighlight.add(item.id);
+        }
+      }
+    }
+
+    // Get currently highlighted elements
+    const currentlyHighlighted = notationDiv.querySelectorAll('.highlighted');
+    const oldElementsToUnhighlight = new Set();
+    currentlyHighlighted.forEach(el => oldElementsToUnhighlight.add(el.id));
+
+    // Remove old highlighting
+    oldElementsToUnhighlight.forEach(id => {
+      if (!newElementsToHighlight.has(id)) {
+        const el = notationDiv.querySelector('#' + id);
+        if (el) el.classList.remove('highlighted');
+      }
+    });
+
+    // Add new highlighting
+    newElementsToHighlight.forEach(id => {
+      if (!oldElementsToUnhighlight.has(id)) {
+        const el = notationDiv.querySelector('#' + id);
+        if (el) el.classList.add('highlighted');
+      }
+    });
+  };
+
+  // --- Existing: Helper function for log (from your worker, useful to keep in main script too) ---
+  function log(e) {
+    console.log('ERROR in Main Script: ', e);
+    return;
+  }
 </script>
 </body>
 </html>
