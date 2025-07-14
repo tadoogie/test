@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 3.16 -->  
+<!-- Version 3.17 -->  
 <html>
 <head>
   <meta charset="utf-8">
@@ -191,7 +191,7 @@ document.addEventListener("DOMContentLoaded", () => {
             console.log("MIDI stopped. All highlights cleared.");
         };
 
-        // --- REVISED: Highlighting logic now primarily focuses on event logging ---
+        // --- RE-ENABLING HIGHLIGHTING LOGIC ---
         const midiHighlightingHandler = (event) => {
             let currentTimeSeconds = null;
 
@@ -213,29 +213,35 @@ document.addEventListener("DOMContentLoaded", () => {
                 const eventTimeMs = currentTimeSeconds * 1000; 
                 let elementsAtCurrentTime = tk.getElementsAtTime(eventTimeMs);
                 let notesThatShouldBeHighlighted = new Set(elementsAtCurrentTime.notes);
+
                 console.log(`Verovio elements at time ${currentTimeSeconds}s:`, notesThatShouldBeHighlighted);
 
-                // --- TEMPORARILY DISABLED HIGHLIGHTING LOGIC FOR DEBUGGING EVENT FIRING ---
-                // currentlyHighlightedVerovioIds.forEach(id => {
-                //     if (!notesThatShouldBeHighlighted.has(id)) {
-                //         const noteElement = document.getElementById(id);
-                //         if (noteElement && noteElement.classList.contains("playing")) {
-                //             noteElement.classList.remove("playing");
-                //         }
-                //     }
-                // });
-                // notesThatShouldBeHighlighted.forEach(noteId => {
-                //     if (!currentlyHighlightedVerovioIds.has(noteId)) {
-                //         const noteElement = document.getElementById(noteId);
-                //         if (noteElement) {
-                //             noteElement.classList.add("playing");
-                //         } else {
-                //             console.log("Note element NOT found for ID:", noteId);
-                //         }
-                //     }
-                // });
-                // currentlyHighlightedVerovioIds = new Set(notesThatShouldBeHighlighted);
-                // --- END TEMPORARY DISABLE ---
+                // --- HIGHLIGHTING LOGIC (RE-ENABLED) ---
+                // 1. Determine notes to unhighlight
+                currentlyHighlightedVerovioIds.forEach(id => {
+                    if (!notesThatShouldBeHighlighted.has(id)) {
+                        const noteElement = document.getElementById(id);
+                        if (noteElement && noteElement.classList.contains("playing")) {
+                            noteElement.classList.remove("playing");
+                        }
+                    }
+                });
+
+                // 2. Determine notes to highlight
+                notesThatShouldBeHighlighted.forEach(noteId => {
+                    if (!currentlyHighlightedVerovioIds.has(noteId)) {
+                        const noteElement = document.getElementById(noteId);
+                        if (noteElement) {
+                            noteElement.classList.add("playing");
+                        } else {
+                            console.log("Note element NOT found for ID:", noteId);
+                        }
+                    }
+                });
+
+                // 3. Update the tracking set
+                currentlyHighlightedVerovioIds = new Set(notesThatShouldBeHighlighted);
+                // --- END HIGHLIGHTING LOGIC ---
 
                 // Page turning logic (still active as it's not part of the highlighting class logic)
                 const pageForCurrentTime = elementsAtCurrentTime.page;
