@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 3.18 -->  
+<!-- Version 3.19 -->  
 <html>
 <head>
   <meta charset="utf-8">
@@ -123,9 +123,9 @@
  <script>
 document.addEventListener("DOMContentLoaded", () => {
     let tk = null;       // Verovio toolkit instance for display
-    let tk_pdf = null; // Verovio toolkit instance for PDF generation
+    let tk_pdf = null;   // Verovio toolkit instance for PDF generation
 
-    // Define default values for options from user's app-dev snippets
+    // Define default values for options
     let zoom = 70; // Set a default for zoom, consistent with your current scale
     let trInterval = 0; // Default transpose interval (no transpose)
 
@@ -139,9 +139,69 @@ document.addEventListener("DOMContentLoaded", () => {
     const generatePdfButton = document.getElementById('generatePdfButton');
     const cancelPdfButton = document.getElementById('cancelPdfButton');
 
-    // Set to keep track of Verovio SVG IDs that are currently highlighted
-    let currentlyHighlightedVerovioIds = new Set();
+    let currentPage = 1;
 
+    // --- NEW: Global variables for timemap and highlighting logic ---
+    let timemap = [];
+    let timemapIdx = 0;
+    let lastReportedTime = 0; // Time (ms) of last reported event
+
+    // --- NEW: Helper functions for highlighting (adapted from mei-friend) ---
+    function highlightNote(noteElement) {
+        if (!noteElement) return;
+        noteElement.classList.add('playing');
+        noteElement.querySelectorAll('g').forEach((g) => g.classList.add('playing'));
+    }
+
+    function unhighlightNote(noteElement) {
+        if (!noteElement) return;
+        noteElement.classList.remove('playing');
+        noteElement.querySelectorAll('.playing').forEach((g) => g.classList.remove('playing'));
+    }
+
+    function unHighlightAllElements() {
+        document.querySelectorAll('.playing').forEach((g) => g.classList.remove('playing'));
+    }
+
+    // --- NEW: Function to generate the timemap from Verovio's MIDI values ---
+    function generateTimemap(toolkitInstance) {
+        const midiEvents = toolkitInstance.getMIDIValues();
+        const tempTimemap = new Map(); // Map<tstamp, {on: Set<string>, off: Set<string>}>
+
+        for (const event of midiEvents) {
+            if (event.type === 'noteOn') {
+                const onsetTstamp = event.tstamp; // milliseconds
+                const offsetTstamp = event.tstamp + event.duration; // milliseconds
+                const svgId = event.id; // This is the SVG ID for the note
+
+                // Add to 'on' list for the onset timestamp
+                if (!tempTimemap.has(onsetTstamp)) {
+                    tempTimemap.set(onsetTstamp, { on: new Set(), off: new Set() });
+                }
+                tempTimemap.get(onsetTstamp).on.add(svgId);
+
+                // Add to 'off' list for the offset timestamp
+                if (!tempTimemap.has(offsetTstamp)) {
+                    tempTimemap.set(offsetTstamp, { on: new Set(), off: new Set() });
+                }
+                tempTimemap.get(offsetTstamp).off.add(svgId);
+            }
+        }
+
+        // Convert the map to a sorted array, which becomes our final timemap
+        timemap = Array.from(tempTimemap.entries())
+            .map(([tstamp, { on, off }]) => ({
+                tstamp: tstamp,
+                on: Array.from(on),
+                off: Array.from(off)
+            }))
+            .sort((a, b) => a.tstamp - b.tstamp);
+
+        // Reset tracking variables for highlighting
+        timemapIdx = 0;
+        lastReportedTime = 0;
+        console.log("Timemap generated:", timemap);
+    }
 
     verovio.module.onRuntimeInitialized = () => {
         // Initialize the display toolkit
@@ -150,7 +210,6 @@ document.addEventListener("DOMContentLoaded", () => {
         tk_pdf = new verovio.toolkit();
 
         // Calculate pageWidth and pageHeight based on the logic from user's app-dev snippets
-        // using the 'zoom' variable
         let pWidth = window.innerWidth;
         let pageWidthBase;
         if (pWidth < 1270) {
@@ -161,116 +220,123 @@ document.addEventListener("DOMContentLoaded", () => {
         let pageHeight = window.innerHeight * 100 / zoom;
 
         // Set options for Verovio DISPLAY (how it looks on the webpage)
-        // NOW INCLUDING OPTIONS FROM USER'S APP-DEV SNIPPETS
+        // Includes options from user's app-dev snippets
         tk.setOptions({
             pageHeight: pageHeight,
-            pageWidth: (pageWidthBase - 100) * 0.96, // Apply the .96 factor
-            scale: zoom, // Use zoom for scale
-            adjustPageHeight: true, // From app-dev snippet
-            transpose: trInterval,  // From app-dev snippet
-            spacingLinear: 0.35,    // From app-dev snippet
-            // Kept original `scaleToPageSize` for display if relevant
-            scaleToPageSize: true 
+            pageWidth: (pageWidthBase - 100) * 0.96,
+            scale: zoom,
+            adjustPageHeight: true,
+            transpose: trInterval,
+            spacingLinear: 0.35,
+            scaleToPageSize: true
         });
-
-        let currentPage = 1;
 
         // Unified handler for 'Load Audio' button - displays player AND starts MIDI
         const loadAudioAndPlayHandler = async () => {
             player.style.display = 'block'; // Make player visible
-            
+
             try {
                 await Tone.start(); // Resume AudioContext
                 console.log("Tone.js AudioContext resumed.");
             } catch (error) {
                 console.error("Failed to resume Tone.js AudioContext:", error);
                 alert("Failed to start audio. Please ensure browser allows autoplay or interact with the page.");
-                return; // Stop if audio context cannot be resumed
+                return;
             }
 
             // Only load MIDI and play if not already playing or loaded
             if (!player.src || player.src.length < 50) {
                 let base64midi = tk.renderToMIDI();
                 console.log("Verovio MIDI data length:", base64midi.length);
-                console.log("Verovio MIDI data (first 50 chars):", base64midi.substring(0, 50));
                 player.src = 'data:audio/midi;base64,' + base64midi;
             }
-            
+
             player.start();
-            console.log("player.start() called."); // Confirm player.start() is invoked
+            console.log("player.start() called.");
         };
-        
+
         const stopMIDIHandler = () => {
             player.stop();
-            // Clear all highlights from the DOM
-            document.querySelectorAll('g.note.playing').forEach(note => {
-                note.classList.remove("playing");
-            });
-            // Clear our internal tracking set
-            currentlyHighlightedVerovioIds.clear(); 
+            unHighlightAllElements(); // Use the new helper function
             console.log("MIDI stopped. All highlights cleared.");
         };
 
-        // --- Highlighting logic ---
+        // --- NEW: Modified midiHighlightingHandler based on mei-friend's timemap logic ---
         const midiHighlightingHandler = (event) => {
-            let currentTimeSeconds = null;
+            let t; // Time in milliseconds
 
-            if (event.type === 'timeupdate') {
-                currentTimeSeconds = event.detail.currentTime;
-                console.log(`Timeupdate event! Current Time: ${currentTimeSeconds}s`);
-            } else if (event.type === 'note') {
-                const noteData = event.detail.note;
-                currentTimeSeconds = noteData.startTime;
-                const durationSeconds = noteData.endTime - noteData.startTime;
-                console.log(`Note event! MIDI Note: ${noteData.pitch}, Time: ${noteData.startTime}s, Duration: ${durationSeconds}s`);
+            // Prioritize 'note' events for precise timing and SVG IDs
+            if (event.type === 'note') {
+                t = event.detail.note.startTime * 1000; // Convert to milliseconds
+                // console.log(`Note event! Time: ${t/1000}s`);
+            } else if (event.type === 'timeupdate') {
+                // 'timeupdate' can be less precise, use it only if note events are not providing enough granularity.
+                // For now, we'll process note events which give us the exact note onset.
+                // If you notice gaps, you might need to use `event.detail.currentTime * 1000;` here
+                // and potentially refine the timemapIdx logic for continuous updates.
+                return;
             } else {
-                console.log(`Unhandled event type: ${event.type}`);
-                return; // Skip if it's not a recognized event for highlighting
+                return; // Ignore other event types
             }
 
-            // Only proceed if a valid time was obtained
-            if (currentTimeSeconds !== null && currentTimeSeconds !== undefined) {
-                const eventTimeMs = currentTimeSeconds * 1000; 
-                let elementsAtCurrentTime = tk.getElementsAtTime(eventTimeMs);
-                let notesThatShouldBeHighlighted = new Set(elementsAtCurrentTime.notes);
+            // If playback seeks backward, reset timemap index and clear highlights
+            if (t < lastReportedTime) {
+                timemapIdx = 0;
+                unHighlightAllElements();
+            }
+            lastReportedTime = t;
 
-                console.log(`Verovio elements at time ${currentTimeSeconds}s:`, notesThatShouldBeHighlighted);
+            // Advance timemapIdx to the current time, processing all events up to 't'
+            while (timemapIdx < timemap.length && timemap[timemapIdx].tstamp <= t) {
+                timemapIdx++;
+            }
 
-                // --- HIGHLIGHTING LOGIC ---
-                // 1. Determine notes to unhighlight
-                currentlyHighlightedVerovioIds.forEach(id => {
-                    if (!notesThatShouldBeHighlighted.has(id)) {
-                        const noteElement = document.getElementById(id);
-                        if (noteElement && noteElement.classList.contains("playing")) {
-                            noteElement.classList.remove("playing");
-                        }
-                    }
-                });
-
-                // 2. Determine notes to highlight
-                notesThatShouldBeHighlighted.forEach(noteId => {
-                    if (!currentlyHighlightedVerovioIds.has(noteId)) {
-                        const noteElement = document.getElementById(noteId);
-                        if (noteElement) {
-                            noteElement.classList.add("playing");
-                        } else {
-                            console.log("Note element NOT found for ID:", noteId);
-                        }
-                    }
-                });
-
-                // 3. Update the tracking set
-                currentlyHighlightedVerovioIds = new Set(notesThatShouldBeHighlighted);
-                // --- END HIGHLIGHTING LOGIC ---
-
-                // Page turning logic (still active as it's not part of the highlighting class logic)
-                const pageForCurrentTime = elementsAtCurrentTime.page;
-                if (pageForCurrentTime > 0 && pageForCurrentTime !== currentPage) {
-                    currentPage = pageForCurrentTime;
-                    document.getElementById("notation").innerHTML = tk.renderToSVG(currentPage);
+            // Determine which notes should currently be active based on timemap up to the current point
+            const currentlyActiveIds = new Set();
+            for (let i = 0; i < timemapIdx; i++) {
+                const entry = timemap[i];
+                // Only consider events that happened before or at the current time 't'
+                if (entry.tstamp <= t) {
+                    entry.on.forEach(id => currentlyActiveIds.add(id));
+                    entry.off.forEach(id => currentlyActiveIds.delete(id));
                 }
-            } else {
-                 console.log("currentTimeSeconds is null or undefined, skipping highlighting logic.");
+            }
+            
+            // Get actual elements that are currently highlighted in the DOM
+            const highlightedInDom = new Set(
+                Array.from(document.querySelectorAll('g.note.playing')).map(el => el.id)
+            );
+
+            // Unhighlight notes that should no longer be playing
+            highlightedInDom.forEach(id => {
+                if (!currentlyActiveIds.has(id)) {
+                    const noteElement = document.getElementById(id);
+                    if (noteElement) {
+                        unhighlightNote(noteElement);
+                    }
+                }
+            });
+
+            // Highlight notes that should be playing
+            currentlyActiveIds.forEach(id => {
+                if (!highlightedInDom.has(id)) {
+                    const noteElement = document.getElementById(id);
+                    if (noteElement) {
+                        highlightNote(noteElement);
+                    }
+                }
+            });
+            
+            // Page turning logic (based on the first active ID if available)
+            if (currentlyActiveIds.size > 0) {
+                const firstActiveId = currentlyActiveIds.values().next().value;
+                if (firstActiveId) {
+                    const pageForCurrentElement = tk.getPageWithElement(firstActiveId);
+                    if (pageForCurrentElement > 0 && pageForCurrentElement !== currentPage) {
+                        currentPage = pageForCurrentElement;
+                        document.getElementById("notation").innerHTML = tk.renderToSVG(currentPage);
+                    }
+                }
             }
         };
 
@@ -286,17 +352,24 @@ document.addEventListener("DOMContentLoaded", () => {
                 tk.loadData(meiXML);     // Load data into display toolkit
                 tk_pdf.loadData(meiXML); // Load data into PDF toolkit
 
+                // --- NEW: Generate the timemap after data is loaded ---
+                generateTimemap(tk);
+
                 // Render the initial SVG for display
                 document.getElementById("notation").innerHTML = tk.renderToSVG(currentPage);
 
                 // --- Attach Event Listeners and Callbacks after data is loaded ---
                 loadAudioButton.addEventListener("click", loadAudioAndPlayHandler);
                 stopMIDIButton.addEventListener("click", stopMIDIHandler);
-                
-                // Attach BOTH 'timeupdate' and 'note' listeners
-                player.addEventListener('timeupdate', midiHighlightingHandler);
-                player.addEventListener('note', midiHighlightingHandler); 
-                console.log("Attached 'timeupdate' and 'note' listeners to midi-player.");
+
+                // Attach ONLY 'note' listener for precise highlighting control
+                player.addEventListener('note', midiHighlightingHandler);
+                // The 'timeupdate' listener is no longer needed for primary highlighting logic
+                // if you rely solely on note events, but could be re-added for finer updates
+                // if notes are very sparse.
+                // player.addEventListener('timeupdate', midiHighlightingHandler);
+                console.log("Attached 'note' listener to midi-player.");
+
 
                 // --- Event Listener for Print Button (shows modal) ---
                 printPDFButton.addEventListener('click', function() {
@@ -312,7 +385,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 generatePdfButton.addEventListener('click', async function() {
                     paperSizeModal.style.display = 'none'; // Hide the modal
                     const selectedSizeElement = document.querySelector('input[name="paperSize"]:checked');
-                    const selectedPaperSize = selectedSizeElement ? selectedSizeElement.value : 'LETTER'; 
+                    const selectedPaperSize = selectedSizeElement ? selectedSizeElement.value : 'LETTER';
 
                     await generatePDF(selectedPaperSize);
                 });
@@ -364,28 +437,28 @@ document.addEventListener("DOMContentLoaded", () => {
                             layout: 'portrait',
                             margins: { top: 10, bottom: 10, left: 10, right: 10 }
                         });
-                        
+
                         const stream = doc.pipe(blobStream());
-                        
+
                         stream.on('finish', function() {
                             const blob = stream.toBlob('application/pdf');
                             const url = URL.createObjectURL(blob);
                             const a = document.createElement('a');
                             a.style.display = 'none';
                             a.href = url;
-                            a.download = `verovio-output-${selectedPaperSize.toLowerCase()}.pdf`; 
+                            a.download = `verovio-output-${selectedPaperSize.toLowerCase()}.pdf`;
                             document.body.appendChild(a);
                             a.click();
                             window.URL.revokeObjectURL(url);
                             document.body.removeChild(a);
                             console.log('PDF download initiated from Verovio SVG.');
                         });
-                        
+
                         stream.on('error', function(err) {
                             console.error("Error creating PDF stream:", err);
                             alert("An error occurred during PDF creation.");
                         });
-                        
+
                         tk_pdf.setOptions({
                             scale: currentPaperSettings.verovioScale,
                             pageWidth: currentPaperSettings.verovioPageWidth,
@@ -402,7 +475,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
                         for (let i = 1; i <= pageCount; i++) {
                             const svgString = tk_pdf.renderToSVG(i);
-                            console.log(`Processing SVG page ${i} from PDF toolkit. Length: ${svgString.length}. First 200 chars:`, svgString.substring(0, 200));
+                            // console.log(`Processing SVG page ${i} from PDF toolkit. Length: ${svgString.length}. First 200 chars:`, svgString.substring(0, 200));
 
                             if (typeof svgString !== 'string' || svgString.trim() === '' || !svgString.startsWith('<svg')) {
                                 console.error(`SVG string for page ${i} from PDF toolkit is invalid or empty:`, svgString);
@@ -411,7 +484,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
                             const drawableWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
                             const drawableHeight = doc.page.height - doc.page.margins.top - doc.page.margins.bottom;
-                            
+
                             await SVGtoPDF(doc, svgString, doc.page.margins.left, doc.page.margins.top, {
                                 width: drawableWidth,
                                 height: drawableHeight,
@@ -419,7 +492,7 @@ document.addEventListener("DOMContentLoaded", () => {
                                 assumeGIsCursive: true
                             });
                         }
-                        
+
                         doc.end();
 
                         tk_pdf.setOptions(originalPdfOptions);
