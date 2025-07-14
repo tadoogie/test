@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 3.17 -->  
+<!-- Version 3.18 -->  
 <html>
 <head>
   <meta charset="utf-8">
@@ -125,6 +125,10 @@ document.addEventListener("DOMContentLoaded", () => {
     let tk = null;       // Verovio toolkit instance for display
     let tk_pdf = null; // Verovio toolkit instance for PDF generation
 
+    // Define default values for options from user's app-dev snippets
+    let zoom = 70; // Set a default for zoom, consistent with your current scale
+    let trInterval = 0; // Default transpose interval (no transpose)
+
     const player = document.querySelector('#verovio-midi-player');
     const loadAudioButton = document.getElementById('loadAudio');
     const stopMIDIButton = document.getElementById('stopMIDI');
@@ -145,12 +149,28 @@ document.addEventListener("DOMContentLoaded", () => {
         // Initialize the PDF toolkit
         tk_pdf = new verovio.toolkit();
 
+        // Calculate pageWidth and pageHeight based on the logic from user's app-dev snippets
+        // using the 'zoom' variable
+        let pWidth = window.innerWidth;
+        let pageWidthBase;
+        if (pWidth < 1270) {
+            pageWidthBase = (pWidth - 30) * 100 / zoom;
+        } else {
+            pageWidthBase = 1270 * 100 / zoom;
+        }
+        let pageHeight = window.innerHeight * 100 / zoom;
+
         // Set options for Verovio DISPLAY (how it looks on the webpage)
+        // NOW INCLUDING OPTIONS FROM USER'S APP-DEV SNIPPETS
         tk.setOptions({
-            pageWidth: document.body.clientWidth,
-            pageHeight: window.innerHeight - 100,
-            scale: 70, // Display scale (you can adjust this for your webpage)
-            scaleToPageSize: true
+            pageHeight: pageHeight,
+            pageWidth: (pageWidthBase - 100) * 0.96, // Apply the .96 factor
+            scale: zoom, // Use zoom for scale
+            adjustPageHeight: true, // From app-dev snippet
+            transpose: trInterval,  // From app-dev snippet
+            spacingLinear: 0.35,    // From app-dev snippet
+            // Kept original `scaleToPageSize` for display if relevant
+            scaleToPageSize: true 
         });
 
         let currentPage = 1;
@@ -191,7 +211,7 @@ document.addEventListener("DOMContentLoaded", () => {
             console.log("MIDI stopped. All highlights cleared.");
         };
 
-        // --- RE-ENABLING HIGHLIGHTING LOGIC ---
+        // --- Highlighting logic ---
         const midiHighlightingHandler = (event) => {
             let currentTimeSeconds = null;
 
@@ -216,7 +236,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 console.log(`Verovio elements at time ${currentTimeSeconds}s:`, notesThatShouldBeHighlighted);
 
-                // --- HIGHLIGHTING LOGIC (RE-ENABLED) ---
+                // --- HIGHLIGHTING LOGIC ---
                 // 1. Determine notes to unhighlight
                 currentlyHighlightedVerovioIds.forEach(id => {
                     if (!notesThatShouldBeHighlighted.has(id)) {
@@ -273,7 +293,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 loadAudioButton.addEventListener("click", loadAudioAndPlayHandler);
                 stopMIDIButton.addEventListener("click", stopMIDIHandler);
                 
-                // Attach BOTH 'timeupdate' and 'note' listeners for event debugging
+                // Attach BOTH 'timeupdate' and 'note' listeners
                 player.addEventListener('timeupdate', midiHighlightingHandler);
                 player.addEventListener('note', midiHighlightingHandler); 
                 console.log("Attached 'timeupdate' and 'note' listeners to midi-player.");
