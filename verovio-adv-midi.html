@@ -100,8 +100,10 @@
   <h1>Hello Verovio!</h1>
   <button id="loadAudio">Load Audio</button>
   <button id="stopMIDI">Stop</button>   <button id="printPDF">Print</button>
-  <midi-player id="verovio-midi-player" sound-font="https://storage.googleapis.com/magentadata/js/soundfonts/sgm_plus" controls="false" style="display: none;">
-            </midi-player>
+  <div style="margin-top: 20px; text-align: center;">
+        <midi-player id="myMidiPlayer" sound-font visualizer="#myMidiVisualizer"></midi-player>
+        <midi-visualizer type="piano-roll" id="myMidiVisualizer" style="width: 100%; height: 150px;"></midi-visualizer>
+    </div>
   <div id="notation"></div>
 
   <div id="paperSizeModal">
