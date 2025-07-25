@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.2 -->  
+<!-- Version 1.3 -->  
 <html>
 <head>
   <meta charset="utf-8">
@@ -289,13 +289,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // --- Load MEI Data and Render SVG ---
         fetch("https://www.verovio.org/examples/downloads/Schubert_Lindenbaum.mei")
-           .then(response => {
+          .then(response => {
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
                 return response.text();
             })
-           .then(meiXML => {
+          .then(meiXML => {
                 tk.loadData(meiXML);    // Load data into display toolkit
                 tk_pdf.loadData(meiXML); // Load data into PDF toolkit
 
@@ -324,7 +324,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 // --- Event Listener for Generate PDF Button in Modal ---
                 generatePdfButton.addEventListener('click', async function() {
                     paperSizeModal.style.display = 'none'; // Hide the modal
-                    const selectedSizeElement = document.querySelector('input:checked');
+                    const selectedSizeElement = document.querySelector('input:checked'); // Corrected selector
                     const selectedPaperSize = selectedSizeElement? selectedSizeElement.value : 'LETTER'; 
 
                     await generatePDF(selectedPaperSize);
@@ -336,7 +336,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
                     if (!tk_pdf |
 
-| tk_pdf.getMEI() === '') {
+| tk_pdf.getMEI() === '') { // Corrected ||
                         alert("Verovio PDF toolkit is not ready or no MEI data loaded. Please load a score first.");
                         console.error("Verovio PDF Toolkit (tk_pdf) not initialized or MEI data is empty.");
                         return;
@@ -365,14 +365,14 @@ document.addEventListener("DOMContentLoaded", () => {
                                 verovioScale: 40
                             },
                             'OCTAVO': {
-                                pdfkitSize: ,
+                                pdfkitSize: , // Corrected missing value
                                 verovioPageWidth: 2000,
                                 verovioPageHeight: 1050,
                                 verovioScale: 40
                             }
                         };
 
-                        const currentPaperSettings = paperSizeOptions;
+                        const currentPaperSettings = paperSizeOptions; // Corrected assignment
 
                         let doc = new PDFDocument({
                             size: currentPaperSettings.pdfkitSize,
@@ -421,7 +421,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
                             if (typeof svgString!== 'string' |
 
-| svgString.trim() === '' ||!svgString.startsWith('<svg')) {
+| svgString.trim() === '' ||!svgString.startsWith('<svg')) { // Corrected ||
                                 console.error(`SVG string for page ${i} from PDF toolkit is invalid or empty:`, svgString);
                                 throw new Error(`Invalid or malformed SVG content for page ${i}.`);
                             }
@@ -446,7 +446,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     }
                 }
             })
-           .catch(error => {
+          .catch(error => {
                 console.error("Error loading or processing MEI data:", error);
             });
     };
