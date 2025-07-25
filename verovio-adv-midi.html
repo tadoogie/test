@@ -123,319 +123,391 @@
   </div>
 
  <script>
-document.addEventListener("DOMContentLoaded", () => {
-    let tk = null;       // Verovio toolkit instance for display
-    let tk_pdf = null; // Verovio toolkit instance for PDF generation
+        document.addEventListener("DOMContentLoaded", () => {
+            // --- START NEW CODE ADDITION (Part 1: adjustRepeatedNotes function) ---
+            /**
+             * Adjusts the end times of consecutive identical notes in a NoteSequence
+             * to ensure distinct re-triggering during MIDI playback.
+             * This is crucial for notes that are repeated immediately after each other,
+             * which synthesizers might otherwise interpret as a single, sustained note.
+             * @param {object} noteSequence - The Magenta NoteSequence object.
+             * @param {number} minGapMs - The minimum gap to introduce in milliseconds. Default is 20ms.
+             * @returns {object} A new NoteSequence object with adjusted note timings.
+             */
+            function adjustRepeatedNotes(noteSequence, minGapMs = 20) {
+                // Create a deep copy to avoid modifying the original NoteSequence object.
+                // This is important for non-destructive operations.
+                const adjustedSequence = JSON.parse(JSON.stringify(noteSequence));
 
-    // Define default values for options from user's app-dev snippets
-    let zoom = 70; // Set a default for zoom, consistent with your current scale
-    let trInterval = 0; // Default transpose interval (no transpose)
+                // Sort notes by start time to ensure correct sequential processing.
+                // NoteSequence notes are not guaranteed to be sorted by time, which is essential
+                // for correctly identifying consecutive notes. [1]
+                const notes = adjustedSequence.notes.sort((a, b) => a.startTime - b.startTime);
 
-    const player = document.querySelector('#verovio-midi-player');
-    const loadAudioButton = document.getElementById('loadAudio');
-    const stopMIDIButton = document.getElementById('stopMIDI');
-    const printPDFButton = document.getElementById('printPDF');
+                for (let i = 0; i < notes.length - 1; i++) {
+                    const currentNote = notes[i];
+                    const nextNote = notes[i + 1];
 
-    // Get references to modal elements
-    const paperSizeModal = document.getElementById('paperSizeModal');
-    const generatePdfButton = document.getElementById('generatePdfButton');
-    const cancelPdfButton = document.getElementById('cancelPdfButton');
+                    // Check for consecutive notes of the exact same pitch.
+                    // The problem arises when the same pitch is repeated immediately. [2, 3]
+                    if (currentNote.pitch === nextNote.pitch) {
+                        // Check if they are contiguous or overlapping.
+                        // A small buffer (e.g., -0.0001 seconds) is added to account for
+                        // potential floating-point inaccuracies that might make two
+                        // theoretically contiguous times appear slightly non-contiguous.
+                        if (currentNote.endTime >= nextNote.startTime - 0.0001) {
+                            // Define a small epsilon for the micro-gap.
+                            // This value (e.g., 20 milliseconds) is converted to seconds,
+                            // as NoteSequence times are in seconds. This small gap is
+                            // typically imperceptible to the human ear but sufficient
+                            // for the synthesizer to register a distinct NoteOff event. [4]
+                            const epsilon = minGapMs / 1000; // Convert milliseconds to seconds
 
-    // Set to keep track of Verovio SVG IDs that are currently highlighted
-    let currentlyHighlightedVerovioIds = new Set();
-
-
-    verovio.module.onRuntimeInitialized = () => {
-        // Initialize the display toolkit
-        tk = new verovio.toolkit();
-        // Initialize the PDF toolkit
-        tk_pdf = new verovio.toolkit();
-
-        // Calculate pageWidth and pageHeight based on the logic from user's app-dev snippets
-        // using the 'zoom' variable
-        let pWidth = window.innerWidth;
-        let pageWidthBase;
-        if (pWidth < 1270) {
-            pageWidthBase = (pWidth - 30) * 100 / zoom;
-        } else {
-            pageWidthBase = 1270 * 100 / zoom;
-        }
-        let pageHeight = window.innerHeight * 100 / zoom;
-
-        // Set options for Verovio DISPLAY (how it looks on the webpage)
-        // NOW INCLUDING OPTIONS FROM USER'S APP-DEV SNIPPETS
-        tk.setOptions({
-            pageHeight: pageHeight,
-            pageWidth: (pageWidthBase - 100) * 0.96, // Apply the .96 factor
-            scale: zoom, // Use zoom for scale
-            adjustPageHeight: true, // From app-dev snippet
-            transpose: trInterval,  // From app-dev snippet
-            spacingLinear: 0.35,    // From app-dev snippet
-            // Kept original `scaleToPageSize` for display if relevant
-            scaleToPageSize: true 
-        });
-
-        let currentPage = 1;
-
-        // Unified handler for 'Load Audio' button - displays player AND starts MIDI
-        const loadAudioAndPlayHandler = async () => {
-            player.style.display = 'block'; // Make player visible
-            
-            try {
-                await Tone.start(); // Resume AudioContext
-                console.log("Tone.js AudioContext resumed.");
-            } catch (error) {
-                console.error("Failed to resume Tone.js AudioContext:", error);
-                alert("Failed to start audio. Please ensure browser allows autoplay or interact with the page.");
-                return; // Stop if audio context cannot be resumed
-            }
-
-            // Only load MIDI and play if not already playing or loaded
-            if (!player.src || player.src.length < 50) {
-                let base64midi = tk.renderToMIDI();
-                console.log("Verovio MIDI data length:", base64midi.length);
-                console.log("Verovio MIDI data (first 50 chars):", base64midi.substring(0, 50));
-                player.src = 'data:audio/midi;base64,' + base64midi;
-            }
-            
-            player.start();
-            console.log("player.start() called."); // Confirm player.start() is invoked
-        };
-        
-        const stopMIDIHandler = () => {
-            player.stop();
-            // Clear all highlights from the DOM
-            document.querySelectorAll('g.note.playing').forEach(note => {
-                note.classList.remove("playing");
-            });
-            // Clear our internal tracking set
-            currentlyHighlightedVerovioIds.clear(); 
-            console.log("MIDI stopped. All highlights cleared.");
-        };
-
-        // --- Highlighting logic ---
-        const midiHighlightingHandler = (event) => {
-            let currentTimeSeconds = null;
-
-            if (event.type === 'timeupdate') {
-                currentTimeSeconds = event.detail.currentTime;
-                console.log(`Timeupdate event! Current Time: ${currentTimeSeconds}s`);
-            } else if (event.type === 'note') {
-                const noteData = event.detail.note;
-                currentTimeSeconds = noteData.startTime;
-                const durationSeconds = noteData.endTime - noteData.startTime;
-                console.log(`Note event! MIDI Note: ${noteData.pitch}, Time: ${noteData.startTime}s, Duration: ${durationSeconds}s`);
-            } else {
-                console.log(`Unhandled event type: ${event.type}`);
-                return; // Skip if it's not a recognized event for highlighting
-            }
-
-            // Only proceed if a valid time was obtained
-            if (currentTimeSeconds !== null && currentTimeSeconds !== undefined) {
-                const eventTimeMs = currentTimeSeconds * 1000; 
-                let elementsAtCurrentTime = tk.getElementsAtTime(eventTimeMs);
-                let notesThatShouldBeHighlighted = new Set(elementsAtCurrentTime.notes);
-
-                console.log(`Verovio elements at time ${currentTimeSeconds}s:`, notesThatShouldBeHighlighted);
-
-                // --- HIGHLIGHTING LOGIC ---
-                // 1. Determine notes to unhighlight
-                currentlyHighlightedVerovioIds.forEach(id => {
-                    if (!notesThatShouldBeHighlighted.has(id)) {
-                        const noteElement = document.getElementById(id);
-                        if (noteElement && noteElement.classList.contains("playing")) {
-                            noteElement.classList.remove("playing");
+                            // Adjust the end time of the current note to create the micro-gap.
+                            // The Math.max function ensures that the adjusted end time does not
+                            // fall before the start time of the current note, which could
+                            // result in a zero or negative duration for very short notes.
+                            currentNote.endTime = Math.max(currentNote.startTime, nextNote.startTime - epsilon);
                         }
                     }
-                });
-
-                // 2. Determine notes to highlight
-                notesThatShouldBeHighlighted.forEach(noteId => {
-                    if (!currentlyHighlightedVerovioIds.has(noteId)) {
-                        const noteElement = document.getElementById(noteId);
-                        if (noteElement) {
-                            noteElement.classList.add("playing");
-                        } else {
-                            console.log("Note element NOT found for ID:", noteId);
-                        }
-                    }
-                });
-
-                // 3. Update the tracking set
-                currentlyHighlightedVerovioIds = new Set(notesThatShouldBeHighlighted);
-                // --- END HIGHLIGHTING LOGIC ---
-
-                // Page turning logic (still active as it's not part of the highlighting class logic)
-                const pageForCurrentTime = elementsAtCurrentTime.page;
-                if (pageForCurrentTime > 0 && pageForCurrentTime !== currentPage) {
-                    currentPage = pageForCurrentTime;
-                    document.getElementById("notation").innerHTML = tk.renderToSVG(currentPage);
                 }
-            } else {
-                 console.log("currentTimeSeconds is null or undefined, skipping highlighting logic.");
+                return adjustedSequence;
             }
-        };
+            // --- END NEW CODE ADDITION (Part 1) ---
 
-        // --- Load MEI Data and Render SVG ---
-        fetch("https://www.verovio.org/examples/downloads/Schubert_Lindenbaum.mei")
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
+            let tk = null;      // Verovio toolkit instance for display
+            let tk_pdf = null; // Verovio toolkit instance for PDF generation
+
+            // Define default values for options from user's app-dev snippets
+            let zoom = 70; // Set a default for zoom, consistent with your current scale
+            let trInterval = 0; // Default transpose interval (no transpose)
+
+            // Correctly reference the new midi-player element
+            const player = document.getElementById('myMidiPlayer'); // Changed from #verovio-midi-player
+            const loadAudioButton = document.getElementById('loadAudio');
+            const stopMIDIButton = document.getElementById('stopMIDI');
+            const printPDFButton = document.getElementById('printPDF');
+
+            // Get references to modal elements
+            const paperSizeModal = document.getElementById('paperSizeModal');
+            const generatePdfButton = document.getElementById('generatePdfButton');
+            const cancelPdfButton = document.getElementById('cancelPdfButton');
+
+            // Set to keep track of Verovio SVG IDs that are currently highlighted
+            let currentlyHighlightedVerovioIds = new Set();
+
+
+            verovio.module.onRuntimeInitialized = () => {
+                // Initialize the display toolkit
+                tk = new verovio.toolkit();
+                // Initialize the PDF toolkit
+                tk_pdf = new verovio.toolkit();
+
+                // Calculate pageWidth and pageHeight based on the logic from user's app-dev snippets
+                // using the 'zoom' variable
+                let pWidth = window.innerWidth;
+                let pageWidthBase;
+                if (pWidth < 1270) {
+                    pageWidthBase = (pWidth - 30) * 100 / zoom;
+                } else {
+                    pageWidthBase = 1270 * 100 / zoom;
                 }
-                return response.text();
-            })
-            .then(meiXML => {
-                tk.loadData(meiXML);     // Load data into display toolkit
-                tk_pdf.loadData(meiXML); // Load data into PDF toolkit
+                let pageHeight = window.innerHeight * 100 / zoom;
 
-                // Render the initial SVG for display
-                document.getElementById("notation").innerHTML = tk.renderToSVG(currentPage);
-
-                // --- Attach Event Listeners and Callbacks after data is loaded ---
-                loadAudioButton.addEventListener("click", loadAudioAndPlayHandler);
-                stopMIDIButton.addEventListener("click", stopMIDIHandler);
-                
-                // Attach BOTH 'timeupdate' and 'note' listeners
-                player.addEventListener('timeupdate', midiHighlightingHandler);
-                player.addEventListener('note', midiHighlightingHandler); 
-                console.log("Attached 'timeupdate' and 'note' listeners to midi-player.");
-
-                // --- Event Listener for Print Button (shows modal) ---
-                printPDFButton.addEventListener('click', function() {
-                    paperSizeModal.style.display = 'flex'; // Show the modal using flex for centering
+                // Set options for Verovio DISPLAY (how it looks on the webpage)
+                // NOW INCLUDING OPTIONS FROM USER'S APP-DEV SNIPPETS
+                tk.setOptions({
+                    pageHeight: pageHeight,
+                    pageWidth: (pageWidthBase - 100) * 0.96, // Apply the.96 factor
+                    scale: zoom, // Use zoom for scale
+                    adjustPageHeight: true, // From app-dev snippet
+                    transpose: trInterval,   // From app-dev snippet
+                    spacingLinear: 0.35,     // From app-dev snippet
+                    // Kept original `scaleToPageSize` for display if relevant
+                    scaleToPageSize: true
                 });
 
-                // --- Event Listener for Cancel Button in Modal ---
-                cancelPdfButton.addEventListener('click', function() {
-                    paperSizeModal.style.display = 'none'; // Hide the modal
-                });
+                let currentPage = 1;
 
-                // --- Event Listener for Generate PDF Button in Modal ---
-                generatePdfButton.addEventListener('click', async function() {
-                    paperSizeModal.style.display = 'none'; // Hide the modal
-                    const selectedSizeElement = document.querySelector('input[name="paperSize"]:checked');
-                    const selectedPaperSize = selectedSizeElement ? selectedSizeElement.value : 'LETTER'; 
-
-                    await generatePDF(selectedPaperSize);
-                });
-
-                // --- PDF Generation Logic (moved into a new function) ---
-                async function generatePDF(selectedPaperSize) {
-                    console.log(`Generating PDF for ${selectedPaperSize} paper size...`);
-
-                    if (!tk_pdf || tk_pdf.getMEI() === '') {
-                        alert("Verovio PDF toolkit is not ready or no MEI data loaded. Please load a score first.");
-                        console.error("Verovio PDF Toolkit (tk_pdf) not initialized or MEI data is empty.");
-                        return;
-                    }
+                // Unified handler for 'Load Audio' button - displays player AND starts MIDI
+                const loadAudioAndPlayHandler = async () => {
+                    player.style.display = 'block'; // Make player visible
 
                     try {
-                        const originalPdfOptions = tk_pdf.getOptions();
-
-                        const paperSizeOptions = {
-                            'LETTER': {
-                                pdfkitSize: 'LETTER',
-                                verovioPageWidth: 2000,
-                                verovioPageHeight: 1100,
-                                verovioScale: 40
-                            },
-                            'A4': {
-                                pdfkitSize: 'A4',
-                                verovioPageWidth: 2000,
-                                verovioPageHeight: 1180,
-                                verovioScale: 40
-                            },
-                            'A5': {
-                                pdfkitSize: 'A5',
-                                verovioPageWidth: 2000,
-                                verovioPageHeight: 830,
-                                verovioScale: 40
-                            },
-                            'OCTAVO': {
-                                pdfkitSize: [486, 756],
-                                verovioPageWidth: 2000,
-                                verovioPageHeight: 1050,
-                                verovioScale: 40
-                            }
-                        };
-
-                        const currentPaperSettings = paperSizeOptions[selectedPaperSize];
-
-                        let doc = new PDFDocument({
-                            size: currentPaperSettings.pdfkitSize,
-                            layout: 'portrait',
-                            margins: { top: 10, bottom: 10, left: 10, right: 10 }
-                        });
-                        
-                        const stream = doc.pipe(blobStream());
-                        
-                        stream.on('finish', function() {
-                            const blob = stream.toBlob('application/pdf');
-                            const url = URL.createObjectURL(blob);
-                            const a = document.createElement('a');
-                            a.style.display = 'none';
-                            a.href = url;
-                            a.download = `verovio-output-${selectedPaperSize.toLowerCase()}.pdf`; 
-                            document.body.appendChild(a);
-                            a.click();
-                            window.URL.revokeObjectURL(url);
-                            document.body.removeChild(a);
-                            console.log('PDF download initiated from Verovio SVG.');
-                        });
-                        
-                        stream.on('error', function(err) {
-                            console.error("Error creating PDF stream:", err);
-                            alert("An error occurred during PDF creation.");
-                        });
-                        
-                        tk_pdf.setOptions({
-                            scale: currentPaperSettings.verovioScale,
-                            pageWidth: currentPaperSettings.verovioPageWidth,
-                            pageHeight: currentPaperSettings.verovioPageHeight,
-                            adjustPageHeight: true
-                        });
-                        console.log("Verovio PDF options set for PDF generation before rendering pages.");
-
-                        const pageCount = tk_pdf.getPageCount();
-                        if (pageCount === 0) {
-                            throw new Error("Verovio PDF toolkit reports no pages to render. Check MEI data.");
-                        }
-                        console.log("Total pages to render for PDF:", pageCount);
-
-                        for (let i = 1; i <= pageCount; i++) {
-                            const svgString = tk_pdf.renderToSVG(i);
-                            console.log(`Processing SVG page ${i} from PDF toolkit. Length: ${svgString.length}. First 200 chars:`, svgString.substring(0, 200));
-
-                            if (typeof svgString !== 'string' || svgString.trim() === '' || !svgString.startsWith('<svg')) {
-                                console.error(`SVG string for page ${i} from PDF toolkit is invalid or empty:`, svgString);
-                                throw new Error(`Invalid or malformed SVG content for page ${i}.`);
-                            }
-
-                            const drawableWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
-                            const drawableHeight = doc.page.height - doc.page.margins.top - doc.page.margins.bottom;
-                            
-                            await SVGtoPDF(doc, svgString, doc.page.margins.left, doc.page.margins.top, {
-                                width: drawableWidth,
-                                height: drawableHeight,
-                                preserveAspectRatio: 'xMidYMid meet',
-                                assumeGIsCursive: true
-                            });
-                        }
-                        
-                        doc.end();
-
-                        tk_pdf.setOptions(originalPdfOptions);
+                        await Tone.start(); // Resume AudioContext
+                        console.log("Tone.js AudioContext resumed.");
                     } catch (error) {
-                        console.error("Failed to generate PDF:", error);
-                        alert("Failed to generate PDF. Check console for details.");
+                        console.error("Failed to resume Tone.js AudioContext:", error);
+                        alert("Failed to start audio. Please ensure browser allows autoplay or interact with the page.");
+                        return; // Stop if audio context cannot be resumed
                     }
-                }
-            })
-            .catch(error => {
-                console.error("Error loading or processing MEI data:", error);
-            });
-    };
-});
-</script>
+
+                    // --- START MODIFIED CODE (Inside loadAudioAndPlayHandler) ---
+                    // Replace the old MIDI loading logic with Magenta.js processing
+                    // Only load MIDI and play if not already playing or loaded
+                    if (!player.noteSequence) { // Check if noteSequence is already set
+                        // 1. Get MIDI data from Verovio as a base64 string.
+                        // Verovio's `renderToMIDI()` method returns a base64-encoded MIDI file. [5]
+                        let base64midi = tk.renderToMIDI(1); // Assuming you want MIDI for the first page
+                        console.log("Verovio MIDI data length:", base64midi.length);
+                        console.log("Verovio MIDI data (first 50 chars):", base64midi.substring(0, 50));
+
+                        // 2. Convert base64 MIDI to a Magenta.js NoteSequence.
+                        // Magenta.js provides `midiToSequenceProto` for this conversion. [1]
+                        const midiBytes = new Uint8Array(atob(base64midi).split('').map(char => char.charCodeAt(0)));
+                        const originalNoteSequence = await mm.midiToSequenceProto(midiBytes);
+
+                        // 3. Adjust the NoteSequence to handle repeated notes.
+                        const adjustedNoteSequence = adjustRepeatedNotes(originalNoteSequence);
+
+                        // 4. Assign the adjusted NoteSequence to the player.
+                        // The `html-midi-player` uses the `noteSequence` property to load the data. [6]
+                        player.noteSequence = adjustedNoteSequence;
+                    }
+                    // --- END MODIFIED CODE (Inside loadAudioAndPlayHandler) ---
+
+                    player.start();
+                    console.log("player.start() called."); // Confirm player.start() is invoked
+                };
+
+                const stopMIDIHandler = () => {
+                    player.stop();
+                    // Clear all highlights from the DOM
+                    document.querySelectorAll('g.note.playing').forEach(note => {
+                        note.classList.remove("playing");
+                    });
+                    // Clear our internal tracking set
+                    currentlyHighlightedVerovioIds.clear();
+                    console.log("MIDI stopped. All highlights cleared.");
+                };
+
+                // --- Highlighting logic ---
+                const midiHighlightingHandler = (event) => {
+                    let currentTimeSeconds = null;
+
+                    if (event.type === 'timeupdate') {
+                        currentTimeSeconds = event.detail.currentTime;
+                        console.log(`Timeupdate event! Current Time: ${currentTimeSeconds}s`);
+                    } else if (event.type === 'note') {
+                        const noteData = event.detail.note;
+                        currentTimeSeconds = noteData.startTime;
+                        const durationSeconds = noteData.endTime - noteData.startTime;
+                        console.log(`Note event! MIDI Note: ${noteData.pitch}, Time: ${noteData.startTime}s, Duration: ${durationSeconds}s`);
+                    } else {
+                        console.log(`Unhandled event type: ${event.type}`);
+                        return; // Skip if it's not a recognized event for highlighting
+                    }
+
+                    // Only proceed if a valid time was obtained
+                    if (currentTimeSeconds!== null && currentTimeSeconds!== undefined) {
+                        const eventTimeMs = currentTimeSeconds * 1000;
+                        let elementsAtCurrentTime = tk.getElementsAtTime(eventTimeMs);
+                        let notesThatShouldBeHighlighted = new Set(elementsAtCurrentTime.notes);
+
+                        console.log(`Verovio elements at time ${currentTimeSeconds}s:`, notesThatShouldBeHighlighted);
+
+                        // --- HIGHLIGHTING LOGIC ---
+                        // 1. Determine notes to unhighlight
+                        currentlyHighlightedVerovioIds.forEach(id => {
+                            if (!notesThatShouldBeHighlighted.has(id)) {
+                                const noteElement = document.getElementById(id);
+                                if (noteElement && noteElement.classList.contains("playing")) {
+                                    noteElement.classList.remove("playing");
+                                }
+                            }
+                        });
+
+                        // 2. Determine notes to highlight
+                        notesThatShouldBeHighlighted.forEach(noteId => {
+                            if (!currentlyHighlightedVerovioIds.has(noteId)) {
+                                const noteElement = document.getElementById(noteId);
+                                if (noteElement) {
+                                    noteElement.classList.add("playing");
+                                } else {
+                                    console.log("Note element NOT found for ID:", noteId);
+                                }
+                            }
+                        });
+
+                        // 3. Update the tracking set
+                        currentlyHighlightedVerovioIds = new Set(notesThatShouldBeHighlighted);
+                        // --- END HIGHLIGHTING LOGIC ---
+
+                        // Page turning logic (still active as it's not part of the highlighting class logic)
+                        const pageForCurrentTime = elementsAtCurrentTime.page;
+                        if (pageForCurrentTime > 0 && pageForCurrentTime!== currentPage) {
+                            currentPage = pageForCurrentTime;
+                            document.getElementById("notation").innerHTML = tk.renderToSVG(currentPage);
+                        }
+                    } else {
+                        console.log("currentTimeSeconds is null or undefined, skipping highlighting logic.");
+                    }
+                };
+
+                // --- Load MEI Data and Render SVG ---
+                fetch("https://www.verovio.org/examples/downloads/Schubert_Lindenbaum.mei")
+                   .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        return response.text();
+                    })
+                   .then(meiXML => {
+                        tk.loadData(meiXML);      // Load data into display toolkit
+                        tk_pdf.loadData(meiXML); // Load data into PDF toolkit
+
+                        // Render the initial SVG for display
+                        document.getElementById("notation").innerHTML = tk.renderToSVG(currentPage);
+
+                        // --- Attach Event Listeners and Callbacks after data is loaded ---
+                        loadAudioButton.addEventListener("click", loadAudioAndPlayHandler);
+                        stopMIDIButton.addEventListener("click", stopMIDIHandler);
+
+                        // Attach BOTH 'timeupdate' and 'note' listeners
+                        player.addEventListener('timeupdate', midiHighlightingHandler);
+                        player.addEventListener('note', midiHighlightingHandler);
+                        console.log("Attached 'timeupdate' and 'note' listeners to midi-player.");
+
+                        // --- Event Listener for Print Button (shows modal) ---
+                        printPDFButton.addEventListener('click', function() {
+                            paperSizeModal.style.display = 'flex'; // Show the modal using flex for centering
+                        });
+
+                        // --- Event Listener for Cancel Button in Modal ---
+                        cancelPdfButton.addEventListener('click', function() {
+                            paperSizeModal.style.display = 'none'; // Hide the modal
+                        });
+
+                        // --- Event Listener for Generate PDF Button in Modal ---
+                        generatePdfButton.addEventListener('click', async function() {
+                            paperSizeModal.style.display = 'none'; // Hide the modal
+                            const selectedSizeElement = document.querySelector('input:checked');
+                            const selectedPaperSize = selectedSizeElement? selectedSizeElement.value : 'LETTER';
+
+                            await generatePDF(selectedPaperSize);
+                        });
+
+                        // --- PDF Generation Logic (moved into a new function) ---
+                        async function generatePDF(selectedPaperSize) {
+                            console.log(`Generating PDF for ${selectedPaperSize} paper size...`);
+
+                            if (!tk_pdf |
+
+| tk_pdf.getMEI() === '') {
+                                alert("Verovio PDF toolkit is not ready or no MEI data loaded. Please load a score first.");
+                                console.error("Verovio PDF Toolkit (tk_pdf) not initialized or MEI data is empty.");
+                                return;
+                            }
+
+                            try {
+                                const originalPdfOptions = tk_pdf.getOptions();
+
+                                const paperSizeOptions = {
+                                    'LETTER': {
+                                        pdfkitSize: 'LETTER',
+                                        verovioPageWidth: 2000,
+                                        verovioPageHeight: 1100,
+                                        verovioScale: 40
+                                    },
+                                    'A4': {
+                                        pdfkitSize: 'A4',
+                                        verovioPageWidth: 2000,
+                                        verovioPageHeight: 1180,
+                                        verovioScale: 40
+                                    },
+                                    'A5': {
+                                        pdfkitSize: 'A5',
+                                        verovioPageWidth: 2000,
+                                        verovioPageHeight: 830,
+                                        verovioScale: 40
+                                    },
+                                    'OCTAVO': {
+                                        pdfkitSize: ,
+                                        verovioPageWidth: 2000,
+                                        verovioPageHeight: 1050,
+                                        verovioScale: 40
+                                    }
+                                };
+
+                                const currentPaperSettings = paperSizeOptions;
+
+                                let doc = new PDFDocument({
+                                    size: currentPaperSettings.pdfkitSize,
+                                    layout: 'portrait',
+                                    margins: { top: 10, bottom: 10, left: 10, right: 10 }
+                                });
+
+                                const stream = doc.pipe(blobStream());
+
+                                stream.on('finish', function() {
+                                    const blob = stream.toBlob('application/pdf');
+                                    const url = URL.createObjectURL(blob);
+                                    const a = document.createElement('a');
+                                    a.style.display = 'none';
+                                    a.href = url;
+                                    a.download = `verovio-output-${selectedPaperSize.toLowerCase()}.pdf`;
+                                    document.body.appendChild(a);
+                                    a.click();
+                                    window.URL.revokeObjectURL(url);
+                                    document.body.removeChild(a);
+                                    console.log('PDF download initiated from Verovio SVG.');
+                                });
+
+                                stream.on('error', function(err) {
+                                    console.error("Error creating PDF stream:", err);
+                                    alert("An error occurred during PDF creation.");
+                                });
+
+                                tk_pdf.setOptions({
+                                    scale: currentPaperSettings.verovioScale,
+                                    pageWidth: currentPaperSettings.verovioPageWidth,
+                                    pageHeight: currentPaperSettings.verovioPageHeight,
+                                    adjustPageHeight: true
+                                });
+                                console.log("Verovio PDF options set for PDF generation before rendering pages.");
+
+                                const pageCount = tk_pdf.getPageCount();
+                                if (pageCount === 0) {
+                                    throw new Error("Verovio PDF toolkit reports no pages to render. Check MEI data.");
+                                }
+                                console.log("Total pages to render for PDF:", pageCount);
+
+                                for (let i = 1; i <= pageCount; i++) {
+                                    const svgString = tk_pdf.renderToSVG(i);
+                                    console.log(`Processing SVG page ${i} from PDF toolkit. Length: ${svgString.length}. First 200 chars:`, svgString.substring(0, 200));
+
+                                    if (typeof svgString!== 'string' |
+
+| svgString.trim() === '' ||!svgString.startsWith('<svg')) {
+                                        console.error(`SVG string for page ${i} from PDF toolkit is invalid or empty:`, svgString);
+                                        throw new Error(`Invalid or malformed SVG content for page ${i}.`);
+                                    }
+
+                                    const drawableWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+                                    const drawableHeight = doc.page.height - doc.page.margins.top - doc.page.margins.bottom;
+
+                                    await SVGtoPDF(doc, svgString, doc.page.margins.left, doc.page.margins.top, {
+                                        width: drawableWidth,
+                                        height: drawableHeight,
+                                        preserveAspectRatio: 'xMidYMid meet',
+                                        assumeGIsCursive: true
+                                    });
+                                }
+
+                                doc.end();
+
+                                tk_pdf.setOptions(originalPdfOptions);
+                            } catch (error) {
+                                console.error("Failed to generate PDF:", error);
+                                alert("Failed to generate PDF. Check console for details.");
+                            }
+                        }
+                    })
+                   .catch(error => {
+                        console.error("Error loading or processing MEI data:", error);
+                    });
+            }; // End of verovio.module.onRuntimeInitialized
+        }); // End of DOMContentLoaded
+    </script>
 </body>
 </html>
