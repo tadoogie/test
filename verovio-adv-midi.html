@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 2.5 -->
+<!-- Version 2.6 -->
 <html>
 <head>
   <meta charset="utf-8">
@@ -172,11 +172,6 @@ function unHighlightAllElements() {
   document.querySelectorAll('.currently-playing').forEach((g) => g.classList.remove('currently-playing'));
 }
 // --- END ---
-
-function updateTimemap() {
-  timemap = tk.getTimeMap();
-  timemapIdx = 0;
-}
 
     // Function to show a custom alert message
     function showAlert(message) {
@@ -508,6 +503,11 @@ function updateTimemap() {
             });
     };
 });
+
+    function updateTimemap() {
+  timemap = tk.getTimeMap();
+  timemapIdx = 0;
+}
 </script>
 </body>
 </html>
