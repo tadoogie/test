@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 2.0 -->
+<!-- Version 2.1 -->
 <html>
 <head>
   <meta charset="utf-8">
@@ -304,6 +304,7 @@ function unHighlightAllElements() {
                         const noteElement = document.getElementById(id);
                         if (noteElement && noteElement.classList.contains("playing")) {
                             noteElement.classList.remove("playing");
+                            noteElement.classList.remove("currently-playing");
                             // NEW: Remove specific note highlight class [1]
                             if (noteElement.classList.contains("playing-c-note")) {
                                 noteElement.classList.remove("playing-c-note");
