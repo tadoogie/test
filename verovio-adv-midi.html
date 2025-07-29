@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<!-- Version 2.9 -->
+<!-- Version 2.5 -->
 <html>
 <head>
   <meta charset="utf-8">
   <title>Verovio MIDI Player</title>
   <link href="https://book.verovio.org/tutorials/midi.css" rel="stylesheet" type="text/css" />
-  <script src="https://cdn.jsdelivr.net/npm/verovio@5.4.0/build/verovio-toolkit.js"></script>
+  <script src="https://www.verovio.org/javascript/latest/verovio-toolkit-wasm.js" defer></script>
   <script src="https://cdn.jsdelivr.net/combine/npm/tone@14.7.58,npm/@magenta/music@1.23.1/es6/core.js,npm/focus-visible@5,npm/html-midi-player@1.5.0"></script>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfkit/0.13.0/pdfkit.min.js"></script>
@@ -128,8 +128,8 @@
 
   <script>
 document.addEventListener("DOMContentLoaded", () => {
-    let tk = new verovio.toolkit();        // Verovio toolkit instance for display
-    let tk_pdf = new verovio.toolkit(); // Verovio toolkit instance for PDF generation
+    let tk = null;        // Verovio toolkit instance for display
+    let tk_pdf = null; // Verovio toolkit instance for PDF generation
 
     // Define default values for options from user's app-dev snippets
     let zoom = 70; // Set a default for zoom, consistent with your current scale
@@ -172,6 +172,11 @@ function unHighlightAllElements() {
   document.querySelectorAll('.currently-playing').forEach((g) => g.classList.remove('currently-playing'));
 }
 // --- END ---
+
+function updateTimemap() {
+  timemap = tk.getTimeMap();
+  timemapIdx = 0;
+}
 
     // Function to show a custom alert message
     function showAlert(message) {
@@ -351,10 +356,6 @@ function unHighlightAllElements() {
           .then(meiXML => {
                 tk.loadData(meiXML); // Load data into display toolkit
                 tk_pdf.loadData(meiXML); // Load data into PDF toolkit
-
-                console.log("tk version:", tk.getVersion && tk.getVersion());
-                console.log("tk.getTimeMap:", typeof tk.getTimeMap);
-              
                 updateTimemap();
 
                 // Render the initial SVG for display
@@ -507,11 +508,6 @@ function unHighlightAllElements() {
             });
     };
 });
-
-    function updateTimemap() {
-  timemap = tk.getTimeMap();
-  timemapIdx = 0;
-}
 </script>
 </body>
 </html>
