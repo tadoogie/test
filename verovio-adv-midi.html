@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.5 -->
+<!-- Version 2.0 -->
 <html>
 <head>
   <meta charset="utf-8">
@@ -94,6 +94,17 @@
     #paperSizeModal button#cancelPdfButton:hover {
         background-color: #da190b;
     }
+
+    .playing {
+      fill: #ff0000;
+      stroke: #ff0000;
+    }
+
+    .currently-playing {
+      stroke: #ff0000;
+      stroke-width: 2px;
+      opacity: 0.7;
+    }
   </style>
 </head>
 <body>
@@ -142,6 +153,28 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Set to keep track of Verovio SVG IDs that are currently highlighted
     let currentlyHighlightedVerovioIds = new Set();
+
+// --- BEGIN: mei-friend-style helper functions (not used yet) ---
+    const highlightId = 'data-highlight';
+
+function highlightNote(note, id = '') {
+  if (!note) return;
+  note.classList.add('currently-playing');
+  if (id) note.setAttribute(highlightId, id);
+  note.querySelectorAll('g').forEach((g) => g.classList.add('currently-playing'));
+}
+
+function unhighlightNote(note) {
+  if (!note) return;
+  note.classList.remove('currently-playing');
+  note.removeAttribute(highlightId);
+  note.querySelectorAll('.currently-playing').forEach((g) => g.classList.remove('currently-playing'));
+}
+
+function unHighlightAllElements() {
+  document.querySelectorAll('.currently-playing').forEach((g) => g.classList.remove('currently-playing'));
+}
+// --- END ---
 
     // Function to show a custom alert message
     function showAlert(message) {
