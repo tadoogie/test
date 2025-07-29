@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 2.6 -->
+<!-- Version 2.7 -->
 <html>
 <head>
   <meta charset="utf-8">
@@ -351,6 +351,10 @@ function unHighlightAllElements() {
           .then(meiXML => {
                 tk.loadData(meiXML); // Load data into display toolkit
                 tk_pdf.loadData(meiXML); // Load data into PDF toolkit
+
+                console.log("tk version:", tk.getVersion && tk.getVersion());
+                console.log("tk.getTimeMap:", typeof tk.getTimeMap);
+              
                 updateTimemap();
 
                 // Render the initial SVG for display
