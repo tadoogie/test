@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 2.1 -->
+<!-- Version 2.3 -->
 <html>
 <head>
   <meta charset="utf-8">
@@ -264,7 +264,7 @@ function unHighlightAllElements() {
             player.stop();
             // Clear all highlights from the DOM
             document.querySelectorAll('g.note.playing, g.note.playing-c-note').forEach(note => { // Modified to clear new class [1]
-                note.classList.remove("playing");
+                note.classList.remove("currently-playing");
                 note.classList.remove("playing-c-note"); // Remove specific note highlight [1]
             });
             // Clear our internal tracking set
@@ -302,8 +302,7 @@ function unHighlightAllElements() {
                 currentlyHighlightedVerovioIds.forEach(id => {
                     if (!notesThatShouldBeHighlighted.has(id)) {
                         const noteElement = document.getElementById(id);
-                        if (noteElement && noteElement.classList.contains("playing")) {
-                            noteElement.classList.remove("playing");
+                        if (noteElement && noteElement.classList.contains("currently-playing")) {
                             noteElement.classList.remove("currently-playing");
                             // NEW: Remove specific note highlight class [1]
                             if (noteElement.classList.contains("playing-c-note")) {
@@ -318,7 +317,7 @@ function unHighlightAllElements() {
                     if (!currentlyHighlightedVerovioIds.has(noteId)) {
                         const noteElement = document.getElementById(noteId);
                         if (noteElement) {
-                            noteElement.classList.add("playing");
+                            noteElement.classList.add("currently-playing");
                             // NEW: Add a specific class for 'C' notes for distinct highlighting [1]
                             if (noteElement.dataset.pname === 'c') {
                                 noteElement.classList.add("playing-c-note");
