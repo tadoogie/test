@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 2.1 -->
+<!-- Version 2.2 -->
 <html>
 <head>
   <meta charset="utf-8">
@@ -185,7 +185,7 @@ document.addEventListener("DOMContentLoaded", () => {
       pageWidth: (pageWidthBase - 100) * 0.96,
       scale: zoom,
       adjustPageHeight: true,
-      transpose: parseInt(trInterval, 10),
+      transpose: Number.isInteger(trInterval) ? trInterval : 0,
       spacingLinear: 0.35,
       scaleToPageSize: true,
       svgAdditionalAttribute: ["note@pname", "note@oct"]
@@ -283,7 +283,7 @@ document.addEventListener("DOMContentLoaded", () => {
               scale: currentPaperSettings.verovioScale,
               pageWidth: currentPaperSettings.verovioPageWidth,
               pageHeight: currentPaperSettings.verovioPageHeight,
-              transpose: parseInt(trInterval, 10),
+              transpose: Number.isInteger(trInterval) ? trInterval : 0,
               adjustPageHeight: true
             });
             const pageCount = tk_pdf.getPageCount();
