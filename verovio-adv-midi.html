@@ -128,8 +128,8 @@
 
   <script>
 document.addEventListener("DOMContentLoaded", () => {
-    let tk = null;        // Verovio toolkit instance for display
-    let tk_pdf = null; // Verovio toolkit instance for PDF generation
+    let tk = new verovio.toolkit();        // Verovio toolkit instance for display
+    let tk_pdf = new verovio.toolkit(); // Verovio toolkit instance for PDF generation
 
     // Define default values for options from user's app-dev snippets
     let zoom = 70; // Set a default for zoom, consistent with your current scale
