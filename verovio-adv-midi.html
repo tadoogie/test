@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 2.5 -->
+<!-- Version 2.4 -->
 <html>
 <head>
   <meta charset="utf-8">
@@ -135,9 +135,6 @@ document.addEventListener("DOMContentLoaded", () => {
     let zoom = 70; // Set a default for zoom, consistent with your current scale
     let trInterval = 0; // Default transpose interval (no transpose)
 
-    let timemap = [];
-    let timemapIdx = 0;
-
     const player = document.querySelector('#verovio-midi-player');
     const loadAudioButton = document.getElementById('loadAudio');
     const stopMIDIButton = document.getElementById('stopMIDI');
@@ -172,11 +169,6 @@ function unHighlightAllElements() {
   document.querySelectorAll('.currently-playing').forEach((g) => g.classList.remove('currently-playing'));
 }
 // --- END ---
-
-function updateTimemap() {
-  timemap = tk.getTimeMap();
-  timemapIdx = 0;
-}
 
     // Function to show a custom alert message
     function showAlert(message) {
@@ -354,9 +346,8 @@ function updateTimemap() {
                 return response.text();
             })
           .then(meiXML => {
-                tk.loadData(meiXML); // Load data into display toolkit
+                tk.loadData(meiXML);    // Load data into display toolkit
                 tk_pdf.loadData(meiXML); // Load data into PDF toolkit
-                updateTimemap();
 
                 // Render the initial SVG for display
                 document.getElementById("notation").innerHTML = tk.renderToSVG(currentPage);
