@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 2.4.3-->
+<!-- Version 2.4.4-->
 <html>
 <head>
   <meta charset="utf-8">
@@ -95,7 +95,7 @@
         background-color: #da190b;
     }
 
-    .currently-playing {
+    #currently-playing {
       fill: #ff0000;
       stroke: #ff0000;
     }
@@ -269,15 +269,17 @@ function unHighlightAllElements() {
 
         // --- Highlighting logic ---
   function updateNoteHighlights(currentTimeMs) {
-    // Find the latest timemap event that is <= currentTimeMs
+    console.log("Highlight tick", currentTimeMs);
     let lastEventIndex = -1;
     for (let i = 0; i < timemap.length; i++) {
         if (timemap[i].tstamp <= currentTimeMs) lastEventIndex = i;
         else break;
     }
-    if (lastEventIndex === -1) return; // No notes yet
+    if (lastEventIndex === -1) {
+        console.log("No events yet for this time.");
+        return; // No notes yet
+    }
 
-    // Build sets of notes to turn on and off up to this point
     let onNotes = new Set();
     let offNotes = new Set();
     for (let i = 0; i <= lastEventIndex; i++) {
@@ -285,21 +287,26 @@ function unHighlightAllElements() {
         if (timemap[i].off) timemap[i].off.forEach(id => onNotes.delete(id));
     }
 
-    // Remove highlights for notes that should not be on
     currentlyHighlightedVerovioIds.forEach(id => {
         if (!onNotes.has(id)) {
             const noteElement = document.getElementById(id);
             if (noteElement) noteElement.classList.remove("currently-playing");
             currentlyHighlightedVerovioIds.delete(id);
+            console.log("Unhighlighted:", id, noteElement);
         }
     });
 
-    // Add highlights for notes that should be on
     onNotes.forEach(id => {
         if (!currentlyHighlightedVerovioIds.has(id)) {
             const noteElement = document.getElementById(id);
-            if (noteElement) noteElement.classList.add("currently-playing");
-            currentlyHighlightedVerovioIds.add(id);
+            console.log("Trying to highlight:", id, noteElement);
+            if (noteElement) {
+                noteElement.classList.add("currently-playing");
+                currentlyHighlightedVerovioIds.add(id);
+                console.log("Highlighted:", id, noteElement);
+            } else {
+                console.log("Element not found for:", id);
+            }
         }
     });
 }
