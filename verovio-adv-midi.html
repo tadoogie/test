@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 2.4.6 --> <!--Update this, please!-->
+<!-- Version 2.4.7 --> <!--Update this, please!-->
 <html>
 <head>
   <meta charset="utf-8">
@@ -266,33 +266,33 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // --- Unified Handler for 'Load Audio' button ---
         const loadAudioAndPlayHandler = async () => {
-            player.style.display = 'block';
-            try {
-                await Tone.start();
-                console.log("Tone.js AudioContext resumed.");
-            } catch (error) {
-                console.error("Failed to resume Tone.js AudioContext:", error);
-                showAlert("Failed to start audio. Please ensure browser allows autoplay or interact with the page.");
-                return;
-            }
-            // Only load MIDI if player.src is not already set
-            if (!player.src) {
-                let base64midi = tk.renderToMIDI();
-                console.log("Verovio MIDI data length:", base64midi.length);
-                console.log("Verovio MIDI data (first 50 chars):", base64midi.substring(0, 50));
-                player.src = 'data:audio/midi;base64,' + base64midi;
-            }
-            player.start();
-            console.log("player.start() called.");
+    player.style.display = 'block';
+    try {
+        await Tone.start();
+        console.log("Tone.js AudioContext resumed.");
+    } catch (error) {
+        console.error("Failed to resume Tone.js AudioContext:", error);
+        showAlert("Failed to start audio. Please ensure browser allows autoplay or interact with the page.");
+        return;
+    }
 
-            // Start highlight interval
-            if (highlightInterval) clearInterval(highlightInterval);
-            highlightInterval = setInterval(() => {
-                if (player && !player.paused && !player.ended) {
-                    updateNoteHighlights(player.currentTime * 1000);
-                }
-            }, 50);
-        };
+    // Always set src and restart playback
+    let base64midi = tk.renderToMIDI();
+    player.src = 'data:audio/midi;base64,' + base64midi;
+
+    // Guarantee playback starts from beginning
+    if (typeof player.stop === "function") player.stop();
+    if (typeof player.start === "function") player.start();
+    console.log("player.start() called.");
+    
+    // Start highlight interval (if not already running)...
+    if (highlightInterval) clearInterval(highlightInterval);
+    highlightInterval = setInterval(() => {
+        if (player && !player.paused && !player.ended) {
+            updateNoteHighlights(player.currentTime * 1000);
+        }
+    }, 50);
+};
 
         // --- Stop MIDI and highlighting ---
         const stopMIDIHandler = () => {
