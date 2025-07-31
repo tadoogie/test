@@ -279,15 +279,22 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
     }
 
-    // Always set src and restart playback
+    // Always regenerate MIDI and set src, to guarantee playback starts from beginning
     let base64midi = tk.renderToMIDI();
     player.src = 'data:audio/midi;base64,' + base64midi;
 
-    // Guarantee playback starts from beginning
+    // Force player to reload the new source
+    if (typeof player.load === "function") player.load();
+
+    // Stop any existing playback first
     if (typeof player.stop === "function") player.stop();
-    if (typeof player.start === "function") player.start();
-    console.log("player.start() called.");
-    
+
+    // Small timeout ensures the player has loaded the new MIDI
+    setTimeout(() => {
+        if (typeof player.start === "function") player.start();
+        console.log("player.start() called.");
+    }, 100);
+
     // Start highlight interval (if not already running)...
     if (highlightInterval) clearInterval(highlightInterval);
     highlightInterval = setInterval(() => {
