@@ -258,85 +258,51 @@ function unHighlightAllElements() {
         const stopMIDIHandler = () => {
             player.stop();
             // Clear all highlights from the DOM
-            document.querySelectorAll('g.note.playing, g.note.playing-c-note').forEach(note => { // Modified to clear new class [1]
-                note.classList.remove("currently-playing");
-                note.classList.remove("playing-c-note"); // Remove specific note highlight [1]
+            currentlyHighlightedVerovioIds.forEach(id => {
+              const noteElement = document.getElementById(id);
+              if (noteElement) noteElement.classList.remove("currently-playing");
             });
-            // Clear our internal tracking set
+            
             currentlyHighlightedVerovioIds.clear();
             console.log("MIDI stopped. All highlights cleared.");
         };
 
         // --- Highlighting logic ---
-        const midiHighlightingHandler = (event) => {
-            let currentTimeSeconds = null;
+  function updateNoteHighlights(currentTimeMs) {
+    // Find the latest timemap event that is <= currentTimeMs
+    let lastEventIndex = -1;
+    for (let i = 0; i < timemap.length; i++) {
+        if (timemap[i].tstamp <= currentTimeMs) lastEventIndex = i;
+        else break;
+    }
+    if (lastEventIndex === -1) return; // No notes yet
 
-            if (event.type === 'timeupdate') {
-                currentTimeSeconds = event.detail.currentTime;
-                console.log(`Timeupdate event! Current Time: ${currentTimeSeconds}s`);
-            } else if (event.type === 'note') {
-                const noteData = event.detail.note;
-                currentTimeSeconds = noteData.startTime;
-                const durationSeconds = noteData.endTime - noteData.startTime;
-                console.log(`Note event! MIDI Note: ${noteData.pitch}, Time: ${noteData.startTime}s, Duration: ${durationSeconds}s`);
-            } else {
-                console.log(`Unhandled event type: ${event.type}`);
-                return; // Skip if it's not a recognized event for highlighting
-            }
+    // Build sets of notes to turn on and off up to this point
+    let onNotes = new Set();
+    let offNotes = new Set();
+    for (let i = 0; i <= lastEventIndex; i++) {
+        if (timemap[i].on) timemap[i].on.forEach(id => onNotes.add(id));
+        if (timemap[i].off) timemap[i].off.forEach(id => onNotes.delete(id));
+    }
 
-            // Only proceed if a valid time was obtained
-            if (currentTimeSeconds !== null && currentTimeSeconds !== undefined) {
-                const eventTimeMs = currentTimeSeconds * 1000;
-                let elementsAtCurrentTime = tk.getElementsAtTime(eventTimeMs);
-                let notesThatShouldBeHighlighted = new Set(elementsAtCurrentTime.notes);
+    // Remove highlights for notes that should not be on
+    currentlyHighlightedVerovioIds.forEach(id => {
+        if (!onNotes.has(id)) {
+            const noteElement = document.getElementById(id);
+            if (noteElement) noteElement.classList.remove("currently-playing");
+            currentlyHighlightedVerovioIds.delete(id);
+        }
+    });
 
-                console.log(`Verovio elements at time ${currentTimeSeconds}s:`, notesThatShouldBeHighlighted);
-
-                // --- HIGHLIGHTING LOGIC ---
-                // 1. Determine notes to unhighlight
-                currentlyHighlightedVerovioIds.forEach(id => {
-                    if (!notesThatShouldBeHighlighted.has(id)) {
-                        const noteElement = document.getElementById(id);
-                        if (noteElement && noteElement.classList.contains("currently-playing")) {
-                            noteElement.classList.remove("currently-playing");
-                            // NEW: Remove specific note highlight class [1]
-                            if (noteElement.classList.contains("playing-c-note")) {
-                                noteElement.classList.remove("playing-c-note");
-                            }
-                        }
-                    }
-                });
-
-                // 2. Determine notes to highlight
-                notesThatShouldBeHighlighted.forEach(noteId => {
-                    if (!currentlyHighlightedVerovioIds.has(noteId)) {
-                        const noteElement = document.getElementById(noteId);
-                        if (noteElement) {
-                            noteElement.classList.add("currently-playing");
-                            // NEW: Add a specific class for 'C' notes for distinct highlighting [1]
-                            if (noteElement.dataset.pname === 'c') {
-                                noteElement.classList.add("playing-c-note");
-                            }
-                        } else {
-                            console.log("Note element NOT found for ID:", noteId);
-                        }
-                    }
-                });
-
-                // 3. Update the tracking set
-                currentlyHighlightedVerovioIds = new Set(notesThatShouldBeHighlighted);
-                // --- END HIGHLIGHTING LOGIC ---
-
-                // Page turning logic (still active as it's not part of the highlighting class logic)
-                const pageForCurrentTime = elementsAtCurrentTime.page;
-                if (pageForCurrentTime > 0 && pageForCurrentTime !== currentPage) {
-                    currentPage = pageForCurrentTime;
-                    document.getElementById("notation").innerHTML = tk.renderToSVG(currentPage);
-                }
-            } else {
-                    console.log("currentTimeSeconds is null or undefined, skipping highlighting logic.");
-            }
-        };
+    // Add highlights for notes that should be on
+    onNotes.forEach(id => {
+        if (!currentlyHighlightedVerovioIds.has(id)) {
+            const noteElement = document.getElementById(id);
+            if (noteElement) noteElement.classList.add("currently-playing");
+            currentlyHighlightedVerovioIds.add(id);
+        }
+    });
+}
 
         // --- Load MEI Data and Render SVG ---
         fetch("https://www.verovio.org/examples/downloads/Schubert_Lindenbaum.mei")
@@ -360,9 +326,10 @@ function unHighlightAllElements() {
                 stopMIDIButton.addEventListener("click", stopMIDIHandler);
 
                 // Attach BOTH 'timeupdate' and 'note' listeners
-                player.addEventListener('timeupdate', midiHighlightingHandler);
-                player.addEventListener('note', midiHighlightingHandler);
-                console.log("Attached 'timeupdate' and 'note' listeners to midi-player.");
+                player.addEventListener('timeupdate', (event) => {
+                  const currentTimeMs = player.currentTime * 1000;
+                  updateNoteHighlights(currentTimeMs);
+                });
 
                 // --- Event Listener for Print Button (shows modal) ---
                 printPDFButton.addEventListener('click', function() {
