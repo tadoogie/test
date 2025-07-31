@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 2.4.1 -->
+<!-- Version 2.4.2-->
 <html>
 <head>
   <meta charset="utf-8">
@@ -146,6 +146,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const cancelPdfButton = document.getElementById('cancelPdfButton');
 
     // Set to keep track of Verovio SVG IDs that are currently highlighted
+    let timemap = null;
     let currentlyHighlightedVerovioIds = new Set();
 
 // --- BEGIN: mei-friend-style helper functions (not used yet) ---
@@ -348,8 +349,8 @@ function unHighlightAllElements() {
           .then(meiXML => {
                 tk.loadData(meiXML);    // Load data into display toolkit
                 tk_pdf.loadData(meiXML); // Load data into PDF toolkit
-
-                console.log("tk.getTimeMap:", typeof tk.getTimeMap);
+                timemap = tk.renderToTimemap();
+                console.log("Timemap created:", timemap);
 
                 // Render the initial SVG for display
                 document.getElementById("notation").innerHTML = tk.renderToSVG(currentPage);
