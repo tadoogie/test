@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <script src="https://cdn.jsdelivr.net/npm/tone@latest/build/Tone.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/midi-player-js@2.0.6/dist/MidiPlayer.min.js"></script>
+</head>
+<body>
+  <input type="file" id="midiFileInput" accept=".mid,.midi"><br>
+  <button onclick="startPlayback()">Play MIDI</button>
+  <button onclick="stopPlayback()">Stop</button>
+  <script>
+    let player;
+    let synths = {};
+
+    // Utility: load MIDI from file input
+    document.getElementById('midiFileInput').addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(ev) {
+        initMidiPlayer(ev.target.result);
+      };
+      reader.readAsArrayBuffer(file);
+    });
+
+    // Initialize MidiPlayerJS with ArrayBuffer
+    function initMidiPlayer(midiArrayBuffer) {
+      player = new MidiPlayer.Player(function(event) {
+        // Respond to note events
+        if (event.name === 'Note on' && event.velocity > 0) {
+          playNote(event.noteNumber, event.velocity, event.channel);
+        }
+      });
+      player.loadArrayBuffer(midiArrayBuffer);
+      // Optionally: analyze tracks, tempo, etc.
+      console.log("Loaded MIDI: ", player);
+    }
+
+    // Play note using Tone.js (PolySynth per channel)
+    function playNote(midiNote, velocity, channel) {
+      if (!synths[channel]) {
+        synths[channel] = new Tone.PolySynth(Tone.Synth).toDestination();
+      }
+      const freq = Tone.Frequency(midiNote, "midi");
+      synths[channel].triggerAttackRelease(freq, "8n", undefined, velocity / 127);
+    }
+
+    function startPlayback() {
+      if (player) {
+        Tone.start(); // Required for user interaction in some browsers
+        player.play();
+      } else {
+        alert("Load a MIDI file first.");
+      }
+    }
+
+    function stopPlayback() {
+      if (player) player.stop();
+      // Release all synths
+      Object.values(synths).forEach(synth => synth.releaseAll && synth.releaseAll());
+    }
+  </script>
+</body>
+</html>
