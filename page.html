@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Accordion Demo - Text and Verses Selection</title>
+    <link rel="stylesheet" href="menu.css">
+</head>
+<body>
+    <h1>Psalm Accordion Demo</h1>
+    <p>This demonstrates the fix for text accordion positioning and default verses state.</p>
+    
+    <div class="sidenav">
+        <div class="panel-text">
+            <!-- Text Selection Section -->
+            <div class="menuSpan">
+                <div id="selectTexts" class="menu-header">
+                    Select a Text: <span class="caret">▼</span>
+                </div>
+                <div id="psTextList">
+                    <!-- Accordion content will be appended here initially (causing the bug) -->
+                </div>
+            </div>
+            
+            <!-- This is where psalmButtons should be appended (in the submenu) -->
+            <div class="submenu">
+                <div id="texts" style="display: none;">
+                    <!-- Psalm buttons will be dynamically added here -->
+                </div>
+            </div>
+
+            <!-- Verses Selection Section -->
+            <div class="menuSpan">
+                <div id="selectVerses" class="menu-header">
+                    Select the Verses: <span class="caret">▼</span>
+                </div>
+            </div>
+            
+            <div class="submenu">
+                <div id="verses" style="display: none;">
+                    <!-- Verse buttons will be dynamically added here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="content">
+        <h2>Selected Content</h2>
+        <div id="display-area">
+            <p>Select a psalm text and verses to display content here.</p>
+        </div>
+    </div>
+
+    <script src="interface-dev.js"></script>
+</body>
+</html>
