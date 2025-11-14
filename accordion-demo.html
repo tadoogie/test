@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Verses Accordion Demo</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      background-color: #f5f5f5;
+    }
+
+    .sidenav {
+      width: 300px;
+      background-color: #fff;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .panel-text {
+      padding: 15px;
+    }
+
+    /* Texts Accordion (Reference Implementation) */
+    .texts-section {
+      margin-bottom: 20px;
+    }
+
+    .selectTexts {
+      padding: 12px;
+      background-color: #f8f9fa;
+      border: 1px solid #dee2e6;
+      border-radius: 4px;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: background-color 0.2s ease;
+      user-select: none;
+    }
+
+    .selectTexts:hover {
+      background-color: #e9ecef;
+    }
+
+    .selectTexts:focus {
+      outline: 2px solid #0056b3;
+      outline-offset: 2px;
+    }
+
+    .selectTexts[aria-expanded="false"] .accordion-icon::before {
+      content: "▶";
+    }
+
+    .selectTexts[aria-expanded="true"] .accordion-icon::before {
+      content: "▼";
+    }
+
+    .accordion-icon {
+      font-size: 12px;
+      color: #6c757d;
+      transition: transform 0.3s ease;
+    }
+
+    .texts {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease-out, padding 0.3s ease-out;
+      padding: 0 12px;
+    }
+
+    .texts.expanded {
+      max-height: 500px;
+      padding: 12px;
+      transition: max-height 0.3s ease-in, padding 0.3s ease-in;
+    }
+
+    .texts-content {
+      padding-top: 8px;
+    }
+
+    /* Verses Accordion (New Implementation) */
+    .verses-section {
+      margin-bottom: 20px;
+    }
+
+    .selectVerses {
+      padding: 12px;
+      background-color: #f8f9fa;
+      border: 1px solid #dee2e6;
+      border-radius: 4px;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: background-color 0.2s ease;
+      user-select: none;
+    }
+
+    .selectVerses:hover {
+      background-color: #e9ecef;
+    }
+
+    .selectVerses:focus {
+      outline: 2px solid #0056b3;
+      outline-offset: 2px;
+    }
+
+    .selectVerses[aria-expanded="false"] .accordion-icon::before {
+      content: "▶";
+    }
+
+    .selectVerses[aria-expanded="true"] .accordion-icon::before {
+      content: "▼";
+    }
+
+    .verses {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease-out, padding 0.3s ease-out;
+      padding: 0 12px;
+    }
+
+    .verses.expanded {
+      max-height: 500px;
+      padding: 12px;
+      transition: max-height 0.3s ease-in, padding 0.3s ease-in;
+    }
+
+    .verses-content {
+      padding-top: 8px;
+    }
+
+    .verse-item {
+      padding: 8px;
+      margin-bottom: 8px;
+      background-color: #f8f9fa;
+      border-radius: 4px;
+      border-left: 3px solid #0056b3;
+    }
+
+    .section-title {
+      font-weight: bold;
+      margin-bottom: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Accordion Demo - Verses Section</h1>
+  <p>This demonstrates the accordion functionality for the verses section with ARIA accessibility.</p>
+
+  <div class="sidenav">
+    <div class="panel-text">
+      
+      <!-- Reference: Texts Accordion -->
+      <div class="texts-section">
+        <div class="section-title">Texts Section (Reference)</div>
+        <div 
+          class="selectTexts" 
+          role="button"
+          tabindex="0"
+          aria-expanded="false"
+          aria-controls="texts-content"
+          id="selectTexts-btn"
+        >
+          <span>View Texts</span>
+          <span class="accordion-icon" aria-hidden="true"></span>
+        </div>
+        <div 
+          class="texts" 
+          id="texts-content"
+          role="region"
+          aria-labelledby="selectTexts-btn"
+        >
+          <div class="texts-content">
+            <p>Sample text content 1</p>
+            <p>Sample text content 2</p>
+            <p>Sample text content 3</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- New: Verses Accordion -->
+      <div class="verses-section">
+        <div class="section-title">Verses Section (New)</div>
+        <div 
+          class="selectVerses" 
+          role="button"
+          tabindex="0"
+          aria-expanded="false"
+          aria-controls="verses-content"
+          id="selectVerses-btn"
+        >
+          <span>View Verses</span>
+          <span class="accordion-icon" aria-hidden="true"></span>
+        </div>
+        <div 
+          class="verses" 
+          id="verses-content"
+          role="region"
+          aria-labelledby="selectVerses-btn"
+        >
+          <div class="verses-content">
+            <div class="verse-item">
+              <strong>Verse 1:</strong> In the beginning was the Word...
+            </div>
+            <div class="verse-item">
+              <strong>Verse 2:</strong> And the Word was with God...
+            </div>
+            <div class="verse-item">
+              <strong>Verse 3:</strong> And the Word was God...
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    // Accordion functionality
+    function initAccordion(selectElement, contentElement) {
+      // Click handler
+      selectElement.addEventListener('click', function() {
+        toggleAccordion(selectElement, contentElement);
+      });
+
+      // Keyboard handler for accessibility
+      selectElement.addEventListener('keydown', function(event) {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          toggleAccordion(selectElement, contentElement);
+        }
+      });
+    }
+
+    function toggleAccordion(selectElement, contentElement) {
+      const isExpanded = selectElement.getAttribute('aria-expanded') === 'true';
+      
+      if (isExpanded) {
+        // Collapse
+        selectElement.setAttribute('aria-expanded', 'false');
+        contentElement.classList.remove('expanded');
+      } else {
+        // Expand
+        selectElement.setAttribute('aria-expanded', 'true');
+        contentElement.classList.add('expanded');
+      }
+    }
+
+    // Initialize accordions when DOM is ready
+    document.addEventListener('DOMContentLoaded', function() {
+      // Initialize texts accordion (reference)
+      const selectTexts = document.getElementById('selectTexts-btn');
+      const textsContent = document.getElementById('texts-content');
+      initAccordion(selectTexts, textsContent);
+
+      // Initialize verses accordion (new)
+      const selectVerses = document.getElementById('selectVerses-btn');
+      const versesContent = document.getElementById('verses-content');
+      initAccordion(selectVerses, versesContent);
+
+      console.log('Accordion functionality initialized');
+    });
+  </script>
+</body>
+</html>
