@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Verovio with Sidenav Accordion</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* Sidenav styles */
+    .sidenav {
+      width: 300px;
+      background-color: #f8f9fa;
+      border-right: 1px solid #dee2e6;
+      overflow-y: auto;
+      flex-shrink: 0;
+    }
+
+    .panel-text {
+      padding: 20px;
+    }
+
+    /* Section styles */
+    .section {
+      margin-bottom: 16px;
+    }
+
+    .section-header {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      color: #6c757d;
+      margin-bottom: 8px;
+      letter-spacing: 0.5px;
+    }
+
+    /* Accordion button styles */
+    .accordion-button {
+      width: 100%;
+      padding: 10px 12px;
+      background-color: #fff;
+      border: 1px solid #dee2e6;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: all 0.2s ease;
+      font-size: 14px;
+      font-weight: 500;
+      color: #212529;
+      text-align: left;
+    }
+
+    .accordion-button:hover {
+      background-color: #e9ecef;
+      border-color: #adb5bd;
+    }
+
+    .accordion-button:focus {
+      outline: 2px solid #0d6efd;
+      outline-offset: 2px;
+      background-color: #e7f1ff;
+    }
+
+    .accordion-button:active {
+      background-color: #dee2e6;
+    }
+
+    /* Icon styles */
+    .accordion-icon {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      transition: transform 0.3s ease;
+      color: #6c757d;
+      font-size: 12px;
+      line-height: 16px;
+      text-align: center;
+    }
+
+    .accordion-button[aria-expanded="false"] .accordion-icon::before {
+      content: "▶";
+    }
+
+    .accordion-button[aria-expanded="true"] .accordion-icon::before {
+      content: "▼";
+    }
+
+    .accordion-button[aria-expanded="true"] .accordion-icon {
+      transform: rotate(0deg);
+    }
+
+    /* Accordion content styles */
+    .accordion-content {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      background-color: #fff;
+      border: 0 solid #dee2e6;
+      border-radius: 0 0 6px 6px;
+      margin-top: -1px;
+    }
+
+    .accordion-content.expanded {
+      max-height: 600px;
+      border-width: 0 1px 1px 1px;
+      transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .accordion-content-inner {
+      padding: 12px;
+    }
+
+    /* Content item styles */
+    .content-item {
+      padding: 8px 10px;
+      margin-bottom: 6px;
+      background-color: #f8f9fa;
+      border-radius: 4px;
+      border-left: 3px solid #0d6efd;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .content-item:last-child {
+      margin-bottom: 0;
+    }
+
+    .content-item strong {
+      color: #495057;
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .verse-number {
+      display: inline-block;
+      min-width: 24px;
+      font-weight: 600;
+      color: #0d6efd;
+    }
+
+    .verse-text {
+      color: #212529;
+    }
+
+    /* Main content area */
+    .main-content {
+      flex: 1;
+      padding: 20px;
+      overflow-y: auto;
+      background-color: #fff;
+    }
+
+    h1 {
+      font-size: 24px;
+      margin-bottom: 20px;
+      color: #212529;
+    }
+
+    .info-box {
+      padding: 16px;
+      background-color: #d1ecf1;
+      border: 1px solid #bee5eb;
+      border-radius: 6px;
+      margin-bottom: 20px;
+    }
+
+    .info-box h2 {
+      font-size: 16px;
+      margin-bottom: 8px;
+      color: #0c5460;
+    }
+
+    .info-box p {
+      font-size: 14px;
+      line-height: 1.6;
+      color: #0c5460;
+      margin: 0;
+    }
+
+    /* Responsive design */
+    @media (max-width: 768px) {
+      body {
+        flex-direction: column;
+      }
+      
+      .sidenav {
+        width: 100%;
+        max-height: 40vh;
+        border-right: none;
+        border-bottom: 1px solid #dee2e6;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Sidenav with panel-text -->
+  <div class="sidenav">
+    <div class="panel-text">
+      
+      <!-- Texts Section (Reference) -->
+      <div class="section">
+        <div class="section-header">Texts</div>
+        <button 
+          class="accordion-button"
+          type="button"
+          role="button"
+          tabindex="0"
+          aria-expanded="false"
+          aria-controls="texts-content"
+          id="selectTexts"
+        >
+          <span>View Texts</span>
+          <span class="accordion-icon" aria-hidden="true"></span>
+        </button>
+        <div 
+          class="accordion-content texts"
+          id="texts-content"
+          role="region"
+          aria-labelledby="selectTexts"
+        >
+          <div class="accordion-content-inner">
+            <div class="content-item">
+              <strong>Hymn Text:</strong>
+              Amazing grace, how sweet the sound, that saved a wretch like me.
+            </div>
+            <div class="content-item">
+              <strong>Author:</strong>
+              John Newton (1779)
+            </div>
+            <div class="content-item">
+              <strong>Tune:</strong>
+              NEW BRITAIN
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Verses Section (New Implementation) -->
+      <div class="section">
+        <div class="section-header">Verses</div>
+        <button 
+          class="accordion-button"
+          type="button"
+          role="button"
+          tabindex="0"
+          aria-expanded="false"
+          aria-controls="verses-content"
+          id="selectVerses"
+        >
+          <span>View Verses</span>
+          <span class="accordion-icon" aria-hidden="true"></span>
+        </button>
+        <div 
+          class="accordion-content verses"
+          id="verses-content"
+          role="region"
+          aria-labelledby="selectVerses"
+        >
+          <div class="accordion-content-inner">
+            <div class="content-item">
+              <span class="verse-number">1.</span>
+              <span class="verse-text">Amazing grace, how sweet the sound, that saved a wretch like me.</span>
+            </div>
+            <div class="content-item">
+              <span class="verse-number">2.</span>
+              <span class="verse-text">'Twas grace that taught my heart to fear, and grace my fears relieved.</span>
+            </div>
+            <div class="content-item">
+              <span class="verse-number">3.</span>
+              <span class="verse-text">Through many dangers, toils and snares, I have already come.</span>
+            </div>
+            <div class="content-item">
+              <span class="verse-number">4.</span>
+              <span class="verse-text">The Lord has promised good to me, His word my hope secures.</span>
+            </div>
+            <div class="content-item">
+              <span class="verse-number">5.</span>
+              <span class="verse-text">When we've been there ten thousand years, bright shining as the sun.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Additional Section Example -->
+      <div class="section">
+        <div class="section-header">Music Info</div>
+        <button 
+          class="accordion-button"
+          type="button"
+          role="button"
+          tabindex="0"
+          aria-expanded="false"
+          aria-controls="music-content"
+          id="selectMusic"
+        >
+          <span>View Music Information</span>
+          <span class="accordion-icon" aria-hidden="true"></span>
+        </button>
+        <div 
+          class="accordion-content"
+          id="music-content"
+          role="region"
+          aria-labelledby="selectMusic"
+        >
+          <div class="accordion-content-inner">
+            <div class="content-item">
+              <strong>Key:</strong> G Major
+            </div>
+            <div class="content-item">
+              <strong>Time Signature:</strong> 3/4
+            </div>
+            <div class="content-item">
+              <strong>Tempo:</strong> Moderato
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Main content area -->
+  <div class="main-content">
+    <h1>Verovio Music Notation with Sidenav Accordion</h1>
+    
+    <div class="info-box">
+      <h2>✅ Implementation Complete</h2>
+      <p>The verses accordion has been successfully implemented with the following features:</p>
+      <ul style="margin-top: 10px; padding-left: 20px;">
+        <li>Smooth expand/collapse animation (0.3s cubic-bezier easing)</li>
+        <li>Full ARIA accessibility support</li>
+        <li>Keyboard navigation (Tab, Enter, Space)</li>
+        <li>Consistent styling with texts accordion</li>
+        <li>Visual feedback for hover, focus, and active states</li>
+        <li>Responsive design support</li>
+      </ul>
+    </div>
+
+    <h2 style="font-size: 18px; margin-bottom: 12px; color: #495057;">How to Use</h2>
+    <div style="font-size: 14px; line-height: 1.8; color: #6c757d;">
+      <p><strong>Click:</strong> Click on "View Verses" to expand/collapse the verses section</p>
+      <p><strong>Keyboard:</strong> Use Tab to navigate to the button, then press Enter or Space to toggle</p>
+      <p><strong>Accessibility:</strong> Screen readers will announce the expanded/collapsed state</p>
+    </div>
+  </div>
+
+  <script>
+    /**
+     * Initialize accordion functionality for a button and content pair
+     * @param {HTMLElement} button - The accordion button element
+     * @param {HTMLElement} content - The accordion content element
+     */
+    function initAccordion(button, content) {
+      if (!button || !content) {
+        console.error('Accordion initialization failed: button or content not found');
+        return;
+      }
+
+      // Click event handler
+      button.addEventListener('click', function() {
+        toggleAccordion(button, content);
+      });
+
+      // Keyboard event handler for accessibility
+      button.addEventListener('keydown', function(event) {
+        // Support Enter and Space keys
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault(); // Prevent default space scrolling
+          toggleAccordion(button, content);
+        }
+      });
+
+      console.log(`Accordion initialized for: ${button.id}`);
+    }
+
+    /**
+     * Toggle the expanded/collapsed state of an accordion
+     * @param {HTMLElement} button - The accordion button element
+     * @param {HTMLElement} content - The accordion content element
+     */
+    function toggleAccordion(button, content) {
+      const isExpanded = button.getAttribute('aria-expanded') === 'true';
+      
+      if (isExpanded) {
+        // Collapse the accordion
+        button.setAttribute('aria-expanded', 'false');
+        content.classList.remove('expanded');
+      } else {
+        // Expand the accordion
+        button.setAttribute('aria-expanded', 'true');
+        content.classList.add('expanded');
+      }
+
+      // Log the action for debugging
+      console.log(`${button.id} ${isExpanded ? 'collapsed' : 'expanded'}`);
+    }
+
+    // Initialize all accordions when the DOM is fully loaded
+    document.addEventListener('DOMContentLoaded', function() {
+      console.log('Initializing accordions...');
+
+      // Initialize Texts accordion (reference implementation)
+      const selectTexts = document.getElementById('selectTexts');
+      const textsContent = document.getElementById('texts-content');
+      initAccordion(selectTexts, textsContent);
+
+      // Initialize Verses accordion (new implementation)
+      const selectVerses = document.getElementById('selectVerses');
+      const versesContent = document.getElementById('verses-content');
+      initAccordion(selectVerses, versesContent);
+
+      // Initialize Music accordion (additional example)
+      const selectMusic = document.getElementById('selectMusic');
+      const musicContent = document.getElementById('music-content');
+      initAccordion(selectMusic, musicContent);
+
+      console.log('All accordions initialized successfully!');
+    });
+  </script>
+</body>
+</html>
