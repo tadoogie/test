@@ -225,26 +225,6 @@
                   align-items: flex-start;
                 }
             
-            /*.psalm-btn, .verse-btn {
-              display: inline-flex;
-              flex-direction: column;
-              align-items: center;
-              font-size: 1em;
-              padding: 0px 6px;
-              margin: 2px;
-              align-items: center;
-              justify-content: center;
-              height: 65px;
-              text-align: center;
-              background: #666;
-              border: 1px solid #444;
-              border-radius: 6px;
-              cursor: pointer;
-              white-space: normal;
-              text-align: center;
-              box-sizing: border-box;
-            }*/
-            
             .psalm-label, .psalm-subline {
               display: block;
               font-size: 0.66em;
@@ -313,10 +293,6 @@
                 margin-left: -15px;
             }
             
-            .verse-btn {
-                min-width: 55px;
-            }
-            
             .stanza-label {
                 color: white;
                 font-size: 1.2em;
@@ -382,7 +358,7 @@
             }
             
             /* Psalm button styling - three-line layout */
-            .psalm-btn {
+            .psalm-btn, .verse-btn {
               display: inline-flex;
               flex-direction: column;
               align-items: center;
@@ -470,6 +446,10 @@
             .psalm-btn.active .psalm-number,
             .psalm-btn.active .psalm-subline {
               color: white;
+            }
+            
+            .verse-btn {
+                font-size: 1.2em;
             }
         </style>
     </head>
