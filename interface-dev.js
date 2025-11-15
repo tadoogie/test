@@ -826,7 +826,7 @@ function setTexts() {
   container.innerHTML = '';
   if (textsContainer) {
     textsContainer.innerHTML = '';
-    textsContainer.classList.remove('expanded');  // Start hidden
+    textsContainer.style.display = 'none';  // Start hidden
   }
 
   if (filtered.length === 0) {
@@ -922,8 +922,9 @@ function setTexts() {
       hiddenInput.dataset.psdata = item.data;
       selectPsDiv.textContent = item.label;
       
+      // ⬇️ CHANGED: Hide psalm buttons
       if (textsContainer) {
-        textsContainer.classList.remove('expanded');
+        textsContainer.style.display = 'none';
       }
       psalmBtnsContainer.classList.remove('expanded');
       selectPsDiv.classList.remove('open');
@@ -949,19 +950,22 @@ function setTexts() {
 
   psalmBtnsContainer.appendChild(psalmBtnsInner);
 
+  // Toggle - ⬇️ MODIFIED: Toggle the texts container visibility
   const togglePanel = function(e) {
     if (e) e.preventDefault();
     
     if (!textsContainer) return;
     
-    const isExpanded = textsContainer.classList.contains('expanded');
+    const isExpanded = textsContainer.style.display === 'block';
     
     if (isExpanded) {
-      textsContainer.classList.remove('expanded');
+      textsContainer.style.display = 'none';
+      psalmBtnsContainer.classList.remove('expanded');
       selectPsDiv.classList.remove('open');
       selectPsDiv.setAttribute('aria-expanded', 'false');
     } else {
-      textsContainer.classList.add('expanded');
+      textsContainer.style.display = 'block';
+      psalmBtnsContainer.classList.add('expanded');
       selectPsDiv.classList.add('open');
       selectPsDiv.setAttribute('aria-expanded', 'true');
     }
@@ -978,14 +982,16 @@ function setTexts() {
   container.appendChild(selectPsDiv);    
   container.appendChild(hiddenInput);   
   
-     if (textsContainer) {
-  textsContainer.appendChild(psalmBtnsContainer);
-  
-  // AUTO-SHOW: Expand immediately when tab opens
-  textsContainer.classList.add('expanded');
-  selectPsDiv.classList.add('open');
-  selectPsDiv.setAttribute('aria-expanded', 'true');
-}
+  if (textsContainer) {
+      textsContainer.appendChild(psalmBtnsContainer);
+      
+      // Show immediately on first load (no transition)
+      textsContainer.style.maxHeight = 'none';
+      textsContainer.style.opacity = '1';
+      textsContainer.classList.add('expanded');
+      selectPsDiv.classList.add('open');
+      selectPsDiv.setAttribute('aria-expanded', 'true');
+    }
 
   // Clear verse selector
   const selectVersesDiv = document.getElementById("selectVerses");
@@ -1184,16 +1190,21 @@ function populateVersesFromSelectedText(rawObj) {
   if (selectVersesEl) {
     const togglePanel = function(e) {
       if (e) e.preventDefault();
-      const isExpanded = versesEl.classList.contains('expanded');
+      
+      if (!textsContainer) return;
+      
+      const isExpanded = textsContainer.style.display === 'block';
       
       if (isExpanded) {
-        versesEl.classList.remove('expanded');
-        selectVersesEl.classList.remove('open');
-        selectVersesEl.setAttribute('aria-expanded', 'false');
+        textsContainer.style.display = 'none';
+        psalmBtnsContainer.classList.remove('expanded');
+        selectPsDiv.classList.remove('open');
+        selectPsDiv.setAttribute('aria-expanded', 'false');
       } else {
-        versesEl.classList.add('expanded');
-        selectVersesEl.classList.add('open');
-        selectVersesEl.setAttribute('aria-expanded', 'true');
+        textsContainer.style.display = 'block';
+        psalmBtnsContainer.classList.add('expanded');
+        selectPsDiv.classList.add('open');
+        selectPsDiv.setAttribute('aria-expanded', 'true');
       }
     };
     selectVersesEl.setAttribute('role', 'button');
