@@ -813,6 +813,53 @@ function setTexts() {
     return { label: item.label, data: item.data, rawObj: item.rawObj || null };
   });
 
+  // Sort psalms numerically with version ordering
+  window.currentPsListForUI.sort(function(a, b) {
+    const aMatch = a.label.match(/Psalm\s+(\d+)(?:\s+\(([^)]+)\))?/i);
+    const bMatch = b.label.match(/Psalm\s+(\d+)(?:\s+\(([^)]+)\))?/i);
+    
+    // If both match the psalm pattern
+    if (aMatch && bMatch) {
+      const aNum = parseInt(aMatch[1], 10);
+      const bNum = parseInt(bMatch[1], 10);
+      
+      // Sort by psalm number first
+      if (aNum !== bNum) {
+        return aNum - bNum;
+      }
+      
+      // Same psalm number - sort by version
+      const aVersion = aMatch[2] || '';
+      const bVersion = bMatch[2] || '';
+      
+      // Define version order
+      const versionOrder = ['First', 'Second', 'Third', 'Fourth', 'Fifth', 'Sixth', 'Seventh', 'Eighth', 'Ninth', 'Tenth'];
+      
+      const aVersionMatch = aVersion.match(/(First|Second|Third|Fourth|Fifth|Sixth|Seventh|Eighth|Ninth|Tenth)/i);
+      const bVersionMatch = bVersion.match(/(First|Second|Third|Fourth|Fifth|Sixth|Seventh|Eighth|Ninth|Tenth)/i);
+      
+      if (aVersionMatch && bVersionMatch) {
+        const aIdx = versionOrder.findIndex(v => v.toLowerCase() === aVersionMatch[1].toLowerCase());
+        const bIdx = versionOrder.findIndex(v => v.toLowerCase() === bVersionMatch[1].toLowerCase());
+        return aIdx - bIdx;
+      }
+      
+      // If only one has version, non-version comes first
+      if (aVersionMatch && !bVersionMatch) return 1;
+      if (!aVersionMatch && bVersionMatch) return -1;
+      
+      // Otherwise sort version text alphabetically
+      return aVersion.localeCompare(bVersion);
+    }
+    
+    // If only one matches psalm pattern, psalms come first
+    if (aMatch && !bMatch) return -1;
+    if (!aMatch && bMatch) return 1;
+    
+    // Neither matches - sort alphabetically
+    return a.label.localeCompare(b.label);
+  });
+
   const container = document.getElementById('psTextList');
   // ⬇️ NEW: Also get the texts container
   const textsContainer = document.getElementById('texts');
@@ -867,8 +914,8 @@ function setTexts() {
   const psalmBtnsInner = document.createElement('div');
   psalmBtnsInner.className = 'psalm-btn-container';
 
-  // Create buttons
-  filtered.forEach(function(item) {
+  // Create buttons (using the now-sorted list)
+  window.currentPsListForUI.forEach(function(item) {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'psalm-btn';
