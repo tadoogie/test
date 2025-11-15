@@ -107,8 +107,6 @@ document.addEventListener("DOMContentLoaded", function() {
 });
 
 /* ----------------------------- Sound menu ----------------------------- */
-let urlParamsUsed = false;
-
 document.addEventListener("DOMContentLoaded", function() {
   const soundMenu = document.getElementById("soundMenu");
   const soundSettingsBtn = document.getElementById("soundSettingsBtn");
@@ -349,147 +347,6 @@ function getTunes(tuneLabel) {
   }
 }
 
-/* ----------------------------- Convert verse checkboxes to buttons ----------------------------- */
-/**
- * This function finds all the checkbox-based verse selectors in #verses
- * and converts them to mobile-friendly button-based selectors.
- * Preserves Psalm 119 grouped structure with "select all" functionality.
- */
-function convertVersesToButtons() {
-  const versesEl = document.getElementById('verses');
-  if (!versesEl) return;
-
-  // Find #indVerses container (this is where checkboxes live)
-  const indVerses = document.getElementById('indVerses');
-  if (!indVerses) return;
-
-  // Check if this is Psalm 119 (has multiple groups)
-  const verseGroups = indVerses.querySelectorAll('.verseGroup');
-  
-  if (verseGroups.length > 0) {
-    // Psalm 119 or similar: has sections with group headers
-    verseGroups.forEach(function(group, groupIdx) {
-      // Find the group header checkbox (if any)
-      const groupCheckbox = group.querySelector('input[type="checkbox"]');
-      const groupLabel = group.querySelector('.stanza-label');
-      
-      // Create "Select All" button for this group
-      const selectAllBtn = document.createElement('button');
-      selectAllBtn.type = 'button';
-      selectAllBtn.className = 'stanza-control-btn';
-      selectAllBtn.innerHTML = `
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" style="width: 1em; height: 1em; fill: currentColor;">
-          <path d="M438.6 105.4c12.5 12.5 12.5 32.8 0 45.3l-256 256c-12.5 12.5-32.8 12.5-45.3 0l-128-128c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0L160 338.7 393.4 105.4c12.5-12.5 32.8-12.5 45.3 0z"/>
-        </svg>
-        <span class="stanza-toggle-label">Select All</span>
-      `;
-      selectAllBtn.dataset.groupIdx = groupIdx;
-      
-      // Find all verse checkboxes in this group
-      const verseCheckboxes = group.querySelectorAll('input[type="checkbox"][value]');
-      
-      // Convert each checkbox to a button
-      verseCheckboxes.forEach(function(checkbox) {
-        const verseValue = checkbox.value;
-        const verseBtn = document.createElement('button');
-        verseBtn.type = 'button';
-        verseBtn.className = 'verse-btn';
-        verseBtn.dataset.verse = verseValue;
-        verseBtn.dataset.selected = 'false';
-        
-        const verseNum = document.createElement('span');
-        verseNum.className = 'verse-number';
-        verseNum.textContent = verseValue;
-        verseBtn.appendChild(verseNum);
-        
-        // Click handler: toggle selection
-        verseBtn.addEventListener('click', function() {
-          const isSelected = verseBtn.dataset.selected === 'true';
-          verseBtn.dataset.selected = isSelected ? 'false' : 'true';
-          if (isSelected) {
-            verseBtn.classList.remove('active');
-          } else {
-            verseBtn.classList.add('active');
-          }
-          verseMenu();
-        });
-        
-        // Replace checkbox with button
-        if (checkbox.parentElement) {
-          checkbox.parentElement.replaceWith(verseBtn);
-        }
-      });
-      
-      // Wire up "Select All" button
-      selectAllBtn.addEventListener('click', function() {
-        const verseBtns = group.querySelectorAll('.verse-btn');
-        const allSelected = Array.from(verseBtns).every(btn => btn.dataset.selected === 'true');
-        
-        verseBtns.forEach(btn => {
-          btn.dataset.selected = allSelected ? 'false' : 'true';
-          if (allSelected) {
-            btn.classList.remove('active');
-          } else {
-            btn.classList.add('active');
-          }
-        });
-        
-        verseMenu();
-      });
-      
-      // Insert "Select All" button after the group label
-      if (groupLabel && groupLabel.nextSibling) {
-        groupLabel.parentElement.insertBefore(selectAllBtn, groupLabel.nextSibling);
-      } else if (groupLabel) {
-        groupLabel.parentElement.appendChild(selectAllBtn);
-      }
-      
-      // Remove original group checkbox if it exists
-      if (groupCheckbox && groupCheckbox.parentElement) {
-        groupCheckbox.parentElement.remove();
-      }
-    });
-  } else {
-    // Regular psalm: flat list of verse checkboxes
-    const verseCheckboxes = indVerses.querySelectorAll('input[type="checkbox"][value]');
-    
-    verseCheckboxes.forEach(function(checkbox) {
-      const verseValue = checkbox.value;
-      const verseBtn = document.createElement('button');
-      verseBtn.type = 'button';
-      verseBtn.className = 'verse-btn';
-      verseBtn.dataset.verse = verseValue;
-      verseBtn.dataset.selected = 'false';
-      
-      const verseNum = document.createElement('span');
-      verseNum.className = 'verse-number';
-      verseNum.textContent = verseValue;
-      verseBtn.appendChild(verseNum);
-      
-      verseBtn.addEventListener('click', function() {
-        const isSelected = verseBtn.dataset.selected === 'true';
-        verseBtn.dataset.selected = isSelected ? 'false' : 'true';
-        if (isSelected) {
-          verseBtn.classList.remove('active');
-        } else {
-          verseBtn.classList.add('active');
-        }
-        verseMenu();
-      });
-      
-      // Replace checkbox with button (preserve parent structure if it's a label)
-      if (checkbox.parentElement) {
-        const parent = checkbox.parentElement;
-        if (parent.tagName.toLowerCase() === 'label') {
-          parent.replaceWith(verseBtn);
-        } else {
-          checkbox.replaceWith(verseBtn);
-        }
-      }
-    });
-  }
-}
-
 /* ----------------------------- Verses formatting and selection helpers ----------------------------- */
 function parseVerseToken(tok) {
   const m = String(tok).trim().match(/^(\d+)([a-z])?$/i);
@@ -592,47 +449,6 @@ function verseMenu(){
 }
 
 /* ----------------------------- Utility helpers ----------------------------- */
-function myFunction() {
-  var dd = document.getElementById("myDropdown");
-  if (dd) dd.classList.toggle("show");
-}
-
-function filterFunction() {
-  var input = document.getElementById("myInput");
-  var div = document.getElementById("myDropdown");
-  if (!input || !div) return;
-  var filter = input.value.toUpperCase();
-  var a = div.getElementsByTagName("a");
-  for (var i = 0; i < a.length; i++) {
-    var txtValue = a[i].getAttribute("name") || a[i].innerText;
-    a[i].style.display = (txtValue.toUpperCase().indexOf(filter) > -1) ? "" : "none";
-  }
-}
-
-function toggle(section) {
-  var parSelect = document.getElementById("selectAll");
-  var selection = section.getAttribute("id");
-  var selChecks = document.getElementById(selection).getElementsByTagName("input");
-  if (parSelect && parSelect.checked == true) {
-    for (var a = 0; a < selChecks.length; a++){ selChecks[a].checked = true; }
-    document.getElementById("selectVerses").innerHTML = "All";
-  } else {
-    for (var b = 0; b < selChecks.length; b++){ selChecks[b].checked = false; }
-    document.getElementById("selectVerses").innerHTML = "Select verses below...";
-  }
-}
-
-function secToggle(section) {
-  var selection = section.getAttribute("id");
-  var selChecks = document.getElementById(selection).getElementsByTagName("input");
-  if (selChecks[0].checked == true) {
-    for (var a = 0; a < selChecks.length; a++){ selChecks[a].checked = true; }
-  } else {
-    for (var b = 0; b < selChecks.length; b++){ selChecks[b].checked = false; }
-  }
-  verseMenu();
-}
-
 function loadcssfile(){
   var fileref=document.createElement("link");
   fileref.setAttribute("rel", "stylesheet");
@@ -1237,32 +1053,30 @@ function populateVersesFromSelectedText(rawObj) {
     }
 
   if (selectVersesEl) {
-    const togglePanel = function(e) {
+    const toggleVersePanel = function(e) {
       if (e) e.preventDefault();
       
-      if (!textsContainer) return;
-      
-      const isExpanded = textsContainer.style.display === 'block';
+      const isExpanded = versesEl.classList.contains('expanded');
       
       if (isExpanded) {
-        textsContainer.style.display = 'none';
-        psalmBtnsContainer.classList.remove('expanded');
-        selectPsDiv.classList.remove('open');
-        selectPsDiv.setAttribute('aria-expanded', 'false');
+        versesEl.classList.remove('expanded');
+        versesEl.style.display = 'none';
+        selectVersesEl.classList.remove('open');
+        selectVersesEl.setAttribute('aria-expanded', 'false');
       } else {
-        textsContainer.style.display = 'block';
-        psalmBtnsContainer.classList.add('expanded');
-        selectPsDiv.classList.add('open');
-        selectPsDiv.setAttribute('aria-expanded', 'true');
+        versesEl.classList.add('expanded');
+        versesEl.style.display = 'block';
+        selectVersesEl.classList.add('open');
+        selectVersesEl.setAttribute('aria-expanded', 'true');
       }
     };
     selectVersesEl.setAttribute('role', 'button');
     selectVersesEl.setAttribute('tabindex', '0');
     selectVersesEl.setAttribute('aria-expanded', 'true');
     selectVersesEl.style.cursor = 'pointer';
-    selectVersesEl.onclick = togglePanel;
+    selectVersesEl.onclick = toggleVersePanel;
     selectVersesEl.onkeydown = function(e) {
-      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); togglePanel(e); }
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleVersePanel(e); }
     };
   }
 
@@ -1638,100 +1452,4 @@ document.addEventListener("DOMContentLoaded", function() {
 /* ----------------------------- Startup: fetch consolidated data ----------------------------- */
 document.addEventListener('DOMContentLoaded', function() {
   try { fetchConsolidatedData(); } catch (e) { console.warn('fetchConsolidatedData failed', e); }
-});
-
-function initializeTextAccordion() {
-  const selectPsalm = document.getElementById('selectPsalm');
-  const psalmButtons = document.getElementById('psalmButtons');
-  
-  if (!selectPsalm || !psalmButtons) {
-    console.warn('Text accordion elements not found');
-    return;
-  }
-  
-  // Add caret indicator if not already present
-  if (!selectPsalm.querySelector('.accordion-caret')) {
-    const caret = document.createElement('span');
-    caret.className = 'accordion-caret';
-    selectPsalm.insertBefore(caret, selectPsalm.firstChild);
-  }
-  
-  // Toggle function
-  const toggleTextAccordion = function(e) {
-    if (e) e.preventDefault();
-    const isExpanded = psalmButtons.classList.contains('expanded');
-    
-    if (isExpanded) {
-      psalmButtons.classList.remove('expanded');
-      selectPsalm.classList.remove('open');
-      selectPsalm.setAttribute('aria-expanded', 'false');
-    } else {
-      psalmButtons.classList.add('expanded');
-      selectPsalm.classList.add('open');
-      selectPsalm.setAttribute('aria-expanded', 'true');
-    }
-  };
-  
-  // Wire up click handlers
-  selectPsalm.addEventListener('click', toggleTextAccordion);
-  selectPsalm.addEventListener('keydown', function(e) {
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      toggleTextAccordion(e);
-    }
-  });
-  
-  console.log('Text accordion initialized');
-}
-
-function initializeVerseAccordion() {
-  const selectVerses = document.getElementById('selectVerses');
-  const versesContainer = document.getElementById('verses');
-  
-  if (!selectVerses || !versesContainer) {
-    console.warn('Verse accordion elements not found');
-    return;
-  }
-  
-  // Add caret indicator if not already present
-  if (!selectVerses.querySelector('.accordion-caret')) {
-    const caret = document.createElement('span');
-    caret.className = 'accordion-caret';
-    selectVerses.insertBefore(caret, selectVerses.firstChild);
-  }
-  
-  // Toggle function
-  const toggleVerseAccordion = function(e) {
-    if (e) e.preventDefault();
-    const isExpanded = versesContainer.classList.contains('expanded');
-    
-    if (isExpanded) {
-      versesContainer.classList.remove('expanded');
-      selectVerses.classList.remove('open');
-      selectVerses.setAttribute('aria-expanded', 'false');
-    } else {
-      versesContainer.classList.add('expanded');
-      selectVerses.classList.add('open');
-      selectVerses.setAttribute('aria-expanded', 'true');
-    }
-  };
-  
-  // Wire up click handlers
-  selectVerses.addEventListener('click', toggleVerseAccordion);
-  selectVerses.addEventListener('keydown', function(e) {
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      toggleVerseAccordion(e);
-    }
-  });
-  
-  console.log('Verse accordion initialized');
-}
-
-document.addEventListener('DOMContentLoaded', function() {
-  // Use a slight delay to ensure all dynamic content is loaded first
-  setTimeout(function() {
-    initializeTextAccordion();
-    initializeVerseAccordion();
-  }, 100);
 });
