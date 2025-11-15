@@ -900,7 +900,7 @@ function setTexts() {
         if (versionMatch) {
           const versionWords = ['First', 'Second', 'Third', 'Fourth', 'Fifth', 'Sixth', 'Seventh', 'Eighth', 'Ninth', 'Tenth'];
           const versionIndex = versionWords.findIndex(w => w.toLowerCase() === versionMatch[1].toLowerCase());
-          sublineSpan.textContent = `VER. ${versionIndex + 1}`;
+          sublineSpan.textContent = `VER ${versionIndex + 1}`;
         } else {
           sublineSpan.textContent = versionText.toUpperCase();
         }
@@ -986,16 +986,18 @@ function setTexts() {
       textsContainer.appendChild(psalmBtnsContainer);
       
       // Show immediately on first load (no transition)
+      textsContainer.style.display = 'block';
       textsContainer.style.maxHeight = 'none';
       textsContainer.style.opacity = '1';
       textsContainer.classList.add('expanded');
+      psalmBtnsContainer.classList.add('expanded');
       selectPsDiv.classList.add('open');
       selectPsDiv.setAttribute('aria-expanded', 'true');
     }
 
   // Clear verse selector
   const selectVersesDiv = document.getElementById("selectVerses");
-  if (selectVersesDiv) selectVersesDiv.textContent = "Select Psalm First";
+  if (selectVersesDiv) selectVersesDiv.textContent = "Select Psalm first";
   
   const versesList = document.getElementById("verses");
   if (versesList) {
