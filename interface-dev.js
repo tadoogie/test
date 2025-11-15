@@ -923,7 +923,7 @@ function setTexts() {
       selectPsDiv.textContent = item.label;
       
       if (textsContainer) {
-        textsContainer.classlist.remove = 'expanded';
+        textsContainer.classlist.remove('expanded');
       }
       psalmBtnsContainer.classList.remove('expanded');
       selectPsDiv.classList.remove('open');
@@ -950,19 +950,22 @@ function setTexts() {
   psalmBtnsContainer.appendChild(psalmBtnsInner);
 
   const togglePanel = function(e) {
-      if (e) e.preventDefault();
-      const isExpanded = versesEl.classList.contains('expanded');
-      
-      if (isExpanded) {
-        versesEl.classList.remove('expanded');
-        selectVersesEl.classList.remove('open');
-        selectVersesEl.setAttribute('aria-expanded', 'false');
-      } else {
-        versesEl.classList.add('expanded');
-        selectVersesEl.classList.add('open');
-        selectVersesEl.setAttribute('aria-expanded', 'true');
-      }
-    };
+    if (e) e.preventDefault();
+    
+    if (!textsContainer) return;
+    
+    const isExpanded = textsContainer.classList.contains('expanded');
+    
+    if (isExpanded) {
+      textsContainer.classList.remove('expanded');
+      selectPsDiv.classList.remove('open');
+      selectPsDiv.setAttribute('aria-expanded', 'false');
+    } else {
+      textsContainer.classList.add('expanded');
+      selectPsDiv.classList.add('open');
+      selectPsDiv.setAttribute('aria-expanded', 'true');
+    }
+  };
 
   selectPsDiv.addEventListener('click', togglePanel);
   selectPsDiv.addEventListener('keydown', function(e) {
@@ -1181,19 +1184,16 @@ function populateVersesFromSelectedText(rawObj) {
   if (selectVersesEl) {
     const togglePanel = function(e) {
       if (e) e.preventDefault();
-      
-      if (!textsContainer) return;
-      
-      const isExpanded = textsContainer.classList.contains('expanded');
+      const isExpanded = versesEl.classList.contains('expanded');
       
       if (isExpanded) {
-        textsContainer.classList.remove('expanded');
-        selectPsDiv.classList.remove('open');
-        selectPsDiv.setAttribute('aria-expanded', 'false');
+        versesEl.classList.remove('expanded');
+        selectVersesEl.classList.remove('open');
+        selectVersesEl.setAttribute('aria-expanded', 'false');
       } else {
-        textsContainer.classList.add('expanded');
-        selectPsDiv.classList.add('open');
-        selectPsDiv.setAttribute('aria-expanded', 'true');
+        versesEl.classList.add('expanded');
+        selectVersesEl.classList.add('open');
+        selectVersesEl.setAttribute('aria-expanded', 'true');
       }
     };
     selectVersesEl.setAttribute('role', 'button');
