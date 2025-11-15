@@ -986,9 +986,11 @@ function setTexts() {
       textsContainer.appendChild(psalmBtnsContainer);
       
       // Show immediately on first load (no transition)
+      textsContainer.style.display = 'block';
       textsContainer.style.maxHeight = 'none';
       textsContainer.style.opacity = '1';
       textsContainer.classList.add('expanded');
+      psalmBtnsContainer.classList.add('expanded');
       selectPsDiv.classList.add('open');
       selectPsDiv.setAttribute('aria-expanded', 'true');
     }
