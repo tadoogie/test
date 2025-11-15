@@ -289,7 +289,7 @@ input[type="range"]::-moz-range-thumb {
     border-radius: 6px;
     border: 1px #888 solid;
     background: #555;
-    width: 305px;
+    width: 310px;
     margin-bottom: 15px;
 }
 .refreshBtn {
