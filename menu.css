@@ -285,7 +285,7 @@ input[type="range"]::-moz-range-thumb {
     outline: none;
     font-size: 15px;
 }
-#verseSelector {
+#verseSelector, #textSelector {
     border-radius: 6px;
     border: 1px #888 solid;
     background: #555;
@@ -471,7 +471,7 @@ nav ul, nav li, #nav ul, #nav li {
             }
             input:focus { outline: 2px solid #89cb72; }
             .submenu { color: white; text-transform: none; margin-left: 0px; margin-top: 3px; }
-            #selectVerses {
+            #selectVerses, #psTextList {
               text-transform: none;
               width: 310px;
               background: transparent;
@@ -1486,12 +1486,6 @@ dl dt { font-weight: bold; }
 }
 
 /* Existing CSS stays the same for #selectPsalm */
-#selectPsalm {
-  position: relative;
-  padding-left: 30px;
-  cursor: pointer;
-  user-select: none;
-}
 
 #selectPsalm .accordion-caret {
   position: absolute;
