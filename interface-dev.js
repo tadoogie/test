@@ -892,10 +892,12 @@ function setTexts() {
       btn.appendChild(labelSpan);
       btn.appendChild(numberSpan);
 
+      // ALWAYS create psalm-subline (even if it will be blank)
+      const sublineSpan = document.createElement('span');
+      sublineSpan.className = 'psalm-subline';
+      
       if (versionText) {
-        const sublineSpan = document.createElement('span');
-        sublineSpan.className = 'psalm-subline';
-        
+        // Version exists - show version number
         const versionMatch = versionText.match(/(First|Second|Third|Fourth|Fifth|Sixth|Seventh|Eighth|Ninth|Tenth)/i);
         if (versionMatch) {
           const versionWords = ['First', 'Second', 'Third', 'Fourth', 'Fifth', 'Sixth', 'Seventh', 'Eighth', 'Ninth', 'Tenth'];
@@ -904,9 +906,12 @@ function setTexts() {
         } else {
           sublineSpan.textContent = versionText.toUpperCase();
         }
-        
-        btn.appendChild(sublineSpan);
+      } else {
+        // No version - leave subline blank
+        sublineSpan.textContent = '';
       }
+      
+      btn.appendChild(sublineSpan);
     } else {
       const labelSpan = document.createElement('span');
       labelSpan.className = 'psalm-label';
