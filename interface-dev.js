@@ -923,7 +923,7 @@ function setTexts() {
       selectPsDiv.textContent = item.label;
       
       if (textsContainer) {
-        textsContainer.classlist.remove('expanded');
+        textsContainer.classList.remove('expanded');
       }
       psalmBtnsContainer.classList.remove('expanded');
       selectPsDiv.classList.remove('open');
