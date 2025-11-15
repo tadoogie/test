@@ -922,9 +922,8 @@ function setTexts() {
       hiddenInput.dataset.psdata = item.data;
       selectPsDiv.textContent = item.label;
       
-      // ⬇️ CHANGED: Hide psalm buttons
       if (textsContainer) {
-        textsContainer.style.display = 'none';
+        textsContainer.classlist.remove = 'expanded';
       }
       psalmBtnsContainer.classList.remove('expanded');
       selectPsDiv.classList.remove('open');
@@ -950,26 +949,20 @@ function setTexts() {
 
   psalmBtnsContainer.appendChild(psalmBtnsInner);
 
-  // Toggle - ⬇️ MODIFIED: Toggle the texts container visibility
   const togglePanel = function(e) {
-    if (e) e.preventDefault();
-    
-    if (!textsContainer) return;
-    
-    const isExpanded = textsContainer.style.display === 'block';
-    
-    if (isExpanded) {
-      textsContainer.style.display = 'none';
-      psalmBtnsContainer.classList.remove('expanded');
-      selectPsDiv.classList.remove('open');
-      selectPsDiv.setAttribute('aria-expanded', 'false');
-    } else {
-      textsContainer.style.display = 'block';
-      psalmBtnsContainer.classList.add('expanded');
-      selectPsDiv.classList.add('open');
-      selectPsDiv.setAttribute('aria-expanded', 'true');
-    }
-  };
+      if (e) e.preventDefault();
+      const isExpanded = versesEl.classList.contains('expanded');
+      
+      if (isExpanded) {
+        versesEl.classList.remove('expanded');
+        selectVersesEl.classList.remove('open');
+        selectVersesEl.setAttribute('aria-expanded', 'false');
+      } else {
+        versesEl.classList.add('expanded');
+        selectVersesEl.classList.add('open');
+        selectVersesEl.setAttribute('aria-expanded', 'true');
+      }
+    };
 
   selectPsDiv.addEventListener('click', togglePanel);
   selectPsDiv.addEventListener('keydown', function(e) {
