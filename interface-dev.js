@@ -191,7 +191,7 @@ function resetAllAudioSettings() {
       if (slider) slider.value = '71';
       if (muteButton) {
         muteButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" style="width: 20px; height: 20px; fill: #fff;">
-          <path d="M533.6 96.5C523.3 88.1 508.2 89.7 499.8 100C491.4 110.3 493 125.4 503.3 133.8C557.5 177.8 592 244.8 592 320C592 395.2 557.5 462.2 503.3 506.3C493 514.7 491.5 529.8 499.8 540.1C508.1 550.4 523.3 551.9 533.6 543.6C598.5 490.7 640 410.2 640 320C640 229.8 598.5 149.2 533.6 96.5zM473.1 171C462.8 162.6 447.7 164.2 439.3 174.5C430.9 184.8 432.5 199.9 442.8 208.3C475.3 234.7 496 274.9 496 320C496 365.1 475.3 405.3 442.8 431.8C432.5 440.2 431 455.3 439.3 465.6C447.6 475.9 462.8 477.4 473.1 469.1C516.3 433.9 544 380.2 544 320.1C544 260 516.3 206.3 473.1 171.1zM412.6 245.5C402.3 237.1 387.2 238.7 378.8 249C370.4 259.3 372 274.4 382.3 282.8C393.1 291.6 400 305 400 320C400 335 393.1 348.4 382.3 357.3C372 365.7 370.5 380.8 378.8 391.1C387.1 401.4 402.3 402.9 412.6 394.6C434.1 376.9 448 350.1 448 320C448 289.9 434.1 263.1 412.6 245.5zM80 416L128 416L262.1 535.2C268.5 540.9 276.7 544 285.2 544C304.4 544 320 528.4 320 509.2L320 130.8C320 111.6 304.4 96 285.2 96C276.7 96 268.5 99.1 262.1 104.8L128 224L80 224C53.5 224 32 245.5 32 272L32 368C32 394.5 53.5 416 80 416z"/>
+          <path d="M533.6 96.5C523.3 88.1 508.2 89.7 499.8 100C491.4 110.3 493 125.4 503.3 133.8C557.5 177.8 592 244.8 592 320C592 395.2 557.5 462.2 503.3 506.3C493 514.7 491.5 529.8 499.8 540.1C508.1[...]
         </svg>`;
       }
     });
@@ -248,20 +248,211 @@ function sortMetres(metreArray) {
 }
 
 /* ----------------------------- getTunes & tune synchronization ----------------------------- */
+
+/* syncTuneInputDataset: updated to prefer dataset.tunelabel, keep dataset.tuneid
+   This preserves backward compatibility with code that may call this function. */
 function syncTuneInputDataset() {
   var tuneInput = document.getElementById("pstune");
   var tuneListText = document.getElementById("pstuneListData");
   var tuneList = tuneListText ? JSON.parse(tuneListText.value || tuneListText.textContent || '[]') : [];
   if (!tuneInput) return;
-  var selectedLabel = tuneInput.value;
+
+  // Prefer dataset.tunelabel (explicit selection), otherwise use the input's visible value
+  var selectedLabel = (tuneInput.dataset && tuneInput.dataset.tunelabel) ? tuneInput.dataset.tunelabel : tuneInput.value;
+
+  // If selectedLabel is empty, clear tuneid
+  if (!selectedLabel) {
+    tuneInput.dataset.tuneid = "";
+    window.globalPsTune = "";
+    return;
+  }
+
   var selectedObj = tuneList.find(function(item){ return item.label === selectedLabel; });
   if (selectedObj) {
     tuneInput.dataset.tuneid = selectedObj.id;
+    // Also ensure dataset.tunelabel is set to the canonical label
+    tuneInput.dataset.tunelabel = selectedObj.label;
     window.globalPsTune = selectedObj.id;
   } else {
+    // We don't want to put an id into the visible input value anymore;
+    // keep the dataset empty if we couldn't find a match
     tuneInput.dataset.tuneid = "";
     window.globalPsTune = "";
   }
+}
+
+// Persistent, filter-driven tune UI.
+// Uses placeholder "[Type here to filter tunes]" and stores selection on data attributes only.
+function ensurePstuneSearchUI(tuneLabels, tuneListObjs, initialValue) {
+  const tunesContainer = document.getElementById('tunes');
+  let tuneButtonsContainer = document.getElementById('tuneButtons');
+
+  if (!tunesContainer) {
+    console.warn('#tunes container missing; cannot render tune search UI');
+    return;
+  }
+
+  // Create or reuse search input
+  let tuneInput = document.getElementById('pstune');
+  if (!tuneInput) {
+    tuneInput = document.createElement('input');
+    tuneInput.type = 'text';
+    tuneInput.id = 'pstune';
+    tuneInput.placeholder = '[Type here to filter tunes]';
+    tuneInput.autocomplete = 'off';
+    tuneInput.className = 'tune-search-input';
+    // insert at top of tunes container
+    tunesContainer.innerHTML = '';
+    tunesContainer.appendChild(tuneInput);
+  } else {
+    // ensure placeholder is present
+    try { tuneInput.placeholder = tuneInput.placeholder || '[Type here to filter tunes]'; } catch(e) {}
+  }
+
+  // Ensure tuneButtons container exists
+  if (!tuneButtonsContainer) {
+    tuneButtonsContainer = document.createElement('div');
+    tuneButtonsContainer.id = 'tuneButtons';
+    tunesContainer.appendChild(tuneButtonsContainer);
+  }
+
+  // Build mapping label -> id
+  window._pstuneMap = {};
+  if (Array.isArray(tuneListObjs) && tuneListObjs.length) {
+    tuneListObjs.forEach(function(o) {
+      if (o && o.label) window._pstuneMap[o.label] = o.id || '';
+    });
+  } else if (Array.isArray(tuneLabels)) {
+    tuneLabels.forEach(function(l) {
+      window._pstuneMap[l] = window._pstuneMap[l] || '';
+    });
+  }
+
+  function clearActiveButton() {
+    const btns = tuneButtonsContainer.querySelectorAll('.verse-btn, .tune-btn');
+    btns.forEach(b => b.classList.remove('active'));
+  }
+
+  function renderTuneButtons(filter) {
+    tuneButtonsContainer.innerHTML = '';
+    filter = (filter || '').toLowerCase().trim();
+
+    const sourceList = Array.isArray(tuneLabels) && tuneLabels.length ? tuneLabels : Object.keys(window._pstuneMap || {});
+
+    const matches = sourceList.filter(function(lbl) {
+      if (!filter) return true;
+      return lbl.toLowerCase().indexOf(filter) !== -1;
+    });
+
+    if (!matches.length) {
+      const p = document.createElement('div');
+      p.className = 'menuSpan';
+      p.textContent = 'No tunes match your search';
+      tuneButtonsContainer.appendChild(p);
+      return;
+    }
+
+    matches.forEach(function(lbl) {
+      const mappingId = window._pstuneMap[lbl] || '';
+
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      // reuse verse-btn styling so tune buttons match verse/psalm buttons
+      btn.className = 'verse-btn tune-btn';
+      btn.dataset.label = lbl;
+      btn.dataset.tuneid = mappingId;
+
+      // split label into title + parenthetical (e.g., "Title (2020)")
+      const m = lbl.trim().match(/^(.*?)(?:\s*\(([^)]+)\))?$/);
+      const title = (m && m[1]) ? m[1].trim() : lbl;
+      const paren = (m && m[2]) ? m[2].trim() : '';
+
+      const titleSpan = document.createElement('span');
+      titleSpan.className = 'tune-title';
+      titleSpan.textContent = title;
+
+      btn.appendChild(titleSpan);
+
+      if (paren) {
+        const dateSpan = document.createElement('span');
+        dateSpan.className = 'tune-date';
+        dateSpan.textContent = paren;
+        btn.appendChild(dateSpan);
+      }
+
+      btn.addEventListener('click', function(e) {
+        // Store selection on data attributes only — DO NOT put id or label into the visible input value
+        const input = document.getElementById('pstune');
+        if (input) {
+          input.dataset.tuneid = mappingId || '';
+          input.dataset.tunelabel = lbl || '';
+          // Clear the visible filter text so the placeholder shows
+          input.value = '';
+          input.placeholder = input.placeholder || '[Type here to filter tunes]';
+          // Clear any active class on other buttons and mark this one active
+          tuneButtonsContainer.querySelectorAll('.verse-btn, .tune-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+
+          // Update global selection variable for compatibility
+          window.globalPsTune = mappingId || '';
+        }
+
+        try { updateSelectionSummary(); } catch(e) {}
+        try { maybeShowNextForTune(); } catch(e) {}
+      });
+
+      tuneButtonsContainer.appendChild(btn);
+    });
+
+    // Reflect existing selection on active button if dataset.tunelabel present
+    const currentInput = document.getElementById('pstune');
+    if (currentInput && currentInput.dataset && currentInput.dataset.tunelabel) {
+      const sel = currentInput.dataset.tunelabel;
+      try {
+        const chosenBtn = tuneButtonsContainer.querySelector(`[data-label="${CSS.escape(sel)}"]`);
+        if (chosenBtn) {
+          tuneButtonsContainer.querySelectorAll('.verse-btn, .tune-btn').forEach(b => b.classList.remove('active'));
+          chosenBtn.classList.add('active');
+        }
+      } catch (e) {
+        // CSS.escape may not exist in very old browsers; ignore if so
+      }
+    }
+  }
+
+  // When user types, treat it as filtering: clear prior selection (so filter input is independent)
+  tuneInput.addEventListener('input', function() {
+    // clear previous selection if user begins typing a filter
+    delete tuneInput.dataset.tuneid;
+    delete tuneInput.dataset.tunelabel;
+    window.globalPsTune = "";
+    clearActiveButton();
+    renderTuneButtons(this.value || '');
+    try { updateSelectionSummary(); } catch(e) {}
+  });
+
+  // on focus, try to scroll input to the top of the viewport to reclaim vertical space
+  tuneInput.addEventListener('focus', function() {
+    try {
+      setTimeout(() => {
+        try {
+          tuneInput.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          setTimeout(() => { try { window.scrollTo(0, 1); } catch(_) {} }, 250);
+        } catch (e) {}
+      }, 250);
+    } catch(e) {}
+  });
+
+  // Render once using the current filter input or initial value
+  if (initialValue) {
+    // keep selection stored on dataset, but do not place it in visible value
+    tuneInput.dataset.tuneid = window._pstuneMap[initialValue] || '';
+    tuneInput.dataset.tunelabel = initialValue || '';
+    tuneInput.value = '';
+  }
+
+  renderTuneButtons(tuneInput.value || '');
+  try { maybeShowNextForTune(); } catch (_) {}
 }
 
 function getTunes(tuneLabel) {
@@ -293,54 +484,26 @@ function getTunes(tuneLabel) {
       var tuneLabelsText = document.getElementById("pstuneLabelsData");
       var tuneList = tuneListText ? JSON.parse(tuneListText.value || tuneListText.textContent || '[]') : [];
       var tuneLabels = tuneLabelsText ? JSON.parse(tuneLabelsText.value || tuneLabelsText.textContent || '[]') : [];
-      var tuneInput = document.getElementById("pstune");
 
-      if (tuneInput && tuneLabels.length) {
-        tuneInput.replaceWith(tuneInput.cloneNode(true));
-        tuneInput = document.getElementById("pstune");
-        var awesomplete = new Awesomplete(tuneInput, {
-          list: tuneLabels,
-          minChars: 0,
-          maxItems: tuneLabels.length
-        });
-        awesomplete.sort = false;
-        awesomplete.sort = function(a, b) {
-          var input = awesomplete.input.value.toLowerCase();
-          var aValue = a.value.toLowerCase();
-          var bValue = b.value.toLowerCase();
-          var aStarts = aValue.startsWith(input);
-          var bStarts = bValue.startsWith(input);
-          if (aStarts && !bStarts) return -1;
-          if (!aStarts && bStarts) return 1;
-          return aValue.localeCompare(bValue);
-        };
-
-        tuneInput.addEventListener("focus", function() { awesomplete.evaluate(); });
-        tuneInput.addEventListener("click", function() {
-          tuneInput.value = "";
-          awesomplete.list = tuneLabels;
-          awesomplete.evaluate();
-        });
-        tuneInput.addEventListener("awesomplete-selectcomplete", syncTuneInputDataset);
-        tuneInput.addEventListener("change", syncTuneInputDataset);
-        tuneInput.addEventListener("input", syncTuneInputDataset);
-
-        if (tuneInput.value) syncTuneInputDataset();
+      // Initialize our persistent filter UI (input placeholder + buttons)
+      try {
+        ensurePstuneSearchUI(tuneLabels, tuneList, tuneLabel || '');
+      } catch (e) {
+        console.warn('ensurePstuneSearchUI failed', e);
       }
 
       const optionsSpacer = document.getElementById("optionsSpacer");
       if (optionsSpacer) optionsSpacer.style.height = "15px";
-
-      // REMOVED: No longer calling verseDisplay.xq
-      // The verses were already populated by populateVersesFromSelectedText() 
-      // when the text was selected in the consolidated data flow
 
       setTimeout(function(){ try { updateSelectionSummary(); } catch(e) {} }, 0);
 
       document.getElementById("submit").innerHTML =
         "<button type='button' class='submitbtn' onclick='loadFile(); closeNav();'>" +
         "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'>" +
-        "<path d='M21,4 C21.5128358,4 21.9355072,4.38604019 21.9932723,4.88337887 L22,5 L22,11.5 C22,13.3685634 20.5357224,14.8951264 18.6920352,14.9948211 L18.5,15 L5.415,15 L8.70710678,18.2928932 C9.06759074,18.6533772 9.09532028,19.2206082 8.79029539,19.6128994 L8.70710678,19.7071068 C8.34662282,20.0675907 7.77939176,20.0953203 7.38710056,19.7902954 L7.29289322,19.7071068 L2.29289322,14.7071068 C2.25749917,14.6717127 2.22531295,14.6343256 2.19633458,14.5953066 L2.12467117,14.4840621 L2.12467117,14.4840621 L2.07122549,14.371336 L2.07122549,14.371336 L2.03584514,14.265993 L2.03584514,14.265993 L2.0110178,14.1484669 L2.0110178,14.1484669 L2.00397748,14.0898018 L2.00397748,14.0898018 L2,14 L2.00278786,13.9247615 L2.00278786,13.9247615 L2.02024007,13.7992742 L2.02024007,13.7992742 L2.04973809,13.6878575 L2.04973809,13.6878575 L2.09367336,13.5767785 L2.09367336,13.5767785 L2.14599545,13.4792912 L2.14599545,13.4792912 L2.20970461,13.3871006 L2.20970461,13.3871006 L2.29289322,13.2928932 L2.29289322,13.2928932 L7.29289322,8.29289322 C7.68341751,7.90236893 8.31658249,7.90236893 8.70710678,8.29289322 C9.06759074,8.65337718 9.09532028,9.22060824 8.79029539,9.61289944 L8.70710678,9.70710678 L5.415,13 L18.5,13 C19.2796961,13 19.9204487,12.4051119 19.9931334,11.64446 L20,11.5 L20,5 C20,4.44771525 20.4477153,4 21,4 Z'></path></svg><br/>Go</button>";
+        "<path d='M21,4 C21.5128358,4 21.9355072,4.38604019 21.9932723,4.88337887 L22,5 L22,11.5 C22,13.3685634 20.5357224,14.8951264 18.6920352,14.9948211 L18.5,15 L5.415,15 L8.70710678,18.2928932 C9[...] " +
+        "</svg>" +
+        "Go!" +
+        "</button>";
 
       loadcssfile();
 
@@ -379,7 +542,7 @@ function convertVersesToButtons() {
       selectAllBtn.className = 'stanza-control-btn';
       selectAllBtn.innerHTML = `
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" style="width: 1em; height: 1em; fill: currentColor;">
-          <path d="M438.6 105.4c12.5 12.5 12.5 32.8 0 45.3l-256 256c-12.5 12.5-32.8 12.5-45.3 0l-128-128c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0L160 338.7 393.4 105.4c12.5-12.5 32.8-12.5 45.3 0z"/>
+          <path d="M438.6 105.4c12.5 12.5 12.5 32.8 0 45.3l-256 256c-12.5 12.5-32.8 12.5-45.3 0l-128-128c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0L160 338.7 393.4 105.4c12.5-12.5 32.8-12.5 45.3 0z"[...]
         </svg>
         <span class="stanza-toggle-label">Select All</span>
       `;
@@ -1054,6 +1217,7 @@ function setTexts() {
   }
 }
 
+/* ----------------------------- Populate verses ----------------------------- */
 function populateVersesFromSelectedText(rawObj) {
   const versesEl = document.getElementById('verses');
   const selectVersesEl = document.getElementById('selectVerses');
@@ -1089,7 +1253,7 @@ function populateVersesFromSelectedText(rawObj) {
       selectAllBtn.className = 'stanza-control-btn active';  // <-- CHANGED: Added 'active' class
       selectAllBtn.innerHTML = `
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" style="width: 1em; height: 1em; fill: currentColor;">
-          <path d="M438.6 105.4c12.5 12.5 12.5 32.8 0 45.3l-256 256c-12.5 12.5-32.8 12.5-45.3 0l-128-128c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0L160 338.7 393.4 105.4c12.5-12.5 32.8-12.5 45.3 0z"/>
+          <path d="M438.6 105.4c12.5 12.5 12.5 32.8 0 45.3l-256 256c-12.5 12.5-32.8 12.5-45.3 0l-128-128c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0L160 338.7 393.4 105.4c12.5-12.5 32.8-12.5 45.3 0z"[...]
         </svg>
         <span class="stanza-toggle-label">Select All</span>
       `;
@@ -1344,12 +1508,12 @@ document.addEventListener('DOMContentLoaded', function ensureSidenavStyles() {
         #sidenav.open { width: 360px; }
         .sidenav-container { display: flex; flex-direction: row; height: 100%; width: 360px; position: relative; }
         .sidenav-content { flex: 1; width: 290px; overflow-y: auto; background: #555; order: 1; -webkit-overflow-scrolling: touch; }
-        .sidenav-tabs { width: 60px; min-width: 60px; max-width: 60px; background: #444; display: flex; flex-direction: column; border-left: 2px solid #333; flex-shrink: 0; order: 2; padding-top: 65px; height: 100%; }
-        .sidenav-tab { flex: 1 1 auto; min-height: 80px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 12px 8px; cursor: pointer; background: #555; border-bottom: 1px solid #444; transition: background 0.3s ease; gap: 10px; }
+        .sidenav-tabs { width: 60px; min-width: 60px; max-width: 60px; background: #444; display: flex; flex-direction: column; border-left: 2px solid #333; flex-shrink: 0; order: 2; padding-top: 65px[...]
+        .sidenav-tab { flex: 1 1 auto; min-height: 80px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 12px 8px; cursor: pointer; background: #555; bord[...]
         .sidenav-tab:hover { background: #5f6f4f; }
         .sidenav-tab.active { background: #6fc252; }
         .sidenav-tab svg { width: 28px !important; height: 28px !important; display: block !important; fill: #fff !important; }
-        .sidenav-tab-label { writing-mode: vertical-rl; transform: rotate(0deg); color: #fff; font-size: 18px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; white-space: nowrap; opacity: 0; max-height: 0; overflow: hidden; transition: opacity 0.3s ease, max-height 0.3s ease; }
+        .sidenav-tab-label { writing-mode: vertical-rl; transform: rotate(0deg); color: #fff; font-size: 18px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; white-space: nowrap; op[...]
         .sidenav-tab.active .sidenav-tab-label { opacity: 1; max-height: 150px; }
         .tab-panel { display: none; padding: 15px; }
         .tab-panel.active { display: block; }
@@ -1389,10 +1553,21 @@ function updateSelectionSummary() {
     txtOut.textContent = "Select Text";
   }
 
-  var tuneTitle = tuneEl && tuneEl.value ? tuneEl.value.trim() : "";
+  // Determine tune title to show in summary:
+  // prefer selected label stored in data-tunelabel; otherwise show visible input value (filter) if it looks like a selection
+  var tuneTitle = "";
+  if (tuneEl) {
+    if (tuneEl.dataset && tuneEl.dataset.tunelabel) {
+      tuneTitle = tuneEl.dataset.tunelabel;
+    } else if (tuneEl.value && tuneEl.value.trim()) {
+      tuneTitle = tuneEl.value.trim();
+    } else {
+      tuneTitle = "";
+    }
+  }
   tuneOut.textContent = tuneTitle || "Select Tune";
 
-  var ready = !!(sourceVal && textTitle && tuneTitle);
+  var ready = !!(sourceVal && textTitle && ( (tuneEl && tuneEl.dataset && tuneEl.dataset.tuneid) || tuneTitle ));
   ensureSummaryGoButton(ready);
 }
 
@@ -1428,7 +1603,7 @@ function switchToTab(tabKey) {
 
 const NEXT_SVG = `
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" aria-hidden="true">
-  <path d="M566.6 342.6C579.1 330.1 579.1 309.8 566.6 297.3L406.6 137.3C394.1 124.8 373.8 124.8 361.3 137.3C348.8 149.8 348.8 170.1 361.3 182.6L466.7 288L96 288C78.3 288 64 302.3 64 320C64 337.7 78.3 352 96 352L466.7 352L361.3 457.4C348.8 469.9 348.8 490.2 361.3 502.7C373.8 515.2 394.1 515.2 406.6 502.7L566.6 342.7z"/>
+  <path d="M566.6 342.6C579.1 330.1 579.1 309.8 566.6 297.3L406.6 137.3C394.1 124.8 373.8 124.8 361.3 137.3C348.8 149.8 348.8 170.1 361.3 182.6L466.7 288L96 288C78.3 288 64 302.3 64 320C64 337.7 [...]
 </svg>`.trim();
 
 function ensureNextButton(containerEl, id, onClick) {
@@ -1575,7 +1750,10 @@ function ensureSummaryGoButton(shouldShow) {
   holder.innerHTML =
     "<button type='button' class='submitbtn' id='summaryGoBtn' title='Go'>" +
       "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'>" +
-        "<path d='M21,4 C21.5128358,4 21.9355072,4.38604019 21.9932723,4.88337887 L22,5 L22,11.5 C22,13.3685634 20.5357224,14.8951264 18.6920352,14.9948211 L18.5,15 L5.415,15 L8.70710678,18.2928932 C9.06759074,18.6533772 9.09532028,19.2206082 8.79029539,19.6128994 L8.70710678,19.7071068 C8.34662282,20.0675907 7.77939176,20.0953203 7.38710056,19.7902954 L7.29289322,19.7071068 L2.29289322,14.7071068 C2.25749917,14.6717127 2.22531295,14.6343256 2.19633458,14.5953066 L2.12467117,14.4840621 L2.12467117,14.4840621 L2.07122549,14.371336 L2.07122549,14.371336 L2.03584514,14.265993 L2.03584514,14.265993 L2.0110178,14.1484669 L2.0110178,14.1484669 L2.00397748,14.0898018 L2.00397748,14.0898018 L2,14 L2.00278786,13.9247615 L2.00278786,13.9247615 L2.02024007,13.7992742 L2.02024007,13.7992742 L2.04973809,13.6878575 L2.04973809,13.6878575 L2.09367336,13.5767785 L2.09367336,13.5767785 L2.14599545,13.4792912 L2.14599545,13.4792912 L2.20970461,13.3871006 L2.20970461,13.3871006 L2.29289322,13.2928932 L2.29289322,13.2928932 L7.29289322,8.29289322 C7.68341751,7.90236893 8.31658249,7.90236893 8.70710678,8.29289322 C9.06759074,8.65337718 9.09532028,9.22060824 8.79029539,9.61289944 L8.70710678,9.70710678 L5.415,13 L18.5,13 C19.2796961,13 19.9204487,12.4051119 19.9931334,11.64446 L20,11.5 L20,5 C20,4.44771525 20.4477153,4 21,4 Z'></path></svg><br/>Go</button>";
+        "<path d='M21,4 C21.5128358,4 21.9355072,4.38604019 21.9932723,4.88337887 L22,5 L22,11.5 C22,13.3685634 20.5357224,14.8951264 18.6920352,14.9948211 L18.5,15 L5.415,15 L8.70710678,18.2928932 C9[...] " +
+      "</svg>" +
+      "Go" +
+    "</button>";
 
   const btn = document.getElementById('summaryGoBtn');
   if (btn) {
