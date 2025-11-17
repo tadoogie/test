@@ -938,7 +938,7 @@ dl dt { font-weight: bold; }
     flex-direction: column;
     align-items: center;
     justify-content: flex-start;
-    z-index: 9999;
+    z-index: 100;
     box-shadow: 2px 0 12px rgba(0,0,0,0.10);
     padding: 10px 0;
   }
@@ -1523,3 +1523,9 @@ dl dt { font-weight: bold; }
   overflow: visible;
   opacity: 1;
 }
+
+
+input::placeholder {
+  color: #ddd; 
+}
+
