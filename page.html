@@ -451,6 +451,34 @@
             .verse-btn {
                 font-size: 1.2em;
             }
+            
+            #selectPsalm, #selectVerses {
+              position: relative;
+              padding-right: 30px; /* Make room for the chevron */
+            }
+
+            #selectPsalm::after, #selectVerses::after {
+              content: '';
+              position: absolute;
+              right: 15px;
+              top: 50%;
+              transform: translateY(-50%);
+              width: 7px;
+              height: 7px;
+              border-right: 2px solid #fff;
+              border-bottom: 2px solid #fff;
+              transform: translateY(-50%) rotate(45deg);
+              transition: transform 0.3s ease;
+              pointer-events: none;
+            }
+
+            /* Rotate chevron when expanded */
+            #selectPsalm.open::after, #selectVerses.open::after {
+              transform: translateY(-25%) rotate(-135deg);
+            }
+            #psMetreList {
+                margin-bottom: 15px;
+            }
         </style>
     </head>
     <body>
@@ -567,6 +595,7 @@
                         </span>
                         <br/>
                         <div id="tunes" class="menuSpan">Select source first</div>
+                        <div id="tuneButtons"></div>
                       </div>
                     </div>
             
