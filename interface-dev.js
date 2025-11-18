@@ -467,10 +467,7 @@ function ensurePstuneSearchUI(tuneLabels, tuneListObjs, initialValue) {
   });
 
   // NEVER populate the input automatically - always start empty
-  if (initialValue) {
-    tuneInput.dataset.tuneid = window._pstuneMap[initialValue] || '';
-    tuneInput.dataset.tunelabel = initialValue || '';
-  }
+  // Do NOT set dataset values from initialValue - only clicking a button should set these
   
   // Always keep input empty and show all tunes on initial load
   tuneInput.value = '';
