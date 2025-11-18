@@ -230,7 +230,6 @@
               font-size: 0.66em;
               font-family: 'Roboto Slab', 'Open Sans', 'Trebuchet MS', Verdana, Arial, Helvetica, sans-serif;
               letter-spacing: 0.06em;
-              color: white;
               text-transform: uppercase;
               margin: 0px;
               line-height: 1;
@@ -242,7 +241,6 @@
               font-size: 1.6em;
               font-weight: 700;
               letter-spacing: -0.04em;
-              color: white;
               margin: 2px 0 2px 0;
               line-height: 1;   
               text-align: center;          /* ensure centering */
@@ -251,6 +249,7 @@
             
             .psalm-btn:hover, verse-number:hover {
               background: #eee;
+              color: #444
             }
             
             .psalm-btn,
@@ -263,27 +262,23 @@
             .psalm-btn:hover,
             .verse-btn:hover, .stanza-control-btn:hover {
               background: #a6d7a6;
+              color: #444
             }
             
-            .psalm-btn:hover .psalm-label,
             .psalm-btn:focus .psalm-label,
             .psalm-btn:active .psalm-label {
               color: rgba(255,255,255,0.95);
             }
             
-            .psalm-btn:hover .psalm-number,
             .psalm-btn:focus .psalm-number,
             .psalm-btn:active .psalm-number, 
-            .stanza-control-btn:hover .stanza-toggle-label,
             .stanza-control-btn:active .stanza-toggle-label,
-            .verse-btn:hover .verse-number, 
             .verse-btn:focus .verse-number,
             .verse-btn:active .verse-number, 
             .verse-btn.active .verse-number{
               color: #ffffff !important;
             }
             
-            .psalm-btn:hover .psalm-subline,
             .psalm-btn:focus .psalm-subline,
             .psalm-btn:active .psalm-subline {
               color: rgba(255,255,255,0.9);
@@ -366,7 +361,7 @@
               font-size: 1em;
               padding: 3px;
               margin: 2px;
-              min-width: 57px;
+              min-width: 56px;
               height: auto;
               min-height: 65px;
               text-align: center;
@@ -384,7 +379,6 @@
               font-size: 0.66em;
               font-family: 'Roboto Slab', 'Open Sans', 'Trebuchet MS', Verdana, Arial, Helvetica, sans-serif;
               letter-spacing: 0.12em;
-              color: white;
               text-transform: uppercase;
               margin: 0 0 2px 0;
               line-height: 1;
@@ -397,7 +391,6 @@
               font-size: 1.6em;
               font-weight: 650;
               letter-spacing: -0.01em;
-              color: white;
               margin: 4px 0;
               line-height: 0.8;
               text-align: center;
@@ -410,7 +403,6 @@
               font-size: 0.66em;
               font-family: 'Roboto Slab', 'Open Sans', 'Trebuchet MS', Verdana, Arial, Helvetica, sans-serif;
               letter-spacing: 0.12em;
-              color: white;
               text-transform: uppercase;
               margin: 2px 0 0 0;
               line-height: 1;
@@ -418,20 +410,13 @@
               font-weight: 400;
             }
             
-            .psalm-btn:hover {
-              background: #a6d7a6;
-            }
-            
-            .psalm-btn:hover .psalm-label,
             .psalm-btn:focus .psalm-label,
             .psalm-btn:active .psalm-label,
-            .psalm-btn:hover .psalm-subline,
             .psalm-btn:focus .psalm-subline,
             .psalm-btn:active .psalm-subline {
               color: rgba(255,255,255,0.95);
             }
             
-            .psalm-btn:hover .psalm-number,
             .psalm-btn:focus .psalm-number,
             .psalm-btn:active .psalm-number {
               color: #ffffff;
@@ -596,8 +581,8 @@
                           Select a Tune:
                         </span>
                         <br/>
-                        <div id="tunes" class="menuSpan">Select source first>
-                        <div id="tuneButtons"></div>
+                        <div id="tunes" class="menuSpan">Select source first&gt;
+                        <div id="tuneButtons"/>
                         </div>
                       </div>
                     </div>
@@ -772,12 +757,12 @@
     <div class="svg_output" id="svg_output">
         <h2>Getting Started</h2>
         <ol>
-            <li>Click on the <span style="color:white;font-size:30px;background:#555">☰</span> button at the top right.</li>
-            <li>Select the text source you wish to use.</li>
-            <li>Choose the Psalm text or metre from either the "Text" or "Metre" dropdown. Typing in either of these boxes will allow you to search the available options. (NOTE: Firefox users will need to press the enter key after selecting the text.)</li>
-            <li>Select a <strong>minimum of two</strong> options from the "Verses" dropdown that you wish to sing. (NOTE: these are the biblical verses, not the stanzas)</li>
-            <li>Select a tune. When a tune has been suggested for a particular psalm, that is provided by default. However, you may select any other tune from the "Tune" dropdown.</li>
-            <li>Click on "Go!" to show your text and tune selections.</li>
+            <li>Click on the <span style="color:white;font-size:30px;background:#555">☰</span> button at the top right</li>
+            <li>Select the text source you wish to use and click "NEXT"</li>
+            <li>Either filter the texts according to metre or select the psalm text you want</li>
+            <li>Select which verses you wish to sing, selecting a <strong>minimum of two.</strong> (NOTE: these are the biblical verses, not the stanzas) Click "NEXT".</li>
+            <li>All the tunes using the your text's metre are available, and you can type in the box to filter those tunes according to title. Either click "NEXT" to set the display options or click "GO" in the "Current Selections" section.</li>
+            <li>Select which options you wish and click "GO" to show your text and tune selections.</li>
         </ol>
     </div>
 </div>
@@ -972,10 +957,10 @@
         <div id="textLicense" class="footbar-sm"/>
         <div id="tuneLicense" class="footbar-sm"/>
         <div class="footbar-sm">
-            Edition by Timothy Duguid, <a href="https://creativecommons.org/licenses/by-nc/4.0/" target="_blank">CC BY-NC</a>2021
+            Edition by Timothy Duguid, <a href="https://creativecommons.org/licenses/by-nc/4.0/" target="_blank">CC BY-NC</a> 2021
         </div>
         <div class="footbar-sm">
-            Music engraving by <a href="http://verovio.org" target="_blank">Verovio</a>.
+            Music engraving by <a href="http://verovio.org" target="_blank">Verovio</a>.
         </div>
     </footer>
 </body>
