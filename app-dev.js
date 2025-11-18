@@ -1644,7 +1644,7 @@ function renderPsalm(options = {}) {
             globalTextSource = textSource;
             const textSourceDate = myObj.getElementsByTagName("edition")[0].getElementsByTagName("date")[0].innerHTML;
             globalTextSourceDate = textSourceDate;
-    
+            
             //Get MEI file
             const xhttp = new XMLHttpRequest();
             xhttp.open("GET", psTune, true);
