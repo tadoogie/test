@@ -281,8 +281,6 @@ function syncTuneInputDataset() {
   }
 }
 
-// Persistent, filter-driven tune UI.
-// Uses placeholder "[Type here to filter tunes]" and stores selection on data attributes only.
 function ensurePstuneSearchUI(tuneLabels, tuneListObjs, initialValue) {
   const tunesContainer = document.getElementById('tunes');
   let tuneButtonsContainer = document.getElementById('tuneButtons');
@@ -301,15 +299,12 @@ function ensurePstuneSearchUI(tuneLabels, tuneListObjs, initialValue) {
     tuneInput.placeholder = '[Type here to filter tunes]';
     tuneInput.autocomplete = 'off';
     tuneInput.className = 'tune-search-input';
-    // insert at top of tunes container
     tunesContainer.innerHTML = '';
     tunesContainer.appendChild(tuneInput);
   } else {
-    // ensure placeholder is present
     try { tuneInput.placeholder = tuneInput.placeholder || '[Type here to filter tunes]'; } catch(e) {}
   }
 
-  // Ensure tuneButtons container exists
   if (!tuneButtonsContainer) {
     tuneButtonsContainer = document.createElement('div');
     tuneButtonsContainer.id = 'tuneButtons';
@@ -327,6 +322,9 @@ function ensurePstuneSearchUI(tuneLabels, tuneListObjs, initialValue) {
       window._pstuneMap[l] = window._pstuneMap[l] || '';
     });
   }
+
+  // ← NEW: Flag to track if user is clicking a button
+  let isClickingButton = false;
 
   function clearActiveButton() {
     const btns = tuneButtonsContainer.querySelectorAll('.verse-btn, .tune-btn');
@@ -357,12 +355,10 @@ function ensurePstuneSearchUI(tuneLabels, tuneListObjs, initialValue) {
 
       const btn = document.createElement('button');
       btn.type = 'button';
-      // reuse verse-btn styling so tune buttons match verse/psalm buttons
       btn.className = 'verse-btn tune-btn';
       btn.dataset.label = lbl;
       btn.dataset.tuneid = mappingId;
 
-      // split label into title + parenthetical (e.g., "Title (2020)")
       const m = lbl.trim().match(/^(.*?)(?:\s*\(([^)]+)\))?$/);
       const title = (m && m[1]) ? m[1].trim() : lbl;
       const paren = (m && m[2]) ? m[2].trim() : '';
@@ -380,22 +376,34 @@ function ensurePstuneSearchUI(tuneLabels, tuneListObjs, initialValue) {
         btn.appendChild(dateSpan);
       }
 
+      // ← NEW: Set flag on mousedown (before blur fires)
+      btn.addEventListener('mousedown', function(e) {
+        isClickingButton = true;
+      });
+
       btn.addEventListener('click', function(e) {
-        // Store selection on data attributes only — DO NOT put id or label into the visible input value
         const input = document.getElementById('pstune');
         if (input) {
+          // Store selection in dataset
           input.dataset.tuneid = mappingId || '';
           input.dataset.tunelabel = lbl || '';
-          // Clear the visible filter text so the placeholder shows
-          input.value = '';
-          input.placeholder = input.placeholder || '[Type here to filter tunes]';
-          // Clear any active class on other buttons and mark this one active
+          
+          // Show the tune name in the input field
+          input.value = lbl;
+          
+          // Mark button as active
           tuneButtonsContainer.querySelectorAll('.verse-btn, .tune-btn').forEach(b => b.classList.remove('active'));
           btn.classList.add('active');
 
-          // Update global selection variable for compatibility
+          // Update global variable
           window.globalPsTune = mappingId || '';
+          
+          // Filter to show only this tune button
+          renderTuneButtons(lbl);
         }
+
+        // ← NEW: Reset flag after click completes
+        isClickingButton = false;
 
         try { updateSelectionSummary(); } catch(e) {}
         try { maybeShowNextForTune(); } catch(e) {}
@@ -404,35 +412,31 @@ function ensurePstuneSearchUI(tuneLabels, tuneListObjs, initialValue) {
       tuneButtonsContainer.appendChild(btn);
     });
 
-    // Reflect existing selection on active button if dataset.tunelabel present
+    // After rendering, re-apply active state to the selected tune button
     const currentInput = document.getElementById('pstune');
     if (currentInput && currentInput.dataset && currentInput.dataset.tunelabel) {
-      const sel = currentInput.dataset.tunelabel;
+      const selectedLabel = currentInput.dataset.tunelabel;
       try {
-        const chosenBtn = tuneButtonsContainer.querySelector(`[data-label="${CSS.escape(sel)}"]`);
+        const chosenBtn = tuneButtonsContainer.querySelector(`[data-label="${CSS.escape(selectedLabel)}"]`);
         if (chosenBtn) {
-          tuneButtonsContainer.querySelectorAll('.verse-btn, .tune-btn').forEach(b => b.classList.remove('active'));
           chosenBtn.classList.add('active');
         }
       } catch (e) {
-        // CSS.escape may not exist in very old browsers; ignore if so
+        const allBtns = tuneButtonsContainer.querySelectorAll('.tune-btn');
+        allBtns.forEach(function(btn) {
+          if (btn.dataset.label === selectedLabel) {
+            btn.classList.add('active');
+          }
+        });
       }
     }
   }
 
-  // When user types, treat it as filtering: clear prior selection (so filter input is independent)
-  tuneInput.addEventListener('input', function() {
-    // clear previous selection if user begins typing a filter
-    delete tuneInput.dataset.tuneid;
-    delete tuneInput.dataset.tunelabel;
-    window.globalPsTune = "";
-    clearActiveButton();
-    renderTuneButtons(this.value || '');
-    try { updateSelectionSummary(); } catch(e) {}
-  });
-
-  // on focus, try to scroll input to the top of the viewport to reclaim vertical space
+  // When user clicks input (focus), clear it and show all tunes
   tuneInput.addEventListener('focus', function() {
+    this.value = '';
+    renderTuneButtons('');
+    
     try {
       setTimeout(() => {
         try {
@@ -443,15 +447,35 @@ function ensurePstuneSearchUI(tuneLabels, tuneListObjs, initialValue) {
     } catch(e) {}
   });
 
-  // Render once using the current filter input or initial value
+  // When user types, filter the list
+  tuneInput.addEventListener('input', function() {
+    renderTuneButtons(this.value || '');
+    try { updateSelectionSummary(); } catch(e) {}
+  });
+
+  // ← CHANGED: Only restore selection if user is NOT clicking a button
+  tuneInput.addEventListener('blur', function() {
+    // Use setTimeout to allow button click to complete first
+    setTimeout(() => {
+      if (!isClickingButton && this.dataset.tunelabel && !this.value) {
+        this.value = this.dataset.tunelabel;
+        renderTuneButtons(this.dataset.tunelabel);
+      }
+      // Reset flag just in case
+      isClickingButton = false;
+    }, 150);
+  });
+
+  // NEVER populate the input automatically - always start empty
   if (initialValue) {
-    // keep selection stored on dataset, but do not place it in visible value
     tuneInput.dataset.tuneid = window._pstuneMap[initialValue] || '';
     tuneInput.dataset.tunelabel = initialValue || '';
-    tuneInput.value = '';
   }
+  
+  // Always keep input empty and show all tunes on initial load
+  tuneInput.value = '';
+  renderTuneButtons('');
 
-  renderTuneButtons(tuneInput.value || '');
   try { maybeShowNextForTune(); } catch (_) {}
 }
 
@@ -502,7 +526,7 @@ function getTunes(tuneLabel) {
         "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'>" +
         "<path d='M21,4 C21.5128358,4 21.9355072,4.38604019 21.9932723,4.88337887 L22,5 L22,11.5 C22,13.3685634 20.5357224,14.8951264 18.6920352,14.9948211 L18.5,15 L5.415,15 L8.70710678,18.2928932 C9.06759074,18.6533772 9.09532028,19.2206082 8.79029539,19.6128994 L8.70710678,19.7071068 C8.34662282,20.0675907 7.77939176,20.0953203 7.38710056,19.7902954 L7.29289322,19.7071068 L2.29289322,14.7071068 C2.25749917,14.6717127 2.22531295,14.6343256 2.19633458,14.5953066 L2.12467117,14.4840621 L2.12467117,14.4840621 L2.07122549,14.371336 L2.07122549,14.371336 L2.03584514,14.265993 L2.03584514,14.265993 L2.0110178,14.1484669 L2.0110178,14.1484669 L2.00397748,14.0898018 L2.00397748,14.0898018 L2,14 L2.00278786,13.9247615 L2.00278786,13.9247615 L2.02024007,13.7992742 L2.02024007,13.7992742 L2.04973809,13.6878575 L2.04973809,13.6878575 L2.09367336,13.5767785 L2.09367336,13.5767785 L2.14599545,13.4792912 L2.14599545,13.4792912 L2.20970461,13.3871006 L2.20970461,13.3871006 L2.29289322,13.2928932 L2.29289322,13.2928932 L7.29289322,8.29289322 C7.68341751,7.90236893 8.31658249,7.90236893 8.70710678,8.29289322 C9.06759074,8.65337718 9.09532028,9.22060824 8.79029539,9.61289944 L8.70710678,9.70710678 L5.415,13 L18.5,13 C19.2796961,13 19.9204487,12.4051119 19.9931334,11.64446 L20,11.5 L20,5 C20,4.44771525 20.4477153,4 21,4 Z'></path>"+
         "</svg>" +
-        "Go!" +
+        "Go" +
         "</button>";
 
       loadcssfile();
@@ -1755,7 +1779,7 @@ function ensureSummaryGoButton(shouldShow) {
       "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'>" +
         "<path d='M21,4 C21.5128358,4 21.9355072,4.38604019 21.9932723,4.88337887 L22,5 L22,11.5 C22,13.3685634 20.5357224,14.8951264 18.6920352,14.9948211 L18.5,15 L5.415,15 L8.70710678,18.2928932 C9.06759074,18.6533772 9.09532028,19.2206082 8.79029539,19.6128994 L8.70710678,19.7071068 C8.34662282,20.0675907 7.77939176,20.0953203 7.38710056,19.7902954 L7.29289322,19.7071068 L2.29289322,14.7071068 C2.25749917,14.6717127 2.22531295,14.6343256 2.19633458,14.5953066 L2.12467117,14.4840621 L2.12467117,14.4840621 L2.07122549,14.371336 L2.07122549,14.371336 L2.03584514,14.265993 L2.03584514,14.265993 L2.0110178,14.1484669 L2.0110178,14.1484669 L2.00397748,14.0898018 L2.00397748,14.0898018 L2,14 L2.00278786,13.9247615 L2.00278786,13.9247615 L2.02024007,13.7992742 L2.02024007,13.7992742 L2.04973809,13.6878575 L2.04973809,13.6878575 L2.09367336,13.5767785 L2.09367336,13.5767785 L2.14599545,13.4792912 L2.14599545,13.4792912 L2.20970461,13.3871006 L2.20970461,13.3871006 L2.29289322,13.2928932 L2.29289322,13.2928932 L7.29289322,8.29289322 C7.68341751,7.90236893 8.31658249,7.90236893 8.70710678,8.29289322 C9.06759074,8.65337718 9.09532028,9.22060824 8.79029539,9.61289944 L8.70710678,9.70710678 L5.415,13 L18.5,13 C19.2796961,13 19.9204487,12.4051119 19.9931334,11.64446 L20,11.5 L20,5 C20,4.44771525 20.4477153,4 21,4 Z'></path>" +
       "</svg>" +
-      "Go!" +
+      "Go" +
     "</button>";
   
   // Note: onclick in HTML above handles the click, but keeping this for compatibility
