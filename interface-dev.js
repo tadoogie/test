@@ -331,6 +331,8 @@ function ensurePstuneSearchUI(tuneLabels, tuneListObjs, initialValue) {
     btns.forEach(b => b.classList.remove('active'));
   }
 
+  // Helper function to normalize strings by removing diacritical marks
+  // Uses Unicode NFD normalization to separate base characters from combining marks
   function normalizeString(str) {
     return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
   }
