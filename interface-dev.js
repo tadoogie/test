@@ -331,6 +331,10 @@ function ensurePstuneSearchUI(tuneLabels, tuneListObjs, initialValue) {
     btns.forEach(b => b.classList.remove('active'));
   }
 
+  function normalizeString(str) {
+    return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  }
+
   function renderTuneButtons(filter) {
      tuneButtonsContainer.innerHTML = '';
     filter = (filter || '').toLowerCase().trim();
@@ -339,7 +343,7 @@ function ensurePstuneSearchUI(tuneLabels, tuneListObjs, initialValue) {
 
     const matches = sourceList.filter(function(lbl) {
         if (!filter) return true;
-        return lbl.toLowerCase().indexOf(filter) !== -1;
+        return normalizeString(lbl).indexOf(normalizeString(filter)) !== -1;
     });
 
     if (!matches.length) {
