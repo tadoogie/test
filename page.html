@@ -361,7 +361,7 @@
               font-size: 1em;
               padding: 3px;
               margin: 2px;
-              min-width: 56px;
+              min-width: 54px;
               height: auto;
               min-height: 65px;
               text-align: center;
@@ -558,8 +558,9 @@
                             </div>
                             <div id="VerseSection" class="menu-item">
                                 <span class="menuHead">
-                                    Select the Verses:</span>
+                                    Select Verses:</span>
                                 <br/>
+                                <div style="font-style:italic;font-size:0.9em;margin:0px 0px 10px 6px;">Choose a minimum of 2</div>
                                 <div class="menuSpan" id="verseSelector">
                                     <div id="selectVerses" class="menuSpan" style="cursor:pointer;">Select source first</div>
                                     <input type="hidden" id="selectedStanzasData" name="stanzas" value=""/>
@@ -581,7 +582,7 @@
                           Select a Tune:
                         </span>
                         <br/>
-                        <div id="tunes" class="menuSpan">Select source first&gt;
+                        <div id="tunes" class="menuSpan">Select source first.
                         <div id="tuneButtons"/>
                         </div>
                       </div>
@@ -751,7 +752,7 @@
             </midi-player>
             </div>
         </div>
-        </section>
+</section>
 <section class="container">
     <div class="col-lg-12">
     <div class="svg_output" id="svg_output">
@@ -848,22 +849,23 @@
     <!-- Runtime safeguard: if old JS was served from cache, re-inject fresh copies -->
     <script>
         (function () {
+          // Flag to prevent re-injection
+          if (window.scriptsAlreadyInjected) return;
+          window.scriptsAlreadyInjected = true;
+          
           function loadedOK() {
             return window.INTERFACE_DEV_BUILD === window.EXPECTED_BUILD &amp;&amp;
                    typeof initializeTabNavigation === 'function';
           }
-          if (!loadedOK()) {
-            console.warn('Detected stale JS in iPhone Chrome. Forcing cache-bust reload of site scripts.');
-            var stamp = Date.now().toString();
-            var head = document.getElementsByTagName('head')[0];
-            ['resources/js/app-dev.js', 'resources/js/interface-dev.js', 'resources/js/accordion-interface.js']
-              .forEach(function (path) {
-                var s = document.createElement('script');
-                s.defer = true;
-                s.src = path + '?cb=' + stamp;
-                head.appendChild(s);
-              });
-          }
+          
+          // Only check after a short delay to let deferred scripts load
+          setTimeout(function() {
+            if (!loadedOK()) {
+              console.warn('Detected stale JS in iPhone Chrome. Forcing page reload for fresh scripts.');
+              // Instead of injecting again, do a hard reload with cache bypass
+              window.location.reload(true);
+            }
+          }, 500);
         })();
     </script>
     <script>
