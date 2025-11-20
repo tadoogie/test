@@ -56,8 +56,8 @@ hr { display: block; height: 1px; border: 0; border-top: 1px solid #ccc; margin:
 iframe { border: 0; }
 
 *, :before, :after { box-sizing: border-box; }
-html { font-size: 1em; height: 100%; }
-body { font-family: 'Open Sans', Verdana, Tahoma, Arial, sans-serif; line-height: 1.6; text-align: left; color: #555555; background-color: #ffffff; height: 100%; text-rendering: optimizeLegibility !important; }
+html { font-size: 1em; height: 100%; overflow-x: hidden; max-width: 100vw; }
+body { font-family: 'Open Sans', Verdana, Tahoma, Arial, sans-serif; line-height: 1.6; text-align: left; color: #555555; background-color: #ffffff; height: 100%; text-rendering: optimizeLegibility !important; overflow-x: hidden; max-width: 100vw; }
 nav ul, nav ol, #nav ul, #navbar ul, #nav ol { list-style: none; list-style-image: none; margin: 0; padding: 0; }
 
 .cfix:after { content: ""; display: table; clear: both; }
