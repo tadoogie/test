@@ -1498,7 +1498,14 @@ function initializeTabNavigation() {
 function openNav() {
   var sidenav = document.getElementById("sidenav");
   var menutoggle = document.getElementById("menutoggle");
-  sidenav.style.width = "360px";
+  
+  // Use responsive width based on orientation and viewport
+  var sidenavWidth = "360px";
+  if (window.matchMedia("(orientation: landscape) and (max-height: 500px)").matches) {
+    sidenavWidth = "min(360px, 90vw)"; // Never exceed 90% of viewport width
+  }
+  
+  sidenav.style.width = sidenavWidth;
   sidenav.classList.add("open");
   sidenav.style.height = "100%";
   menutoggle.classList.add("is-active");
@@ -1529,8 +1536,8 @@ document.addEventListener('DOMContentLoaded', function ensureSidenavStyles() {
       const style = document.createElement('style');
       style.setAttribute('data-injected', 'sidenav-fallback');
       style.textContent = `
-        #sidenav.open { width: 360px; }
-        .sidenav-container { display: flex; flex-direction: row; height: 100%; width: 360px; position: relative; }
+        #sidenav.open { width: min(360px, 90vw); max-width: 90vw; }
+        .sidenav-container { display: flex; flex-direction: row; height: 100%; width: 100%; max-width: 90vw; position: relative; }
         .sidenav-content { flex: 1; width: 290px; overflow-y: auto; background: #555; order: 1; -webkit-overflow-scrolling: touch; }
         .sidenav-tabs { width: 60px; min-width: 60px; max-width: 60px; background: #444; display: flex; flex-direction: column; border-left: 2px solid #333; flex-shrink: 0; order: 2; padding-top: 65px[...]
         .sidenav-tab { flex: 1 1 auto; min-height: 80px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 12px 8px; cursor: pointer; background: #555; bord[...]
