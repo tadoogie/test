@@ -465,12 +465,6 @@ function ensurePstuneSearchUI(tuneLabels, tuneListObjs, initialValue) {
       isClickingButton = false;
     }, 150);
   });
-
-  // NEVER populate the input automatically - always start empty
-  if (initialValue) {
-    tuneInput.dataset.tuneid = window._pstuneMap[initialValue] || '';
-    tuneInput.dataset.tunelabel = initialValue || '';
-  }
   
   // Always keep input empty and show all tunes on initial load
   tuneInput.value = '';
@@ -489,7 +483,7 @@ function getTunes(tuneLabel) {
   var metre = psData[1];
   var suggTune = tuneLabel || psData[2] || "201a";
 
-  var urlVariable = encodeURI("getTunes.xq?metre=" + metre + "&suggTune=" + suggTune + "&teiID=" + teiID);
+  var urlVariable = encodeURI("/getTunes.xq?metre=" + metre + "&suggTune=" + suggTune + "&teiID=" + teiID);
 
   var selMetInput = document.getElementById("selMet");
   if (selMetInput) {
@@ -1851,7 +1845,6 @@ function initializeTextAccordion() {
   const psalmButtons = document.getElementById('psalmButtons');
   
   if (!selectPsalm || !psalmButtons) {
-    console.warn('Text accordion elements not found');
     return;
   }
   
@@ -1893,11 +1886,7 @@ function initializeTextAccordion() {
 function initializeVerseAccordion() {
   const selectVerses = document.getElementById('selectVerses');
   const versesContainer = document.getElementById('verses');
-  
-  if (!selectVerses || !versesContainer) {
-    console.warn('Verse accordion elements not found');
-    return;
-  }
+ 
   
   // Add caret indicator if not already present
   if (!selectVerses.querySelector('.accordion-caret')) {
@@ -1930,8 +1919,6 @@ function initializeVerseAccordion() {
       toggleVerseAccordion(e);
     }
   });
-  
-  console.log('Verse accordion initialized');
 }
 
 document.addEventListener('DOMContentLoaded', function() {
