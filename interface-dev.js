@@ -332,14 +332,14 @@ function ensurePstuneSearchUI(tuneLabels, tuneListObjs, initialValue) {
   }
 
   function renderTuneButtons(filter) {
-    tuneButtonsContainer.innerHTML = '';
+     tuneButtonsContainer.innerHTML = '';
     filter = (filter || '').toLowerCase().trim();
 
     const sourceList = Array.isArray(tuneLabels) && tuneLabels.length ? tuneLabels : Object.keys(window._pstuneMap || {});
 
     const matches = sourceList.filter(function(lbl) {
-      if (!filter) return true;
-      return lbl.toLowerCase().indexOf(filter) !== -1;
+        if (!filter) return true;
+        return lbl.toLowerCase().indexOf(filter) !== -1;
     });
 
     if (!matches.length) {
