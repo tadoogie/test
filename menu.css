@@ -307,7 +307,7 @@ input[type="range"]::-moz-range-thumb {
     }
     .menu-item {
         min-width: 230px;
-        max-width: 330px;
+        max-width: 360px;
         padding: 5px 15px;
     }
     .menu-item.right {
@@ -334,7 +334,7 @@ nav ul, nav li, #nav ul, #nav li {
             
             #sidenav { position: relative; z-index: 1000; }
             #sidenav input, #sidenav select, #sidenav textarea, #sidenav label { background: #555; }
-            #sidenav .awesomplete, div.awesomplete input, select#selMet  { width: 310px; height: 31px; display: inline-block; }
+            #sidenav .awesomplete, div.awesomplete input, select#selMet  { width: 310px; height: 35px; display: inline-block; }
             #sidenav .awesomplete ul,
             #sidenav .awesomplete ul[role="listbox"] {
                 position: absolute;
@@ -457,10 +457,11 @@ nav ul, nav li, #nav ul, #nav li {
               z-index: 2000;
               padding:2px 0px 0px 0px;
               width: 270px;
-              height: 31px;
+              height: 35px;
             }
             input.initial, .menuSpan input, #tunes input, .awesomplete input, .awesomplete input {
               width: 310px;
+              height: 35px;
               background-color: #555555;
               color: white;
               border: 1px solid #888;
@@ -945,7 +946,7 @@ dl dt { font-weight: bold; }
     display: block;
     border-right: none;
     border-bottom: 2px solid #000;
-    padding: 8px 0 6px 0;
+    padding: 3px 2px 8px 0;
   }
   #controls a, #controls button {
     width: 44px;
