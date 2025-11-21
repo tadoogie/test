@@ -1538,7 +1538,7 @@ div #tuneButtons button, .source-button {
   }
   
   .container, .row {
-    max-width: 100vw;
+    max-width: 100%;
     overflow-x: hidden;
   }
 }
