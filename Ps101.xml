@@ -1,0 +1,352 @@
+<TEI xmlns="http://www.tei-c.org/ns/1.0" xml:id="2004-Ps101">
+    <teiHeader>
+        <fileDesc>
+            <titleStmt>
+                <title>Psalm 101</title>
+                <author>Anonymous</author>
+                <respStmt>
+                    <resp>Encoded by</resp>
+                    <persName role="enc">Timothy Duguid</persName>
+                </respStmt>
+            </titleStmt>
+            <editionStmt>
+                <edition>
+                    <title type="main">The Psalms for Singing</title>
+                    <title type="short">2004 Irish Psalter</title>
+                    <date>2004</date>
+                </edition>
+                    <respStmt>
+                        <persName role="pub">Nigel Lynn Publishing</persName>
+                    </respStmt>
+            </editionStmt>
+            <publicationStmt>
+                <availability>
+                    <license target="https://creativecommons.org/licenses/by-nc/4.0/">Distributed under a Creative Commons Attribution-NonCommercial 4.0 License</license>
+                </availability>
+                <p>Published by Timothy Duguid</p>
+            </publicationStmt>
+            <notesStmt>
+                <note>Suggested tune:</note>
+                <note>SL157</note>
+            </notesStmt>
+            <sourceDesc>
+                <p>Texts come from the 2004 Irish Metrical Psalter</p>
+            </sourceDesc>
+        </fileDesc>
+        <encodingDesc>
+            <metDecl>
+                <p>All metre designations are only counts of syllables and do not refer to any type of poetic foot.</p>
+            </metDecl>
+        </encodingDesc>
+    </teiHeader>
+    <text>
+        <body>
+            <div type="poem" met="8.6.8.6.">        
+                <lg type="verse" n="1-2a">
+                    <l>
+                        <seg type="syl" n="1">1. Of</seg>
+                        <seg type="syl" n="2">jus-</seg>
+                        <seg type="syl" n="3">tice</seg>
+                        <seg type="syl" n="4">and</seg>
+                        <seg type="syl" n="5">of</seg>
+                        <seg type="syl" n="6">stead-</seg>
+                        <seg type="syl" n="7">fast</seg>
+                        <seg type="syl" n="8">love,</seg>
+                    </l>
+                    <l>
+                        <seg type="syl" n="1">let,</seg>
+                        <seg type="syl" n="2">me</seg>
+                        <seg type="syl" n="3">now</seg>
+                        <seg type="syl" n="4">sing,</seg>
+                        <seg type="syl" n="5">I</seg>
+                        <seg type="syl" n="6">say.</seg>
+                    </l>
+                    <l>
+                        <seg type="syl" n="1">To</seg>
+                        <seg type="syl" n="2">you,</seg>
+                        <seg type="syl" n="3">LORD,</seg>
+                        <seg type="syl" n="4">I'll</seg>
+                        <seg type="syl" n="5">sing</seg>
+                        <seg type="syl" n="6">praise,</seg>
+                        <seg type="syl" n="7">2. and</seg>
+                        <seg type="syl" n="8">seek</seg>
+                    </l>
+                    <l>
+                        <seg type="syl" n="1">to</seg>
+                        <seg type="syl" n="2">live</seg>
+                        <seg type="syl" n="3">the</seg>
+                        <seg type="syl" n="4">blame-</seg>
+                        <seg type="syl" n="5">less</seg>
+                        <seg type="syl" n="6">way.</seg>
+                    </l>
+                </lg>
+                <lg type="verse" n="2b">
+                    <l>
+                        <seg type="syl" n="1">O</seg>
+                        <seg type="syl" n="2">when,</seg>
+                        <seg type="syl" n="3">Lord,</seg>
+                        <seg type="syl" n="4">now</seg>
+                        <seg type="syl" n="5">I</seg>
+                        <seg type="syl" n="6">ask</seg>
+                        <seg type="syl" n="7">of</seg>
+                        <seg type="syl" n="8">you,</seg>
+                    </l>
+                    <l>
+                        <seg type="syl" n="1">when</seg>
+                        <seg type="syl" n="2">will</seg>
+                        <seg type="syl" n="3">you</seg>
+                        <seg type="syl" n="4">to</seg>
+                        <seg type="syl" n="5">me</seg>
+                        <seg type="syl" n="6">come?</seg>
+                    </l>
+                    <l>
+                        <seg type="syl" n="1">In</seg>
+                        <seg type="syl" n="2">full</seg>
+                        <seg type="syl" n="3">in-</seg>
+                        <seg type="syl" n="4">te-</seg>
+                        <seg type="syl" n="5">grit-</seg>
+                        <seg type="syl" n="6">y</seg>
+                        <seg type="syl" n="7">of</seg>
+                        <seg type="syl" n="8">heart,</seg>
+                    </l>
+                    <l>
+                        <seg type="syl" n="1">I'll</seg>
+                        <seg type="syl" n="2">go</seg>
+                        <seg type="syl" n="3">a-</seg>
+                        <seg type="syl" n="4">bout</seg>
+                        <seg type="syl" n="5">my</seg>
+                        <seg type="syl" n="6">home.</seg>
+                    </l>
+                </lg>
+                <lg type="verse" n="3">
+                    <l>
+                        <seg type="syl" n="1">3. I'll</seg>
+                        <seg type="syl" n="2">not</seg>
+                        <seg type="syl" n="3">al-</seg>
+                        <seg type="syl" n="4">low</seg>
+                        <seg type="syl" n="5">a</seg>
+                        <seg type="syl" n="6">worth-</seg>
+                        <seg type="syl" n="7">less</seg>
+                        <seg type="syl" n="8">thing</seg>
+                    </l>
+                    <l>
+                        <seg type="syl" n="1">be-</seg>
+                        <seg type="syl" n="2">fore</seg>
+                        <seg type="syl" n="3">my</seg>
+                        <seg type="syl" n="4">eyes</seg>
+                        <seg type="syl" n="5">to</seg>
+                        <seg type="syl" n="6">be.</seg>
+                    </l>
+                    <l>
+                        <seg type="syl" n="1">The</seg>
+                        <seg type="syl" n="2">work</seg>
+                        <seg type="syl" n="3">of</seg>
+                        <seg type="syl" n="4">faith-</seg>
+                        <seg type="syl" n="5">less</seg>
+                        <seg type="syl" n="6">men</seg>
+                        <seg type="syl" n="7">I</seg>
+                        <seg type="syl" n="8">hate;</seg>
+                    </l>
+                    <l>
+                        <seg type="syl" n="1">it</seg>
+                        <seg type="syl" n="2">will</seg>
+                        <seg type="syl" n="3">not</seg>
+                        <seg type="syl" n="4">cling</seg>
+                        <seg type="syl" n="5">to</seg>
+                        <seg type="syl" n="6">me.</seg>
+                    </l>
+                </lg>
+                <lg type="verse" n="4">
+                    <l>
+                        <seg type="syl" n="1">4. A</seg>
+                        <seg type="syl" n="2">per-</seg>
+                        <seg type="syl" n="3">verse</seg>
+                        <seg type="syl" n="4">and</seg>
+                        <seg type="syl" n="5">a</seg>
+                        <seg type="syl" n="6">twis-</seg>
+                        <seg type="syl" n="7">ted</seg>
+                        <seg type="syl" n="8">heart,</seg>
+                    </l>
+                    <l>
+                        <seg type="syl" n="1">I</seg>
+                        <seg type="syl" n="2">will</seg>
+                        <seg type="syl" n="3">from</seg>
+                        <seg type="syl" n="4">it</seg>
+                        <seg type="syl" n="5">keep</seg>
+                        <seg type="syl" n="6">free,</seg>
+                    </l>
+                    <l>
+                        <seg type="syl" n="1">and</seg>
+                        <seg type="syl" n="2">all</seg>
+                        <seg type="syl" n="3">those</seg>
+                        <seg type="syl" n="4">things</seg>
+                        <seg type="syl" n="5">that</seg>
+                        <seg type="syl" n="6">e-</seg>
+                        <seg type="syl" n="7">vil</seg>
+                        <seg type="syl" n="8">are</seg>
+                    </l>
+                    <l>
+                        <seg type="syl" n="1">will</seg>
+                        <seg type="syl" n="2">not</seg>
+                        <seg type="syl" n="3">be</seg>
+                        <seg type="syl" n="4">known</seg>
+                        <seg type="syl" n="5">to</seg>
+                        <seg type="syl" n="6">me.</seg>
+                    </l>
+                </lg>
+                <lg type="verse" n="5">
+                    <l>
+                        <seg type="syl" n="1">5. I'll</seg>
+                        <seg type="syl" n="2">si-</seg>
+                        <seg type="syl" n="3">lence</seg>
+                        <seg type="syl" n="4">him</seg>
+                        <seg type="syl" n="5">who's</seg>
+                        <seg type="syl" n="6">slan-</seg>
+                        <seg type="syl" n="7">der-</seg>
+                        <seg type="syl" n="8">ing</seg>
+                    </l>
+                    <l>
+                        <seg type="syl" n="1">his</seg>
+                        <seg type="syl" n="2">neigh-</seg>
+                        <seg type="syl" n="3">bour</seg>
+                        <seg type="syl" n="4">si-</seg>
+                        <seg type="syl" n="5">lent-</seg>
+                        <seg type="syl" n="6">ly.</seg>
+                    </l>
+                    <l>
+                        <seg type="syl" n="1">The</seg>
+                        <seg type="syl" n="2">heart</seg>
+                        <seg type="syl" n="3">that's</seg>
+                        <seg type="syl" n="4">proud</seg>
+                        <seg type="syl" n="5">I</seg>
+                        <seg type="syl" n="6">won't</seg>
+                        <seg type="syl" n="7">en-</seg>
+                        <seg type="syl" n="8">dure,</seg>
+                    </l>
+                    <l>
+                        <seg type="syl" n="1">or</seg>
+                        <seg type="syl" n="2">eyes</seg>
+                        <seg type="syl" n="3">that</seg>
+                        <seg type="syl" n="4">haugh-</seg>
+                        <seg type="syl" n="5">ty</seg>
+                        <seg type="syl" n="6">be.</seg>
+                    </l>
+                </lg>
+                <lg type="verse" n="6">
+                    <l>
+                        <seg type="syl" n="1">6. The</seg>
+                        <seg type="syl" n="2">faith-</seg>
+                        <seg type="syl" n="3">ful</seg>
+                        <seg type="syl" n="4">of</seg>
+                        <seg type="syl" n="5">the</seg>
+                        <seg type="syl" n="6">land</seg>
+                        <seg type="syl" n="7">I'll</seg>
+                        <seg type="syl" n="8">seek,</seg>
+                    </l>
+                    <l>
+                        <seg type="syl" n="1">that</seg>
+                        <seg type="syl" n="2">they</seg>
+                        <seg type="syl" n="3">may</seg>
+                        <seg type="syl" n="4">dwell</seg>
+                        <seg type="syl" n="5">with</seg>
+                        <seg type="syl" n="6">me.</seg>
+                    </l>
+                    <l>
+                        <seg type="syl" n="1">The</seg>
+                        <seg type="syl" n="2">one</seg>
+                        <seg type="syl" n="3">who</seg>
+                        <seg type="syl" n="4">walks</seg>
+                        <seg type="syl" n="5">a</seg>
+                        <seg type="syl" n="6">blame-</seg>
+                        <seg type="syl" n="7">less</seg>
+                        <seg type="syl" n="8">path</seg>
+                    </l>
+                    <l>
+                        <seg type="syl" n="1">will</seg>
+                        <seg type="syl" n="2">min-</seg>
+                        <seg type="syl" n="3">is-</seg>
+                        <seg type="syl" n="4">ter</seg>
+                        <seg type="syl" n="5">to</seg>
+                        <seg type="syl" n="6">me.</seg>
+                    </l>
+                </lg>
+                <lg type="verse" n="7">
+                    <l>
+                        <seg type="syl" n="1">7. No</seg>
+                        <seg type="syl" n="2">one</seg>
+                        <seg type="syl" n="3">who</seg>
+                        <seg type="syl" n="4">prac-</seg>
+                        <seg type="syl" n="5">tic-</seg>
+                        <seg type="syl" n="6">es</seg>
+                        <seg type="syl" n="7">de-</seg>
+                        <seg type="syl" n="8">ceit</seg>
+                    </l>
+                    <l>
+                        <seg type="syl" n="1">with-</seg>
+                        <seg type="syl" n="2">in</seg>
+                        <seg type="syl" n="3">my</seg>
+                        <seg type="syl" n="4">house</seg>
+                        <seg type="syl" n="5">will</seg>
+                        <seg type="syl" n="6">dwell,</seg>
+                    </l>
+                    <l>
+                        <seg type="syl" n="1">and</seg>
+                        <seg type="syl" n="2">he</seg>
+                        <seg type="syl" n="3">will</seg>
+                        <seg type="syl" n="4">not</seg>
+                        <seg type="syl" n="5">be-</seg>
+                        <seg type="syl" n="6">fore</seg>
+                        <seg type="syl" n="7">me</seg>
+                        <seg type="syl" n="8">stand,</seg>
+                    </l>
+                    <l>
+                        <seg type="syl" n="1">that</seg>
+                        <seg type="syl" n="2">one</seg>
+                        <seg type="syl" n="3">who</seg>
+                        <seg type="syl" n="4">lies</seg>
+                        <seg type="syl" n="5">does</seg>
+                        <seg type="syl" n="6">tell.</seg>
+                    </l>
+                </lg>
+                <lg type="verse" n="8">
+                    <l>
+                        <seg type="syl" n="1">8. Each</seg>
+                        <seg type="syl" n="2">morn</seg>
+                        <seg type="syl" n="3">the</seg>
+                        <seg type="syl" n="4">wick-</seg>
+                        <seg type="syl" n="5">ed</seg>
+                        <seg type="syl" n="6">of</seg>
+                        <seg type="syl" n="7">the</seg>
+                        <seg type="syl" n="8">land</seg>
+                    </l>
+                    <l>
+                        <seg type="syl" n="1">will</seg>
+                        <seg type="syl" n="2">si-</seg>
+                        <seg type="syl" n="3">lenced</seg>
+                        <seg type="syl" n="4">be</seg>
+                        <seg type="syl" n="5">by</seg>
+                        <seg type="syl" n="6">me,</seg>
+                    </l>
+                    <l>
+                        <seg type="syl" n="1">to</seg>
+                        <seg type="syl" n="2">cut</seg>
+                        <seg type="syl" n="3">off</seg>
+                        <seg type="syl" n="4">from</seg>
+                        <seg type="syl" n="5">God's</seg>
+                        <seg type="syl" n="6">cit-</seg>
+                        <seg type="syl" n="7">y</seg>
+                        <seg type="syl" n="8">all</seg>
+                    </l>
+                    <l>
+                        <seg type="syl" n="1">who</seg>
+                        <seg type="syl" n="2">do</seg>
+                        <seg type="syl" n="3">in-</seg>
+                        <seg type="syl" n="4">i-</seg>
+                        <seg type="syl" n="5">quit-</seg>
+                        <seg type="syl" n="6">y.</seg>
+                    </l>
+                </lg>
+            </div>
+        </body>
+    </text>
+</TEI>
