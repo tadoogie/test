@@ -1554,7 +1554,7 @@ div #tuneButtons button, .source-button {
 @media (orientation: landscape) and (max-height: 500px) {
   html, body {
     overflow-x: hidden !important;
-    max-width: 100vw !important;
+    width: 100% !important;
   }
   
   #sidenav {
