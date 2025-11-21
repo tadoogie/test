@@ -398,6 +398,10 @@ nav ul, nav li, #nav ul, #nav li {
               box-shadow: -2px 0 8px rgba(0,0,0,0.2);
               overflow-y: auto;
               height: 100vh;
+              visibility: hidden;
+            }
+            #sidenav.open {
+              visibility: visible;
             }
             #sidenav .closebtn {
               position: absolute;
