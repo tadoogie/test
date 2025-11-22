@@ -1071,8 +1071,15 @@ function setTexts() {
       versesEl.innerHTML = '';
       versesEl.style.display = 'none';
     }
+    // Hide search link
+    const searchContainer = document.getElementById('searchPhraseContainer');
+    if (searchContainer) searchContainer.style.display = 'none';
     return;
   }
+
+  // Show search link when texts are available
+  const searchContainer = document.getElementById('searchPhraseContainer');
+  if (searchContainer) searchContainer.style.display = 'block';
 
   // Create selector display
   const selectPsDiv = document.createElement('div');
@@ -1940,4 +1947,260 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeTextAccordion();
     initializeVerseAccordion();
   }, 100);
+});
+
+/* ----------------------------- Text Search Modal ----------------------------- */
+document.addEventListener("DOMContentLoaded", function() {
+  // Helper function to normalize strings (for accent-insensitive search)
+  // Reusing the same pattern as the tune search normalizeString function
+  function normalizeStringForSearch(str) {
+    return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  }
+  const searchLink = document.getElementById("searchPhraseLink");
+  const searchModal = document.getElementById("searchModal");
+  const searchInput = document.getElementById("searchInput");
+  const searchResults = document.getElementById("searchResults");
+  const closeSearchBtn = document.getElementById("closeSearchModalBtn");
+
+  // Setup modal close on outside click
+  function setupSearchModalCloseOnOutsideClick() {
+    if (!searchModal) return;
+    searchModal.addEventListener("click", function(e) {
+      if (e.target === searchModal) {
+        searchModal.style.display = "none";
+        searchInput.value = "";
+        searchResults.innerHTML = "";
+      }
+    });
+  }
+  setupSearchModalCloseOnOutsideClick();
+
+  // Open modal
+  if (searchLink) {
+    searchLink.addEventListener("click", function(e) {
+      e.preventDefault();
+      if (searchModal) {
+        searchModal.style.display = "flex";
+        searchInput.focus();
+        showSearchInstructions();
+      }
+    });
+  }
+
+  // Close button
+  if (closeSearchBtn) {
+    closeSearchBtn.addEventListener("click", function() {
+      if (searchModal) {
+        searchModal.style.display = "none";
+        searchInput.value = "";
+        searchResults.innerHTML = "";
+      }
+    });
+  }
+
+  // ESC key to close
+  document.addEventListener("keydown", function(e) {
+    if (e.key === "Escape" && searchModal && searchModal.style.display === "flex") {
+      searchModal.style.display = "none";
+      searchInput.value = "";
+      searchResults.innerHTML = "";
+    }
+  });
+
+  // Show initial instructions
+  function showSearchInstructions() {
+    if (!searchResults) return;
+    searchResults.innerHTML = '<div style="padding:20px;text-align:center;color:#555;">Type a word or phrase to search through all psalm texts in the selected source.</div>';
+  }
+
+  // Cache for TEI documents
+  const teiCache = {};
+
+  // Fetch TEI document
+  async function fetchTEI(teiID) {
+    if (teiCache[teiID]) {
+      return teiCache[teiID];
+    }
+    
+    try {
+      // Construct TEI path - adjust this based on actual file structure
+      const teiPath = `${teiID}.xml`;
+      const response = await fetch(teiPath);
+      if (!response.ok) {
+        console.warn(`Failed to fetch TEI: ${teiPath}`);
+        return null;
+      }
+      const text = await response.text();
+      const parser = new DOMParser();
+      const xmlDoc = parser.parseFromString(text, "text/xml");
+      teiCache[teiID] = xmlDoc;
+      return xmlDoc;
+    } catch (error) {
+      console.error(`Error fetching TEI ${teiID}:`, error);
+      return null;
+    }
+  }
+
+  // Extract text from TEI document
+  function extractTextFromTEI(xmlDoc) {
+    if (!xmlDoc) return "";
+    const segs = xmlDoc.querySelectorAll('seg[type="syl"]');
+    return Array.from(segs).map(seg => seg.textContent.trim()).join(' ');
+  }
+
+  // Search through psalms
+  async function searchPsalms(query) {
+    if (!query || query.trim().length === 0) {
+      showSearchInstructions();
+      return;
+    }
+
+    // Show loading state
+    searchResults.innerHTML = '<div style="padding:20px;text-align:center;color:#555;">Searching...</div>';
+
+    const psalms = window.currentPsListForUI || [];
+    if (psalms.length === 0) {
+      searchResults.innerHTML = '<div style="padding:20px;text-align:center;color:#555;">Please select a source first.</div>';
+      return;
+    }
+
+    const normalizedQuery = normalizeStringForSearch(query.trim());
+    const results = [];
+
+    for (const psalm of psalms) {
+      // Get teiID from rawObj if available, otherwise parse from data
+      let teiID = '';
+      if (psalm.rawObj && psalm.rawObj.id) {
+        teiID = psalm.rawObj.id;
+      } else {
+        const parts = (psalm.data || '').split(';');
+        teiID = parts[0] || '';
+      }
+      
+      if (!teiID) continue;
+
+      const xmlDoc = await fetchTEI(teiID);
+      if (!xmlDoc) continue;
+
+      const text = extractTextFromTEI(xmlDoc);
+      const normalizedText = normalizeStringForSearch(text);
+
+      // Check if query matches
+      const index = normalizedText.indexOf(normalizedQuery);
+      if (index !== -1) {
+        // Extract snippet around match (use original text for display)
+        const snippetStart = Math.max(0, index - 40);
+        const snippetEnd = Math.min(text.length, index + normalizedQuery.length + 40);
+        let snippet = text.substring(snippetStart, snippetEnd);
+        
+        if (snippetStart > 0) snippet = '...' + snippet;
+        if (snippetEnd < text.length) snippet = snippet + '...';
+
+        // Highlight the match (case-insensitive and accent-insensitive)
+        const normalizedSnippet = normalizeStringForSearch(snippet);
+        const matchStartInSnippet = normalizedSnippet.indexOf(normalizedQuery);
+        
+        if (matchStartInSnippet !== -1) {
+          // Find the match length in the original text by comparing character counts
+          // We need to find where the normalized match ends in the original string
+          let matchEnd = matchStartInSnippet;
+          let normalizedCharsMatched = 0;
+          
+          while (normalizedCharsMatched < normalizedQuery.length && matchEnd < snippet.length) {
+            const char = snippet[matchEnd];
+            const normalizedChar = normalizeStringForSearch(char);
+            if (normalizedChar.length > 0) {
+              normalizedCharsMatched += normalizedChar.length;
+            }
+            matchEnd++;
+          }
+          
+          const beforeMatch = snippet.substring(0, matchStartInSnippet);
+          const match = snippet.substring(matchStartInSnippet, matchEnd);
+          const afterMatch = snippet.substring(matchEnd);
+          snippet = beforeMatch + '<mark style="background:#ffd966;">' + match + '</mark>' + afterMatch;
+        }
+
+        results.push({
+          psalm: psalm,
+          snippet: snippet
+        });
+      }
+    }
+
+    // Display results
+    displaySearchResults(results, query);
+  }
+
+  // Display search results
+  function displaySearchResults(results, query) {
+    if (!searchResults) return;
+
+    if (results.length === 0) {
+      searchResults.innerHTML = '<div style="padding:20px;text-align:center;color:#555;">No results found for "' + query + '"</div>';
+      return;
+    }
+
+    let html = '<div style="margin-bottom:10px;color:#555;font-size:0.9em;">Found ' + results.length + ' result' + (results.length > 1 ? 's' : '') + '</div>';
+    
+    results.forEach(result => {
+      html += '<div class="search-result-item" data-label="' + result.psalm.label + '" data-psdata="' + result.psalm.data + '" style="padding:12px;margin:8px 0;background:#f5f5f5;border-radius:6px;cursor:pointer;border:1px solid #ddd;">';
+      html += '<div style="font-weight:700;margin-bottom:6px;color:#333;">' + result.psalm.label + '</div>';
+      html += '<div style="color:#555;font-size:0.9em;">' + result.snippet + '</div>';
+      html += '</div>';
+    });
+
+    searchResults.innerHTML = html;
+
+    // Add click handlers to results
+    const resultItems = searchResults.querySelectorAll('.search-result-item');
+    resultItems.forEach(item => {
+      item.addEventListener('click', function() {
+        const label = this.getAttribute('data-label');
+        const psdata = this.getAttribute('data-psdata');
+        selectPsalmFromSearch(label, psdata);
+      });
+      
+      // Hover effect
+      item.addEventListener('mouseenter', function() {
+        this.style.background = '#e8e8e8';
+      });
+      item.addEventListener('mouseleave', function() {
+        this.style.background = '#f5f5f5';
+      });
+    });
+  }
+
+  // Select psalm from search results
+  function selectPsalmFromSearch(label, psdata) {
+    // Close modal
+    if (searchModal) {
+      searchModal.style.display = "none";
+      searchInput.value = "";
+      searchResults.innerHTML = "";
+    }
+
+    // Find the psalm button and click it
+    const textsContainer = document.getElementById('texts');
+    if (textsContainer) {
+      const psalms = textsContainer.querySelectorAll('.psalm-btn');
+      psalms.forEach(btn => {
+        if (btn.dataset.label === label) {
+          btn.click();
+          return;
+        }
+      });
+    }
+  }
+
+  // Real-time search as user types
+  if (searchInput) {
+    let searchTimeout;
+    searchInput.addEventListener('input', function() {
+      clearTimeout(searchTimeout);
+      searchTimeout = setTimeout(() => {
+        searchPsalms(this.value);
+      }, 300); // Debounce by 300ms
+    });
+  }
 });
