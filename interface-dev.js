@@ -2036,7 +2036,7 @@ document.addEventListener("DOMContentLoaded", function() {
       
       const response = await fetch(url);
       if (!response.ok) {
-        throw new Error('Search failed');
+        throw new Error(`Search failed: ${response.status} ${response.statusText}`);
       }
       
       const results = await response.json();

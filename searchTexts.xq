@@ -30,7 +30,7 @@ declare function local:extract-snippet($text as xs:string, $query as xs:string, 
       let $beforeMatch := substring-before($normalizedText, $normalizedQuery)
       let $matchPos := string-length($beforeMatch) + 1
       let $start := max((1, $matchPos - $contextChars))
-      let $end := min((string-length($text), $matchPos + string-length($query) + $contextChars))
+      let $end := min((string-length($text), $matchPos + string-length($normalizedQuery) + $contextChars))
       let $snippet := substring($text, $start, $end - $start + 1)
       let $prefix := if ($start > 1) then "..." else ""
       let $suffix := if ($end < string-length($text)) then "..." else ""
