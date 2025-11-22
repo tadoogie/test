@@ -2013,42 +2013,7 @@ document.addEventListener("DOMContentLoaded", function() {
     searchResults.innerHTML = '<div style="padding:20px;text-align:center;color:#555;">Type a word or phrase to search through all psalm texts in the selected source.</div>';
   }
 
-  // Cache for TEI documents
-  const teiCache = {};
-
-  // Fetch TEI document
-  async function fetchTEI(teiID) {
-    if (teiCache[teiID]) {
-      return teiCache[teiID];
-    }
-    
-    try {
-      // Construct TEI path - adjust this based on actual file structure
-      const teiPath = `${teiID}.xml`;
-      const response = await fetch(teiPath);
-      if (!response.ok) {
-        console.warn(`Failed to fetch TEI: ${teiPath}`);
-        return null;
-      }
-      const text = await response.text();
-      const parser = new DOMParser();
-      const xmlDoc = parser.parseFromString(text, "text/xml");
-      teiCache[teiID] = xmlDoc;
-      return xmlDoc;
-    } catch (error) {
-      console.error(`Error fetching TEI ${teiID}:`, error);
-      return null;
-    }
-  }
-
-  // Extract text from TEI document
-  function extractTextFromTEI(xmlDoc) {
-    if (!xmlDoc) return "";
-    const segs = xmlDoc.querySelectorAll('seg[type="syl"]');
-    return Array.from(segs).map(seg => seg.textContent.trim()).join(' ');
-  }
-
-  // Search through psalms
+  // Search through psalms using server-side XQuery
   async function searchPsalms(query) {
     if (!query || query.trim().length === 0) {
       showSearchInstructions();
@@ -2058,85 +2023,35 @@ document.addEventListener("DOMContentLoaded", function() {
     // Show loading state
     searchResults.innerHTML = '<div style="padding:20px;text-align:center;color:#555;">Searching...</div>';
 
-    const psalms = window.currentPsListForUI || [];
-    if (psalms.length === 0) {
-      searchResults.innerHTML = '<div style="padding:20px;text-align:center;color:#555;">Please select a source first.</div>';
-      return;
-    }
-
-    const normalizedQuery = normalizeStringForSearch(query.trim());
-    const results = [];
-
-    for (const psalm of psalms) {
-      // Get teiID from rawObj if available, otherwise parse from data
-      let teiID = '';
-      if (psalm.rawObj && psalm.rawObj.id) {
-        teiID = psalm.rawObj.id;
-      } else {
-        const parts = (psalm.data || '').split(';');
-        teiID = parts[0] || '';
+    try {
+      // Get the current source filter if one is selected
+      const currentSource = window.currentSource || '';
+      
+      // Build the query URL with optional source filter
+      let url = `/searchTexts.xq?query=${encodeURIComponent(query.trim())}`;
+      if (currentSource) {
+        url += `&source=${encodeURIComponent(currentSource)}`;
       }
       
-      if (!teiID) continue;
-
-      const xmlDoc = await fetchTEI(teiID);
-      if (!xmlDoc) continue;
-
-      const text = extractTextFromTEI(xmlDoc);
-      const normalizedText = normalizeStringForSearch(text);
-
-      // Check if query matches
-      const index = normalizedText.indexOf(normalizedQuery);
-      if (index !== -1) {
-        // Extract snippet around match (use original text for display)
-        const snippetStart = Math.max(0, index - 40);
-        const snippetEnd = Math.min(text.length, index + normalizedQuery.length + 40);
-        let snippet = text.substring(snippetStart, snippetEnd);
-        
-        if (snippetStart > 0) snippet = '...' + snippet;
-        if (snippetEnd < text.length) snippet = snippet + '...';
-
-        // Highlight the match (case-insensitive and accent-insensitive)
-        const normalizedSnippet = normalizeStringForSearch(snippet);
-        const matchStartInSnippet = normalizedSnippet.indexOf(normalizedQuery);
-        
-        if (matchStartInSnippet !== -1) {
-          // Find the match length in the original text by comparing character counts
-          // We need to find where the normalized match ends in the original string
-          let matchEnd = matchStartInSnippet;
-          let normalizedCharsMatched = 0;
-          
-          while (normalizedCharsMatched < normalizedQuery.length && matchEnd < snippet.length) {
-            const char = snippet[matchEnd];
-            const normalizedChar = normalizeStringForSearch(char);
-            if (normalizedChar.length > 0) {
-              normalizedCharsMatched += normalizedChar.length;
-            }
-            matchEnd++;
-          }
-          
-          const beforeMatch = snippet.substring(0, matchStartInSnippet);
-          const match = snippet.substring(matchStartInSnippet, matchEnd);
-          const afterMatch = snippet.substring(matchEnd);
-          snippet = beforeMatch + '<mark style="background:#ffd966;">' + match + '</mark>' + afterMatch;
-        }
-
-        results.push({
-          psalm: psalm,
-          snippet: snippet
-        });
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error('Search failed');
       }
+      
+      const results = await response.json();
+      displaySearchResults(results, query);
+      
+    } catch (error) {
+      console.error('Search error:', error);
+      searchResults.innerHTML = '<div style="padding:20px;text-align:center;color:#555;">Search failed. Please try again.</div>';
     }
-
-    // Display results
-    displaySearchResults(results, query);
   }
 
   // Display search results
   function displaySearchResults(results, query) {
     if (!searchResults) return;
 
-    if (results.length === 0) {
+    if (!results || results.length === 0) {
       searchResults.innerHTML = '<div style="padding:20px;text-align:center;color:#555;">No results found for "' + query + '"</div>';
       return;
     }
@@ -2144,9 +2059,15 @@ document.addEventListener("DOMContentLoaded", function() {
     let html = '<div style="margin-bottom:10px;color:#555;font-size:0.9em;">Found ' + results.length + ' result' + (results.length > 1 ? 's' : '') + '</div>';
     
     results.forEach(result => {
-      html += '<div class="search-result-item" data-label="' + result.psalm.label + '" data-psdata="' + result.psalm.data + '" style="padding:12px;margin:8px 0;background:#f5f5f5;border-radius:6px;cursor:pointer;border:1px solid #ddd;">';
-      html += '<div style="font-weight:700;margin-bottom:6px;color:#333;">' + result.psalm.label + '</div>';
-      html += '<div style="color:#555;font-size:0.9em;">' + result.snippet + '</div>';
+      // Highlight the match in the snippet
+      const snippet = highlightMatchInSnippet(result.snippet, query);
+      
+      html += '<div class="search-result-item" data-label="' + result.label + '" data-psdata="' + result.data + '" style="padding:12px;margin:8px 0;background:#f5f5f5;border-radius:6px;cursor:pointer;border:1px solid #ddd;">';
+      html += '<div style="font-weight:700;margin-bottom:6px;color:#333;">' + result.label + '</div>';
+      html += '<div style="color:#555;font-size:0.9em;">' + snippet + '</div>';
+      if (result.source) {
+        html += '<div style="color:#888;font-size:0.8em;margin-top:4px;">' + result.source + '</div>';
+      }
       html += '</div>';
     });
 
@@ -2169,6 +2090,35 @@ document.addEventListener("DOMContentLoaded", function() {
         this.style.background = '#f5f5f5';
       });
     });
+  }
+
+  // Helper function to highlight match in snippet
+  function highlightMatchInSnippet(snippet, query) {
+    if (!snippet || !query) return snippet;
+    
+    const normalizedSnippet = normalizeStringForSearch(snippet);
+    const normalizedQuery = normalizeStringForSearch(query.trim());
+    const matchStartInSnippet = normalizedSnippet.indexOf(normalizedQuery);
+    
+    if (matchStartInSnippet === -1) return snippet;
+    
+    // Find the match length in the original text
+    let matchEnd = matchStartInSnippet;
+    let normalizedCharsMatched = 0;
+    
+    while (normalizedCharsMatched < normalizedQuery.length && matchEnd < snippet.length) {
+      const char = snippet[matchEnd];
+      const normalizedChar = normalizeStringForSearch(char);
+      if (normalizedChar.length > 0) {
+        normalizedCharsMatched += normalizedChar.length;
+      }
+      matchEnd++;
+    }
+    
+    const beforeMatch = snippet.substring(0, matchStartInSnippet);
+    const match = snippet.substring(matchStartInSnippet, matchEnd);
+    const afterMatch = snippet.substring(matchEnd);
+    return beforeMatch + '<mark style="background:#ffd966;">' + match + '</mark>' + afterMatch;
   }
 
   // Select psalm from search results
