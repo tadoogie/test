@@ -2036,8 +2036,8 @@ document.addEventListener("DOMContentLoaded", function() {
     }
 
     try {
-      // Call XQuery endpoint with search parameters
-      const url = `/searchPsalms.xq?query=${encodeURIComponent(query.trim())}&source=${encodeURIComponent(source)}`;
+      // Call XQuery endpoint with search parameters (relative path)
+      const url = `searchPsalms.xq?query=${encodeURIComponent(query.trim())}&source=${encodeURIComponent(source)}`;
       const response = await fetch(url);
       
       if (!response.ok) {

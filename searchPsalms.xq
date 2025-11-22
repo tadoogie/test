@@ -19,10 +19,12 @@ declare function local:normalize($str as xs:string) as xs:string {
 declare function local:extract-snippet($text as xs:string, $query as xs:string, $contextChars as xs:integer) as xs:string {
   let $normalizedText := local:normalize(lower-case($text))
   let $normalizedQuery := local:normalize(lower-case($query))
-  let $matchPos := fn:index-of(fn:string-to-codepoints($normalizedText), fn:string-to-codepoints($normalizedQuery)[1])[1]
   
   return
-    if (exists($matchPos)) then
+    if (contains($normalizedText, $normalizedQuery)) then
+      (: Find the position of the match using substring-before :)
+      let $beforeMatch := substring-before($normalizedText, $normalizedQuery)
+      let $matchPos := string-length($beforeMatch) + 1
       let $start := max((1, $matchPos - $contextChars))
       let $end := min((string-length($text), $matchPos + string-length($query) + $contextChars))
       let $snippet := substring($text, $start, $end - $start + 1)
