@@ -2013,42 +2013,13 @@ document.addEventListener("DOMContentLoaded", function() {
     searchResults.innerHTML = '<div style="padding:20px;text-align:center;color:#555;">Type a word or phrase to search through all psalm texts in the selected source.</div>';
   }
 
-  // Cache for TEI documents
-  const teiCache = {};
-
-  // Fetch TEI document
-  async function fetchTEI(teiID) {
-    if (teiCache[teiID]) {
-      return teiCache[teiID];
-    }
-    
-    try {
-      // Construct TEI path - adjust this based on actual file structure
-      const teiPath = `${teiID}.xml`;
-      const response = await fetch(teiPath);
-      if (!response.ok) {
-        console.warn(`Failed to fetch TEI: ${teiPath}`);
-        return null;
-      }
-      const text = await response.text();
-      const parser = new DOMParser();
-      const xmlDoc = parser.parseFromString(text, "text/xml");
-      teiCache[teiID] = xmlDoc;
-      return xmlDoc;
-    } catch (error) {
-      console.error(`Error fetching TEI ${teiID}:`, error);
-      return null;
-    }
+  // Get current source name
+  function getCurrentSource() {
+    const sourceInput = document.getElementById('pssource');
+    return sourceInput ? sourceInput.value : '';
   }
 
-  // Extract text from TEI document
-  function extractTextFromTEI(xmlDoc) {
-    if (!xmlDoc) return "";
-    const segs = xmlDoc.querySelectorAll('seg[type="syl"]');
-    return Array.from(segs).map(seg => seg.textContent.trim()).join(' ');
-  }
-
-  // Search through psalms
+  // Search through psalms using XQuery endpoint
   async function searchPsalms(query) {
     if (!query || query.trim().length === 0) {
       showSearchInstructions();
@@ -2058,51 +2029,35 @@ document.addEventListener("DOMContentLoaded", function() {
     // Show loading state
     searchResults.innerHTML = '<div style="padding:20px;text-align:center;color:#555;">Searching...</div>';
 
-    const psalms = window.currentPsListForUI || [];
-    if (psalms.length === 0) {
+    const source = getCurrentSource();
+    if (!source) {
       searchResults.innerHTML = '<div style="padding:20px;text-align:center;color:#555;">Please select a source first.</div>';
       return;
     }
 
-    const normalizedQuery = normalizeStringForSearch(query.trim());
-    const results = [];
-
-    for (const psalm of psalms) {
-      // Get teiID from rawObj if available, otherwise parse from data
-      let teiID = '';
-      if (psalm.rawObj && psalm.rawObj.id) {
-        teiID = psalm.rawObj.id;
-      } else {
-        const parts = (psalm.data || '').split(';');
-        teiID = parts[0] || '';
-      }
+    try {
+      // Call XQuery endpoint with search parameters
+      const url = `/searchPsalms.xq?query=${encodeURIComponent(query.trim())}&source=${encodeURIComponent(source)}`;
+      const response = await fetch(url);
       
-      if (!teiID) continue;
+      if (!response.ok) {
+        throw new Error(`Search failed: ${response.status}`);
+      }
 
-      const xmlDoc = await fetchTEI(teiID);
-      if (!xmlDoc) continue;
+      const data = await response.json();
+      const results = data.results || [];
 
-      const text = extractTextFromTEI(xmlDoc);
-      const normalizedText = normalizeStringForSearch(text);
-
-      // Check if query matches
-      const index = normalizedText.indexOf(normalizedQuery);
-      if (index !== -1) {
-        // Extract snippet around match (use original text for display)
-        const snippetStart = Math.max(0, index - 40);
-        const snippetEnd = Math.min(text.length, index + normalizedQuery.length + 40);
-        let snippet = text.substring(snippetStart, snippetEnd);
+      // Highlight the query in snippets
+      const highlightedResults = results.map(result => {
+        let snippet = result.snippet || '';
         
-        if (snippetStart > 0) snippet = '...' + snippet;
-        if (snippetEnd < text.length) snippet = snippet + '...';
-
         // Highlight the match (case-insensitive and accent-insensitive)
         const normalizedSnippet = normalizeStringForSearch(snippet);
+        const normalizedQuery = normalizeStringForSearch(query.trim());
         const matchStartInSnippet = normalizedSnippet.indexOf(normalizedQuery);
         
         if (matchStartInSnippet !== -1) {
-          // Find the match length in the original text by comparing character counts
-          // We need to find where the normalized match ends in the original string
+          // Find the match length in the original text
           let matchEnd = matchStartInSnippet;
           let normalizedCharsMatched = 0;
           
@@ -2121,15 +2076,21 @@ document.addEventListener("DOMContentLoaded", function() {
           snippet = beforeMatch + '<mark style="background:#ffd966;">' + match + '</mark>' + afterMatch;
         }
 
-        results.push({
-          psalm: psalm,
+        return {
+          id: result.id,
+          label: result.label,
+          data: result.data,
           snippet: snippet
-        });
-      }
-    }
+        };
+      });
 
-    // Display results
-    displaySearchResults(results, query);
+      // Display results
+      displaySearchResults(highlightedResults, query);
+
+    } catch (error) {
+      console.error('Search error:', error);
+      searchResults.innerHTML = '<div style="padding:20px;text-align:center;color:#555;">Search error. Please try again.</div>';
+    }
   }
 
   // Display search results
@@ -2144,8 +2105,8 @@ document.addEventListener("DOMContentLoaded", function() {
     let html = '<div style="margin-bottom:10px;color:#555;font-size:0.9em;">Found ' + results.length + ' result' + (results.length > 1 ? 's' : '') + '</div>';
     
     results.forEach(result => {
-      html += '<div class="search-result-item" data-label="' + result.psalm.label + '" data-psdata="' + result.psalm.data + '" style="padding:12px;margin:8px 0;background:#f5f5f5;border-radius:6px;cursor:pointer;border:1px solid #ddd;">';
-      html += '<div style="font-weight:700;margin-bottom:6px;color:#333;">' + result.psalm.label + '</div>';
+      html += '<div class="search-result-item" data-label="' + result.label + '" data-psdata="' + result.data + '" style="padding:12px;margin:8px 0;background:#f5f5f5;border-radius:6px;cursor:pointer;border:1px solid #ddd;">';
+      html += '<div style="font-weight:700;margin-bottom:6px;color:#333;">' + result.label + '</div>';
       html += '<div style="color:#555;font-size:0.9em;">' + result.snippet + '</div>';
       html += '</div>';
     });
