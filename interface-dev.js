@@ -1950,12 +1950,12 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 /* ----------------------------- Text Search Modal ----------------------------- */
-// Helper function to normalize strings (for accent-insensitive search)
-function normalizeStringForSearch(str) {
-  return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-}
-
 document.addEventListener("DOMContentLoaded", function() {
+  // Helper function to normalize strings (for accent-insensitive search)
+  // Reusing the same pattern as the tune search normalizeString function
+  function normalizeStringForSearch(str) {
+    return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  }
   const searchLink = document.getElementById("searchPhraseLink");
   const searchModal = document.getElementById("searchModal");
   const searchInput = document.getElementById("searchInput");
@@ -2068,8 +2068,14 @@ document.addEventListener("DOMContentLoaded", function() {
     const results = [];
 
     for (const psalm of psalms) {
-      const parts = (psalm.data || '').split(';');
-      const teiID = parts[0] || '';
+      // Get teiID from rawObj if available, otherwise parse from data
+      let teiID = '';
+      if (psalm.rawObj && psalm.rawObj.id) {
+        teiID = psalm.rawObj.id;
+      } else {
+        const parts = (psalm.data || '').split(';');
+        teiID = parts[0] || '';
+      }
       
       if (!teiID) continue;
 
@@ -2095,19 +2101,23 @@ document.addEventListener("DOMContentLoaded", function() {
         const matchStartInSnippet = normalizedSnippet.indexOf(normalizedQuery);
         
         if (matchStartInSnippet !== -1) {
-          // Find the actual matched text length in the original snippet
-          let matchLength = 0;
-          let normalizedCount = 0;
-          for (let i = matchStartInSnippet; normalizedCount < normalizedQuery.length && i < snippet.length; i++) {
-            matchLength++;
-            if (normalizeStringForSearch(snippet[i]).length > 0) {
-              normalizedCount++;
+          // Find the match length in the original text by comparing character counts
+          // We need to find where the normalized match ends in the original string
+          let matchEnd = matchStartInSnippet;
+          let normalizedCharsMatched = 0;
+          
+          while (normalizedCharsMatched < normalizedQuery.length && matchEnd < snippet.length) {
+            const char = snippet[matchEnd];
+            const normalizedChar = normalizeStringForSearch(char);
+            if (normalizedChar.length > 0) {
+              normalizedCharsMatched += normalizedChar.length;
             }
+            matchEnd++;
           }
           
           const beforeMatch = snippet.substring(0, matchStartInSnippet);
-          const match = snippet.substring(matchStartInSnippet, matchStartInSnippet + matchLength);
-          const afterMatch = snippet.substring(matchStartInSnippet + matchLength);
+          const match = snippet.substring(matchStartInSnippet, matchEnd);
+          const afterMatch = snippet.substring(matchEnd);
           snippet = beforeMatch + '<mark style="background:#ffd966;">' + match + '</mark>' + afterMatch;
         }
 
