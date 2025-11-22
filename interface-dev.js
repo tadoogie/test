@@ -2025,7 +2025,8 @@ document.addEventListener("DOMContentLoaded", function() {
 
     try {
       // Get the current source filter if one is selected
-      const currentSource = window.currentSource || '';
+      const psSourceInput = document.getElementById('pssource');
+      const currentSource = psSourceInput ? psSourceInput.value : '';
       
       // Build the query URL with optional source filter
       let url = `/searchTexts.xq?query=${encodeURIComponent(query.trim())}`;

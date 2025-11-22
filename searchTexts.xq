@@ -9,11 +9,14 @@ let $query := request:get-parameter("query", "")
 let $source := request:get-parameter("source", "")
 
 (: Normalize for accent-insensitive search - remove diacritical marks :)
-declare function local:normalize($str as xs:string) as xs:string {
-  (: Unicode NFD normalization to separate base characters from combining marks :)
-  let $nfd := fn:normalize-unicode($str, 'NFD')
-  (: Remove combining diacritical marks (Unicode range 0300-036F) :)
-  return fn:replace($nfd, '[\u0300-\u036F]', '')
+declare function local:normalize($str as xs:string?) as xs:string {
+  if (empty($str) or $str = '') then
+    ''
+  else
+    (: Unicode NFD normalization to separate base characters from combining marks :)
+    let $nfd := fn:normalize-unicode($str, 'NFD')
+    (: Remove combining diacritical marks (Unicode range 0300-036F) :)
+    return fn:replace($nfd, '[\u0300-\u036F]', '')
 };
 
 (: Extract snippet with context around match :)
@@ -55,7 +58,17 @@ let $results :=
     let $id := string($doc//tei:TEI/@xml:id)
     let $label := string($doc//tei:titleStmt/tei:title)
     let $snippet := local:extract-snippet($text, $query, 40)
-    let $sourceInfo := concat(string($doc//tei:editionStmt/tei:edition/tei:title[@type="main"]), " (", string($doc//tei:editionStmt/tei:edition/tei:date), ")")
+    let $mainTitle := string($doc//tei:editionStmt/tei:edition/tei:title[@type="main"])
+    let $editionDate := string($doc//tei:editionStmt/tei:edition/tei:date)
+    let $sourceInfo := 
+      if ($mainTitle != '' and $editionDate != '') then
+        concat($mainTitle, " (", $editionDate, ")")
+      else if ($mainTitle != '') then
+        $mainTitle
+      else if ($editionDate != '') then
+        $editionDate
+      else
+        ""
     let $path := document-uri($doc)
     let $metre := string($doc//tei:div/@met)
     let $suggTune := normalize-space(string($doc//tei:notesStmt/tei:note[2]))
