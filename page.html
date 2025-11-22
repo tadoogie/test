@@ -555,6 +555,9 @@
                                 <div class="submenu">
                                     <div id="texts" style="display:none;"/>
                                 </div>
+                                <div style="margin-top:10px;margin-left:8px;">
+                                    <a href="#" id="searchPhraseLink" style="color:#6fc252;text-decoration:none;font-size:1em;">🔍 Find your phrase</a>
+                                </div>
                             </div>
                             <div id="VerseSection" class="menu-item">
                                 <span class="menuHead">
@@ -828,6 +831,18 @@
     </div>
   </div>
 </div>
+
+  <!-- Search Modal -->
+  <div id="searchModal" style="display:none;">
+    <div>
+      <h2 style="margin-top: 0">Find Your Phrase</h2>
+      <input type="text" id="searchInput" placeholder="Type to search..." style="width:90%;margin:10px auto 18px auto;display:block;font-size:1em;padding:8px;border-radius:6px;border:1px solid #888;" autocomplete="off"/>
+      <div id="searchResults" style="max-height:400px;overflow-y:auto;margin:10px auto;width:90%;"></div>
+      <div style="text-align:center;margin-top:15px;">
+        <button id="closeSearchModalBtn">Close</button>
+      </div>
+    </div>
+  </div>
     <script src="https://www.verovio.org/javascript/latest/verovio-toolkit-wasm.js" defer="defer"/>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/awesomplete/1.1.5/awesomplete.min.js"/>
     <script async="" src="https://www.googletagmanager.com/gtag/js?id=G-9HSZZ1BZCT"/>
