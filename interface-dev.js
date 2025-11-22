@@ -1071,8 +1071,15 @@ function setTexts() {
       versesEl.innerHTML = '';
       versesEl.style.display = 'none';
     }
+    // Hide search link
+    const searchContainer = document.getElementById('searchPhraseContainer');
+    if (searchContainer) searchContainer.style.display = 'none';
     return;
   }
+
+  // Show search link when texts are available
+  const searchContainer = document.getElementById('searchPhraseContainer');
+  if (searchContainer) searchContainer.style.display = 'block';
 
   // Create selector display
   const selectPsDiv = document.createElement('div');
@@ -1943,6 +1950,11 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 /* ----------------------------- Text Search Modal ----------------------------- */
+// Helper function to normalize strings (for accent-insensitive search)
+function normalizeStringForSearch(str) {
+  return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+}
+
 document.addEventListener("DOMContentLoaded", function() {
   const searchLink = document.getElementById("searchPhraseLink");
   const searchModal = document.getElementById("searchModal");
@@ -2052,7 +2064,7 @@ document.addEventListener("DOMContentLoaded", function() {
       return;
     }
 
-    const normalizedQuery = normalizeString(query.trim());
+    const normalizedQuery = normalizeStringForSearch(query.trim());
     const results = [];
 
     for (const psalm of psalms) {
@@ -2065,25 +2077,37 @@ document.addEventListener("DOMContentLoaded", function() {
       if (!xmlDoc) continue;
 
       const text = extractTextFromTEI(xmlDoc);
-      const normalizedText = normalizeString(text);
+      const normalizedText = normalizeStringForSearch(text);
 
       // Check if query matches
       const index = normalizedText.indexOf(normalizedQuery);
       if (index !== -1) {
-        // Extract snippet around match
+        // Extract snippet around match (use original text for display)
         const snippetStart = Math.max(0, index - 40);
-        const snippetEnd = Math.min(text.length, index + query.length + 40);
+        const snippetEnd = Math.min(text.length, index + normalizedQuery.length + 40);
         let snippet = text.substring(snippetStart, snippetEnd);
         
         if (snippetStart > 0) snippet = '...' + snippet;
         if (snippetEnd < text.length) snippet = snippet + '...';
 
-        // Highlight the match
-        const matchStart = snippet.toLowerCase().indexOf(query.toLowerCase());
-        if (matchStart !== -1) {
-          const beforeMatch = snippet.substring(0, matchStart);
-          const match = snippet.substring(matchStart, matchStart + query.length);
-          const afterMatch = snippet.substring(matchStart + query.length);
+        // Highlight the match (case-insensitive and accent-insensitive)
+        const normalizedSnippet = normalizeStringForSearch(snippet);
+        const matchStartInSnippet = normalizedSnippet.indexOf(normalizedQuery);
+        
+        if (matchStartInSnippet !== -1) {
+          // Find the actual matched text length in the original snippet
+          let matchLength = 0;
+          let normalizedCount = 0;
+          for (let i = matchStartInSnippet; normalizedCount < normalizedQuery.length && i < snippet.length; i++) {
+            matchLength++;
+            if (normalizeStringForSearch(snippet[i]).length > 0) {
+              normalizedCount++;
+            }
+          }
+          
+          const beforeMatch = snippet.substring(0, matchStartInSnippet);
+          const match = snippet.substring(matchStartInSnippet, matchStartInSnippet + matchLength);
+          const afterMatch = snippet.substring(matchStartInSnippet + matchLength);
           snippet = beforeMatch + '<mark style="background:#ffd966;">' + match + '</mark>' + afterMatch;
         }
 
