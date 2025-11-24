@@ -1071,8 +1071,15 @@ function setTexts() {
       versesEl.innerHTML = '';
       versesEl.style.display = 'none';
     }
+    // Hide search link
+    const searchContainer = document.getElementById('searchPhraseContainer');
+    if (searchContainer) searchContainer.style.display = 'none';
     return;
   }
+
+  // Show search link when texts are available
+  const searchContainer = document.getElementById('searchPhraseContainer');
+  if (searchContainer) searchContainer.style.display = 'block';
 
   // Create selector display
   const selectPsDiv = document.createElement('div');
@@ -1940,4 +1947,221 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeTextAccordion();
     initializeVerseAccordion();
   }, 100);
+});
+
+/* ----------------------------- Text Search Modal ----------------------------- */
+document.addEventListener("DOMContentLoaded", function() {
+  // Helper function to normalize strings (for accent-insensitive search)
+  // Reusing the same pattern as the tune search normalizeString function
+  function normalizeStringForSearch(str) {
+    return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  }
+  const searchLink = document.getElementById("searchPhraseLink");
+  const searchModal = document.getElementById("searchModal");
+  const searchInput = document.getElementById("searchInput");
+  const searchResults = document.getElementById("searchResults");
+  const closeSearchBtn = document.getElementById("closeSearchModalBtn");
+
+  // Setup modal close on outside click
+  function setupSearchModalCloseOnOutsideClick() {
+    if (!searchModal) return;
+    searchModal.addEventListener("click", function(e) {
+      if (e.target === searchModal) {
+        searchModal.style.display = "none";
+        searchInput.value = "";
+        searchResults.innerHTML = "";
+      }
+    });
+  }
+  setupSearchModalCloseOnOutsideClick();
+
+  // Open modal
+  if (searchLink) {
+    searchLink.addEventListener("click", function(e) {
+      e.preventDefault();
+      if (searchModal) {
+        searchModal.style.display = "flex";
+        searchInput.focus();
+        showSearchInstructions();
+      }
+    });
+  }
+
+  // Close button
+  if (closeSearchBtn) {
+    closeSearchBtn.addEventListener("click", function() {
+      if (searchModal) {
+        searchModal.style.display = "none";
+        searchInput.value = "";
+        searchResults.innerHTML = "";
+      }
+    });
+  }
+
+  // ESC key to close
+  document.addEventListener("keydown", function(e) {
+    if (e.key === "Escape" && searchModal && searchModal.style.display === "flex") {
+      searchModal.style.display = "none";
+      searchInput.value = "";
+      searchResults.innerHTML = "";
+    }
+  });
+
+  // Show initial instructions
+  function showSearchInstructions() {
+    if (!searchResults) return;
+    searchResults.innerHTML = '<div style="padding:20px;text-align:center;color:#555;">Type a word or phrase to search through all psalm texts in the selected source.</div>';
+  }
+
+  // Get current source name
+  function getCurrentSource() {
+    const sourceInput = document.getElementById('pssource');
+    return sourceInput ? sourceInput.value : '';
+  }
+
+  // Search through psalms using XQuery endpoint
+  async function searchPsalms(query) {
+    if (!query || query.trim().length === 0) {
+      showSearchInstructions();
+      return;
+    }
+
+    // Show loading state
+    searchResults.innerHTML = '<div style="padding:20px;text-align:center;color:#555;">Searching...</div>';
+
+    const source = getCurrentSource();
+    if (!source) {
+      searchResults.innerHTML = '<div style="padding:20px;text-align:center;color:#555;">Please select a source first.</div>';
+      return;
+    }
+
+    try {
+      // Call XQuery endpoint with search parameters (relative path)
+      const url = `searchPsalms.xq?query=${encodeURIComponent(query.trim())}&source=${encodeURIComponent(source)}`;
+      const response = await fetch(url);
+      
+      if (!response.ok) {
+        throw new Error(`Search failed: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const results = data.results || [];
+
+      // Highlight the query in snippets
+      const highlightedResults = results.map(result => {
+        let snippet = result.snippet || '';
+        
+        // Highlight the match (case-insensitive and accent-insensitive)
+        const normalizedSnippet = normalizeStringForSearch(snippet);
+        const normalizedQuery = normalizeStringForSearch(query.trim());
+        const matchStartInSnippet = normalizedSnippet.indexOf(normalizedQuery);
+        
+        if (matchStartInSnippet !== -1) {
+          // Find the match length in the original text
+          let matchEnd = matchStartInSnippet;
+          let normalizedCharsMatched = 0;
+          
+          while (normalizedCharsMatched < normalizedQuery.length && matchEnd < snippet.length) {
+            const char = snippet[matchEnd];
+            const normalizedChar = normalizeStringForSearch(char);
+            if (normalizedChar.length > 0) {
+              normalizedCharsMatched += normalizedChar.length;
+            }
+            matchEnd++;
+          }
+          
+          const beforeMatch = snippet.substring(0, matchStartInSnippet);
+          const match = snippet.substring(matchStartInSnippet, matchEnd);
+          const afterMatch = snippet.substring(matchEnd);
+          snippet = beforeMatch + '<mark style="background:#ffd966;">' + match + '</mark>' + afterMatch;
+        }
+
+        return {
+          id: result.id,
+          label: result.label,
+          data: result.data,
+          snippet: snippet
+        };
+      });
+
+      // Display results
+      displaySearchResults(highlightedResults, query);
+
+    } catch (error) {
+      console.error('Search error:', error);
+      searchResults.innerHTML = '<div style="padding:20px;text-align:center;color:#555;">Search error. Please try again.</div>';
+    }
+  }
+
+  // Display search results
+  function displaySearchResults(results, query) {
+    if (!searchResults) return;
+
+    if (results.length === 0) {
+      searchResults.innerHTML = '<div style="padding:20px;text-align:center;color:#555;">No results found for "' + query + '"</div>';
+      return;
+    }
+
+    let html = '<div style="margin-bottom:10px;color:#555;font-size:0.9em;">Found ' + results.length + ' result' + (results.length > 1 ? 's' : '') + '</div>';
+    
+    results.forEach(result => {
+      html += '<div class="search-result-item" data-label="' + result.label + '" data-psdata="' + result.data + '" style="padding:12px;margin:8px 0;background:#f5f5f5;border-radius:6px;cursor:pointer;border:1px solid #ddd;">';
+      html += '<div style="font-weight:700;margin-bottom:6px;color:#333;">' + result.label + '</div>';
+      html += '<div style="color:#555;font-size:0.9em;">' + result.snippet + '</div>';
+      html += '</div>';
+    });
+
+    searchResults.innerHTML = html;
+
+    // Add click handlers to results
+    const resultItems = searchResults.querySelectorAll('.search-result-item');
+    resultItems.forEach(item => {
+      item.addEventListener('click', function() {
+        const label = this.getAttribute('data-label');
+        const psdata = this.getAttribute('data-psdata');
+        selectPsalmFromSearch(label, psdata);
+      });
+      
+      // Hover effect
+      item.addEventListener('mouseenter', function() {
+        this.style.background = '#e8e8e8';
+      });
+      item.addEventListener('mouseleave', function() {
+        this.style.background = '#f5f5f5';
+      });
+    });
+  }
+
+  // Select psalm from search results
+  function selectPsalmFromSearch(label, psdata) {
+    // Close modal
+    if (searchModal) {
+      searchModal.style.display = "none";
+      searchInput.value = "";
+      searchResults.innerHTML = "";
+    }
+
+    // Find the psalm button and click it
+    const textsContainer = document.getElementById('texts');
+    if (textsContainer) {
+      const psalms = textsContainer.querySelectorAll('.psalm-btn');
+      psalms.forEach(btn => {
+        if (btn.dataset.label === label) {
+          btn.click();
+          return;
+        }
+      });
+    }
+  }
+
+  // Real-time search as user types
+  if (searchInput) {
+    let searchTimeout;
+    searchInput.addEventListener('input', function() {
+      clearTimeout(searchTimeout);
+      searchTimeout = setTimeout(() => {
+        searchPsalms(this.value);
+      }, 300); // Debounce by 300ms
+    });
+  }
 });

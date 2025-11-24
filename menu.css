@@ -840,7 +840,7 @@ dl dt { font-weight: bold; }
 #paperSizeModal button#cancelPdfButton { background-color: #f44336; color: white; }
 #paperSizeModal button#cancelPdfButton:hover { background-color: #da190b; }
 
- #paperSizeModal, #shareModal {
+ #paperSizeModal, #shareModal, #searchModal {
                 display: none;
                 position: fixed;
                 z-index: 1000;
@@ -875,7 +875,18 @@ dl dt { font-weight: bold; }
                 box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2), 0 6px 20px 0 rgba(0,0,0,0.19);
                 text-align: center;
             }
-            #paperSizeModal h2, #shareModal h2 {
+            #searchModal > div  {
+                background-color: #fefefe;
+                margin: auto;
+                padding: 30px;
+                border: 1px solid #888;
+                width: 90%;
+                max-width: 600px;
+                border-radius: 8px;
+                box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2), 0 6px 20px 0 rgba(0,0,0,0.19);
+                text-align: center;
+            }
+            #paperSizeModal h2, #shareModal h2, #searchModal h2 {
                 margin-top: 0;
                 color: #333;
             }
@@ -901,12 +912,26 @@ dl dt { font-weight: bold; }
             #paperSizeModal button#generatePdfButton:hover, #copyShareUrlBtn:hover {
                 background-color: #45a049;
             }
-            #paperSizeModal button#cancelPdfButton, #closeShareModalBtn {
+            #paperSizeModal button#cancelPdfButton, #closeShareModalBtn, #closeSearchModalBtn {
                 background-color: #f44336;
                 color: white;
             }
-            #paperSizeModal button#cancelPdfButton:hover, #closeShareModalBtn:hover{
+            #paperSizeModal button#cancelPdfButton:hover, #closeShareModalBtn:hover, #closeSearchModalBtn:hover{
                 background-color: #da190b;
+            }
+            
+            /* Search link styling */
+            #searchPhraseLink {
+                display: inline-block;
+                padding: 8px 12px;
+                background: transparent;
+                border: 1px solid #6fc252;
+                border-radius: 6px;
+                transition: all 0.2s ease;
+            }
+            #searchPhraseLink:hover {
+                background: #6fc252;
+                color: white !important;
             }
   
 /* Hide tooltips and remove hover highlight on touch devices */
