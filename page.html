@@ -523,11 +523,11 @@
                     <!-- SOURCE Panel -->
                     <div class="tab-panel active" id="panel-source">
                       <div class="panel-heading">
-                                        <h3 class="panel-title">SOURCE</h3>
+                                        <h3 class="panel-title">EDITION</h3>
                                     </div>
                       <div class="menu-item">
                           <span class="menuHead">
-                            Select a Source:
+                            Select an Edition:
                           </span>
                           <br/>
                           <div data-template="app:source"/>
@@ -553,11 +553,22 @@
                                 <div id="textSelector" class="menuSpan">
                                     <div id="psTextList" class="menuSpan" style="cursor:pointer;">Select source first</div>
                                 </div>
+                                 <div id="searchPhraseContainer" style="margin-top:10px;margin-bottom:10px;margin-left:8px;display:none;">
+                                    <a href="#" id="searchPhraseLink"
+                                       style="color:#6fc252;text-decoration:none;font-size:1em;display:inline-flex;align-items:center;gap:10px;">
+                                      <svg xmlns="http://www.w3.org/2000/svg"
+                                           viewBox="0 0 640 640"
+                                           width="18" height="18"
+                                           aria-hidden="true"
+                                           focusable="false"
+                                           style="display:inline-block;vertical-align:middle;fill:currentColor;">
+                                        <path d="M480 272C480 317.9 465.1 360.3 440 394.7L566.6 521.4C579.1 533.9 579.1 554.2 566.6 566.7C554.1 579.2 533.8 579.2 521.3 566.7L394.7 440C360.3 465.1 317.9 480 272 480C157.1 480 64 386.9 64 272C64 157.1 157.1 64 272 64C386.9 64 480 157.1 480 272zM272 416C351.5 416 416 351.5 416 272C416 192.5 351.5 128 272 128C192.5 128 128 192.5 128 272C128 351.5 192.5 416 272 416z"/>
+                                      </svg>
+                                      <span>Find your phrase</span>
+                                    </a>
+                                </div>
                                 <div class="submenu">
                                     <div id="texts" style="display:none;"/>
-                                </div>
-                                <div id="searchPhraseContainer" style="margin-top:10px;margin-left:8px;display:none;">
-                                    <a href="#" id="searchPhraseLink" style="color:#6fc252;text-decoration:none;font-size:1em;">🔍 Find your phrase</a>
                                 </div>
                             </div>
                             <div id="VerseSection" class="menu-item">
@@ -835,15 +846,21 @@
 
   <!-- Search Modal -->
   <div id="searchModal" style="display:none;">
-    <div>
-      <h2 style="margin-top: 0">Find Your Phrase</h2>
-      <input type="text" id="searchInput" placeholder="Type to search..." style="width:90%;margin:10px auto 18px auto;display:block;font-size:1em;padding:8px;border-radius:6px;border:1px solid #888;" autocomplete="off"/>
-      <div id="searchResults" style="max-height:400px;overflow-y:auto;margin:10px auto;width:90%;"></div>
-      <div style="text-align:center;margin-top:15px;">
-        <button id="closeSearchModalBtn">Close</button>
+      <div>
+        <h2 style="margin-top: 0">Find Your Phrase</h2>
+        <input
+          type="text"
+          id="searchInput"
+          placeholder="Type your phrase..."
+          style="width:90%;margin:10px auto 12px auto;display:block;font-size:1em;padding:8px;border-radius:6px;border:1px solid #888;"
+        />
+        <div style="text-align:center;margin:0 0 14px;">
+          <button id="executeSearchBtn">Search</button>
+          <button id="closeSearchModalBtn">Close</button>
+        </div>
+        <div id="searchResults" style="max-height:400px;overflow-y:auto;margin:10px auto;width:90%;"></div>
       </div>
     </div>
-  </div>
     <script src="https://www.verovio.org/javascript/latest/verovio-toolkit-wasm.js" defer="defer"/>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/awesomplete/1.1.5/awesomplete.min.js"/>
     <script async="" src="https://www.googletagmanager.com/gtag/js?id=G-9HSZZ1BZCT"/>
