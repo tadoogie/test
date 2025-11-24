@@ -30,16 +30,22 @@ declare namespace output="http://www.w3.org/2010/xslt-xquery-serialization";
  : @return MIDI note number
  :)
 declare function local:pitch-to-midi($pname as xs:string, $oct as xs:integer, $accid as xs:string?) as xs:integer {
-    let $base-pitches := map {
-        "c": 0, "d": 2, "e": 4, "f": 5, "g": 7, "a": 9, "b": 11
-    }
+    let $base-pitch := 
+        if ($pname = "c") then 0
+        else if ($pname = "d") then 2
+        else if ($pname = "e") then 4
+        else if ($pname = "f") then 5
+        else if ($pname = "g") then 7
+        else if ($pname = "a") then 9
+        else if ($pname = "b") then 11
+        else 0
     let $accid-offset := 
         if ($accid = "s") then 1
         else if ($accid = "f") then -1
         else if ($accid = "ss") then 2
         else if ($accid = "ff") then -2
         else 0
-    return ($oct + 1) * 12 + $base-pitches($pname) + $accid-offset
+    return ($oct + 1) * 12 + $base-pitch + $accid-offset
 };
 
 (:~
@@ -185,8 +191,7 @@ declare function local:parse-keysig($keysig as xs:string) as xs:integer {
 };
 
 (:~
- : Get key signature information from scoreDef.
- : Returns the number of sharps (positive) or flats (negative).
+ : Get key signature string from scoreDef.
  : 
  : MEI supports two attributes for key signature:
  : - @key.sig (MEI 4.0+): The modern attribute name
@@ -194,19 +199,13 @@ declare function local:parse-keysig($keysig as xs:string) as xs:integer {
  : This function checks @key.sig first, then falls back to @keysig for compatibility.
  :
  : @param $mei The MEI document
- : @return Map with 'fifths' (number of sharps/flats), 'mode', and 'raw' (original string)
+ : @return Key signature string (e.g., "2f", "3s", "0")
  :)
-declare function local:get-key-signature($mei as document-node()) as map(*) {
+declare function local:get-key-signature($mei as document-node()) as xs:string {
     let $keysig := string(($mei//mei:scoreDef/@key.sig, $mei//mei:scoreDef/@keysig)[1])
     return
-        if (empty($keysig) or $keysig = "") then
-            map { "fifths": 0, "mode": "major", "raw": "0" }
-        else
-            map {
-                "fifths": local:parse-keysig($keysig),
-                "mode": "major",
-                "raw": $keysig
-            }
+        if (empty($keysig) or $keysig = "") then "0"
+        else $keysig
 };
 
 (:~
@@ -420,7 +419,7 @@ declare function local:create-incip-codes($notes as element()*, $mei as document
             },
             element mei:incipCode {
                 attribute type { "solfa" },
-                local:notes-to-solfa($notes, $keysig("raw"))
+                local:notes-to-solfa($notes, $keysig)
             },
             element mei:incipCode {
                 attribute type { "interval" },
