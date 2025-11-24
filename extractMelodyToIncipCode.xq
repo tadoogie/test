@@ -521,5 +521,6 @@ declare function local:process-mei($mei as document-node()) as document-node() {
  : return local:process-mei($mei)
  :)
 
-(: For testing, you can call local:process-mei() with a document :)
-(: Example: local:process-mei(doc('path/to/mei-file.xml')) :)
+(: Main entry point - returns empty sequence when no document is specified :)
+(: To use: replace the empty sequence with a call like local:process-mei(doc('/db/tunes/agawam.xml')) :)
+()
