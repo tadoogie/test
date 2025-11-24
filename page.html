@@ -1,3 +1,4 @@
+
 <!--[if lt IE 8 ]> <html class="no-js ie7 oldie" lang="en"> <![endif]--><!--[if IE 8]> <html class="no-js ie8 oldie" lang="en"> <![endif]--><!--[if IE 9]> <html class="no-js ie9" lang="en"> <![endif]--><!--[if (gt IE 9)|!(IE)]><!--><!-- THIS IS THE TEST SERVER VERSION -->
 <html class="no-jQuery" lang="en"> <!--<![endif]-->
     <!-- Version 1.0 -->
@@ -555,6 +556,9 @@
                                 <div class="submenu">
                                     <div id="texts" style="display:none;"/>
                                 </div>
+                                <div id="searchPhraseContainer" style="margin-top:10px;margin-left:8px;display:none;">
+                                    <a href="#" id="searchPhraseLink" style="color:#6fc252;text-decoration:none;font-size:1em;">🔍 Find your phrase</a>
+                                </div>
                             </div>
                             <div id="VerseSection" class="menu-item">
                                 <span class="menuHead">
@@ -670,11 +674,11 @@
                 </div>
                 <div class="vl">
                     <a class="tooltip" onclick="trUp()">
-                        <span class="icon-TransposeUpArrow"/>
+                        <span class="icon-TransposeUpArrow" />
                         <span class="tooltiptext">Transpose Up</span>
                     </a>
                     <a class="tooltip" onclick="trDown()">
-                        <span class="icon-TransposeDwnArrow"/>
+                        <span class="icon-TransposeDwnArrow" />
                         <span class="tooltiptext">Transpose Down</span>
                     </a>
                 </div>
@@ -828,6 +832,18 @@
     </div>
   </div>
 </div>
+
+  <!-- Search Modal -->
+  <div id="searchModal" style="display:none;">
+    <div>
+      <h2 style="margin-top: 0">Find Your Phrase</h2>
+      <input type="text" id="searchInput" placeholder="Type to search..." style="width:90%;margin:10px auto 18px auto;display:block;font-size:1em;padding:8px;border-radius:6px;border:1px solid #888;" autocomplete="off"/>
+      <div id="searchResults" style="max-height:400px;overflow-y:auto;margin:10px auto;width:90%;"></div>
+      <div style="text-align:center;margin-top:15px;">
+        <button id="closeSearchModalBtn">Close</button>
+      </div>
+    </div>
+  </div>
     <script src="https://www.verovio.org/javascript/latest/verovio-toolkit-wasm.js" defer="defer"/>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/awesomplete/1.1.5/awesomplete.min.js"/>
     <script async="" src="https://www.googletagmanager.com/gtag/js?id=G-9HSZZ1BZCT"/>
@@ -846,26 +862,24 @@
     <script defer="defer" src="resources/js/app-dev.js"/>
     <script defer="defer" src="resources/js/interface-dev.js"/>
     
-    <!-- Runtime safeguard: if old JS was served from cache, re-inject fresh copies -->
+    <!-- Script validation check - logs warnings but does not reload to prevent infinite loop -->
     <script>
         (function () {
-          // Flag to prevent re-injection
-          if (window.scriptsAlreadyInjected) return;
-          window.scriptsAlreadyInjected = true;
-          
           function loadedOK() {
             return window.INTERFACE_DEV_BUILD === window.EXPECTED_BUILD &amp;&amp;
                    typeof initializeTabNavigation === 'function';
           }
           
-          // Only check after a short delay to let deferred scripts load
+          // Check after scripts load, but DON'T reload - just log
           setTimeout(function() {
             if (!loadedOK()) {
-              console.warn('Detected stale JS in iPhone Chrome. Forcing page reload for fresh scripts.');
-              // Instead of injecting again, do a hard reload with cache bypass
-              window.location.reload(true);
+              console.warn('Script validation check failed. Expected build:', window.EXPECTED_BUILD, 'Found:', window.INTERFACE_DEV_BUILD);
+              console.warn('initializeTabNavigation exists:', typeof initializeTabNavigation === 'function');
+              // DO NOT RELOAD - just log the issue
+            } else {
+              console.log('Scripts loaded successfully');
             }
-          }, 500);
+          }, 2000); // Increased timeout to 2 seconds to ensure deferred scripts execute
         })();
     </script>
     <script>
@@ -873,6 +887,20 @@
         function gtag(){dataLayer.push(arguments);}
         gtag('js', new Date());
         gtag('config', 'G-9HSZZ1BZCT');
+        
+        function openNav() {
+            var sidenav = document.getElementById("sidenav");
+            var menutoggle = document.getElementById("menutoggle");
+            sidenav.style.width = "360px";
+            sidenav.style.height = "100%";
+            menutoggle.classList.add("is-active");
+        }
+        function closeNav() {
+          var sidenav = document.getElementById("sidenav");
+          var menutoggle = document.getElementById("menutoggle");
+          sidenav.style.width = "0";
+          menutoggle.classList.remove("is-active");
+        }
 
         document.addEventListener("DOMContentLoaded", function() {
           // Awesomplete setup
@@ -945,10 +973,10 @@
         <div id="textLicense" class="footbar-sm"/>
         <div id="tuneLicense" class="footbar-sm"/>
         <div class="footbar-sm">
-            Edition by Timothy Duguid, <a href="https://creativecommons.org/licenses/by-nc/4.0/" target="_blank">CC BY-NC</a> 2021
+            Edition by Timothy Duguid, <a href="https://creativecommons.org/licenses/by-nc/4.0/" target="_blank">CC BY-NC</a> 2021
         </div>
         <div class="footbar-sm">
-            Music engraving by <a href="http://verovio.org" target="_blank">Verovio</a>.
+            Music engraving by <a href="http://verovio.org" target="_blank">Verovio</a>.
         </div>
     </footer>
 </body>
