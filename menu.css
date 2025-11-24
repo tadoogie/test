@@ -56,8 +56,8 @@ hr { display: block; height: 1px; border: 0; border-top: 1px solid #ccc; margin:
 iframe { border: 0; }
 
 *, :before, :after { box-sizing: border-box; }
-html { font-size: 1em; height: 100%; }
-body { font-family: 'Open Sans', Verdana, Tahoma, Arial, sans-serif; line-height: 1.6; text-align: left; color: #555555; background-color: #ffffff; height: 100%; text-rendering: optimizeLegibility !important; }
+html { font-size: 1em; height: 100%; overflow-x: hidden; min-width: 100%; background-color: #ffffff; }
+body { font-family: 'Open Sans', Verdana, Tahoma, Arial, sans-serif; line-height: 1.6; text-align: left; color: #555555; background-color: #ffffff; height: 100%; text-rendering: optimizeLegibility !important; overflow-x: hidden; min-width: 100%; position: relative; }
 nav ul, nav ol, #nav ul, #navbar ul, #nav ol { list-style: none; list-style-image: none; margin: 0; padding: 0; }
 
 .cfix:after { content: ""; display: table; clear: both; }
@@ -398,6 +398,10 @@ nav ul, nav li, #nav ul, #nav li {
               box-shadow: -2px 0 8px rgba(0,0,0,0.2);
               overflow-y: auto;
               height: 100vh;
+              visibility: hidden;
+            }
+            #sidenav.open {
+              visibility: visible;
             }
             #sidenav .closebtn {
               position: absolute;
@@ -531,7 +535,7 @@ nav ul, nav li, #nav ul, #nav li {
             #menutoggle {
               position: fixed;
               top: 8px;
-              right: 6px;
+              right: 20px;
               width: 46px;
               height: 46px;
               background: #555;
@@ -836,7 +840,7 @@ dl dt { font-weight: bold; }
 #paperSizeModal button#cancelPdfButton { background-color: #f44336; color: white; }
 #paperSizeModal button#cancelPdfButton:hover { background-color: #da190b; }
 
- #paperSizeModal, #shareModal, #searchModal {
+ #paperSizeModal, #shareModal {
                 display: none;
                 position: fixed;
                 z-index: 1000;
@@ -871,18 +875,7 @@ dl dt { font-weight: bold; }
                 box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2), 0 6px 20px 0 rgba(0,0,0,0.19);
                 text-align: center;
             }
-            #searchModal > div  {
-                background-color: #fefefe;
-                margin: auto;
-                padding: 30px;
-                border: 1px solid #888;
-                width: 90%;
-                max-width: 600px;
-                border-radius: 8px;
-                box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2), 0 6px 20px 0 rgba(0,0,0,0.19);
-                text-align: center;
-            }
-            #paperSizeModal h2, #shareModal h2, #searchModal h2 {
+            #paperSizeModal h2, #shareModal h2 {
                 margin-top: 0;
                 color: #333;
             }
@@ -908,26 +901,12 @@ dl dt { font-weight: bold; }
             #paperSizeModal button#generatePdfButton:hover, #copyShareUrlBtn:hover {
                 background-color: #45a049;
             }
-            #paperSizeModal button#cancelPdfButton, #closeShareModalBtn, #closeSearchModalBtn {
+            #paperSizeModal button#cancelPdfButton, #closeShareModalBtn {
                 background-color: #f44336;
                 color: white;
             }
-            #paperSizeModal button#cancelPdfButton:hover, #closeShareModalBtn:hover, #closeSearchModalBtn:hover{
+            #paperSizeModal button#cancelPdfButton:hover, #closeShareModalBtn:hover{
                 background-color: #da190b;
-            }
-            
-            /* Search link styling */
-            #searchPhraseLink {
-                display: inline-block;
-                padding: 8px 12px;
-                background: transparent;
-                border: 1px solid #6fc252;
-                border-radius: 6px;
-                transition: all 0.2s ease;
-            }
-            #searchPhraseLink:hover {
-                background: #6fc252;
-                color: white !important;
             }
   
 /* Hide tooltips and remove hover highlight on touch devices */
@@ -1554,7 +1533,7 @@ div #tuneButtons button, .source-button {
 @media (orientation: landscape) and (max-width: 900px) {
   body, html {
     overflow-x: hidden;
-    max-width: 100vw;
+    min-width: 100% !important;
   }
   
   #controls {
@@ -1563,7 +1542,7 @@ div #tuneButtons button, .source-button {
   }
   
   .container, .row {
-    max-width: 100vw;
+    max-width: 100%;
     overflow-x: hidden;
   }
 }
@@ -1575,25 +1554,29 @@ div #tuneButtons button, .source-button {
   }
 }
 
+/* iPhone landscape fix - prevent sidenav from exceeding viewport */
 @media (orientation: landscape) and (max-height: 500px) {
+  html, body {
+    overflow-x: hidden !important;
+    min-width: 100% !important;
+  }
+  
   #sidenav {
     max-width: 90vw !important;
   }
   
   #sidenav.open {
     width: min(360px, 90vw) !important;
+    max-width: 90vw !important;
   }
   
   .sidenav-container {
-    max-width: 90vw;
+    width: 100% !important;
+    max-width: 90vw !important;
   }
   
   .menuPanel {
-    max-width: calc(90vw - 60px); /* Account for tab bar */
-  }
-  
-  body, html {
-    overflow-x: hidden;
-    max-width: 100vw;
+    width: 100% !important;
+    max-width: calc(90vw - 60px) !important;
   }
 }
