@@ -434,6 +434,57 @@ declare function local:create-incip-codes($notes as element()*, $mei as document
 };
 
 (:~
+ : Recursively transform an element, applying modifications as needed.
+ : This is a helper function for insert-incip-codes.
+ :
+ : @param $node The node to transform
+ : @param $codes The incipCode elements to insert
+ : @param $work-found Whether a work element has been found/created
+ : @return Transformed node
+ :)
+declare function local:transform-node($node as node(), $codes as element()*, $work-found as xs:boolean) as node()* {
+    typeswitch ($node)
+    case document-node() return
+        document { 
+            for $child in $node/node()
+            return local:transform-node($child, $codes, false())
+        }
+    case element(mei:work) return
+        (: Found work element - add/replace incipCode elements :)
+        element { node-name($node) } {
+            $node/@*,
+            (: Add new incipCode elements first :)
+            $codes,
+            (: Copy existing children except old incipCode elements of our types :)
+            for $child in $node/node()
+            return
+                if ($child[self::mei:incipCode][@type = ("abc", "solfa", "interval", "contour")]) then ()
+                else local:transform-node($child, $codes, true())
+        }
+    case element(mei:meiHead) return
+        (: Check if work element exists, if not create one :)
+        let $has-work := exists($node/mei:work)
+        return
+            element { node-name($node) } {
+                $node/@*,
+                (: If no work element, create one with incipCode elements :)
+                if (not($has-work)) then
+                    element mei:work { $codes }
+                else (),
+                (: Copy all children :)
+                for $child in $node/node()
+                return local:transform-node($child, $codes, $has-work)
+            }
+    case element() return
+        element { node-name($node) } {
+            $node/@*,
+            for $child in $node/node()
+            return local:transform-node($child, $codes, $work-found)
+        }
+    default return $node
+};
+
+(:~
  : Insert incipCode elements into the MEI header's work element.
  : If incipCode elements already exist with the same types, they are replaced.
  : All existing MEI content is preserved.
@@ -444,27 +495,7 @@ declare function local:create-incip-codes($notes as element()*, $mei as document
  :)
 declare function local:insert-incip-codes($mei as document-node(), $codes as element()*) as document-node() {
     if (empty($codes)) then $mei
-    else
-        copy $result := $mei
-        modify (
-            let $work := $result//mei:work
-            return
-                if (empty($work)) then
-                    (: Create work element if it doesn't exist :)
-                    let $meiHead := $result//mei:meiHead
-                    return
-                        if (empty($meiHead)) then ()
-                        else
-                            insert node element mei:work { $codes } as first into $meiHead
-                else
-                    (: Remove existing incipCode elements with same types :)
-                    let $existing := $work/mei:incipCode[@type = ("abc", "solfa", "interval", "contour")]
-                    return (
-                        if (exists($existing)) then delete nodes $existing else (),
-                        insert nodes $codes as first into $work
-                    )
-        )
-        return $result
+    else local:transform-node($mei, $codes, false())
 };
 
 (:~
