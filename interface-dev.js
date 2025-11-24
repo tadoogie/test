@@ -2013,214 +2013,179 @@ if (document.readyState === 'loading') {
   domContentLoadedHandler1971();
 }
 
-/* ----------------------------- Text Search Modal ----------------------------- */
-function domContentLoadedHandler1980() {
-  // Helper function to normalize strings (for accent-insensitive search)
-  // Reusing the same pattern as the tune search normalizeString function
-  function normalizeStringForSearch(str) {
-    return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-  }
-  const searchLink = document.getElementById("searchPhraseLink");
-  const searchModal = document.getElementById("searchModal");
-  const searchInput = document.getElementById("searchInput");
-  const searchResults = document.getElementById("searchResults");
-  const closeSearchBtn = document.getElementById("closeSearchModalBtn");
+/* ----------------------------- Text Search Modal (Simplified Trigger) ----------------------------- */
+function initPsalmSearchModal() {
+  const searchLink        = document.getElementById("searchPhraseLink");
+  const searchModal       = document.getElementById("searchModal");
+  const searchInput       = document.getElementById("searchInput");
+  const searchResults     = document.getElementById("searchResults");
+  const closeSearchBtn    = document.getElementById("closeSearchModalBtn");
+  const executeSearchBtn  = document.getElementById("executeSearchBtn");
 
-  // Setup modal close on outside click
-  function setupSearchModalCloseOnOutsideClick() {
+  function showInstructions() {
+    if (!searchResults) return;
+    searchResults.innerHTML =
+      '<div style="padding:20px;text-align:center;color:#555;">Enter a word or phrase and click Search.</div>';
+  }
+
+  function openModal() {
     if (!searchModal) return;
+    searchModal.style.display = "flex";
+    showInstructions();
+    if (searchInput) searchInput.focus();
+  }
+
+  function closeModal() {
+    if (!searchModal) return;
+    searchModal.style.display = "none";
+    if (searchInput) searchInput.value = "";
+    if (searchResults) searchResults.innerHTML = "";
+  }
+
+  // Outside click closes
+  if (searchModal) {
     searchModal.addEventListener("click", function(e) {
       if (e.target === searchModal) {
-        searchModal.style.display = "none";
-        searchInput.value = "";
-        searchResults.innerHTML = "";
+        closeModal();
       }
     });
   }
-  setupSearchModalCloseOnOutsideClick();
 
-  // Open modal
   if (searchLink) {
     searchLink.addEventListener("click", function(e) {
       e.preventDefault();
-      if (searchModal) {
-        searchModal.style.display = "flex";
-        searchInput.focus();
-        showSearchInstructions();
-      }
+      openModal();
     });
   }
 
-  // Close button
   if (closeSearchBtn) {
     closeSearchBtn.addEventListener("click", function() {
-      if (searchModal) {
-        searchModal.style.display = "none";
-        searchInput.value = "";
-        searchResults.innerHTML = "";
-      }
+      closeModal();
     });
   }
 
-  // ESC key to close
   document.addEventListener("keydown", function(e) {
     if (e.key === "Escape" && searchModal && searchModal.style.display === "flex") {
-      searchModal.style.display = "none";
-      searchInput.value = "";
-      searchResults.innerHTML = "";
+      closeModal();
     }
   });
 
-  // Show initial instructions
-  function showSearchInstructions() {
-    if (!searchResults) return;
-    searchResults.innerHTML = '<div style="padding:20px;text-align:center;color:#555;">Type a word or phrase to search through all psalm texts in the selected source.</div>';
-  }
-
-  // Search through psalms using server-side XQuery
   async function searchPsalms(query) {
-    if (!query || query.trim().length === 0) {
-      showSearchInstructions();
+    if (!searchResults) return;
+    const trimmed = (query || "").trim();
+    if (trimmed.length < 2) {
+      searchResults.innerHTML =
+        '<div style="padding:20px;text-align:center;color:#555;">Please enter at least 2 characters.</div>';
       return;
     }
 
-    // Show loading state
-    searchResults.innerHTML = '<div style="padding:20px;text-align:center;color:#555;">Searching...</div>';
+    searchResults.innerHTML =
+      '<div style="padding:20px;text-align:center;color:#555;">Searching...</div>';
 
     try {
-      // Get the current source filter if one is selected
       const psSourceInput = document.getElementById('pssource');
       const currentSource = psSourceInput ? psSourceInput.value : '';
-      
-      // Build the query URL with optional source filter
-      let url = `searchTexts.xq?query=${encodeURIComponent(query.trim())}`;
+      let url = `searchTexts.xq?query=${encodeURIComponent(trimmed)}`;
       if (currentSource) {
         url += `&source=${encodeURIComponent(currentSource)}`;
       }
-      
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error(`Search failed: ${response.status} ${response.statusText}`);
+
+      // Disable button during request
+      if (executeSearchBtn) executeSearchBtn.disabled = true;
+
+      const resp = await fetch(url);
+      if (!resp.ok) {
+        throw new Error(`Search failed: ${resp.status} ${resp.statusText}`);
       }
-      
-      const results = await response.json();
-      displaySearchResults(results, query);
-      
-    } catch (error) {
-      console.error('Search error:', error);
-      searchResults.innerHTML = '<div style="padding:20px;text-align:center;color:#555;">Search failed. Please try again.</div>';
+      const data = await resp.json();
+      renderSearchResults(data, trimmed);
+    } catch (err) {
+      console.error('Search error:', err);
+      searchResults.innerHTML =
+        '<div style="padding:20px;text-align:center;color:#555;">Search failed. Try again.</div>';
+    } finally {
+      if (executeSearchBtn) executeSearchBtn.disabled = false;
     }
   }
 
-  // Display search results
-  function displaySearchResults(results, query) {
-    if (!searchResults) return;
+  function highlight(snippet, query) {
+    if (!snippet || !query) return snippet;
+    // Simple highlight (case-insensitive)
+    const reg = new RegExp(query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'ig');
+    return snippet.replace(reg, m => `<mark style="background:#ffd966;">${m}</mark>`);
+  }
 
-    if (!results || results.length === 0) {
-      searchResults.innerHTML = '<div style="padding:20px;text-align:center;color:#555;">No results found for "' + query + '"</div>';
+  function renderSearchResults(results, query) {
+    if (!searchResults) return;
+    if (!results || !results.length) {
+      searchResults.innerHTML =
+        `<div style="padding:20px;text-align:center;color:#555;">No results found for "${query}".</div>`;
       return;
     }
-
-    let html = '<div style="margin-bottom:10px;color:#555;font-size:0.9em;">Found ' + results.length + ' result' + (results.length > 1 ? 's' : '') + '</div>';
-    
-    results.forEach(result => {
-      // Highlight the match in the snippet
-      const snippet = highlightMatchInSnippet(result.snippet, query);
-      
-      html += '<div class="search-result-item" data-label="' + result.label + '" data-psdata="' + result.data + '" style="padding:12px;margin:8px 0;background:#f5f5f5;border-radius:6px;cursor:pointer;border:1px solid #ddd;">';
-      html += '<div style="font-weight:700;margin-bottom:6px;color:#333;">' + result.label + '</div>';
-      html += '<div style="color:#555;font-size:0.9em;">' + snippet + '</div>';
-      if (result.source) {
-        html += '<div style="color:#888;font-size:0.8em;margin-top:4px;">' + result.source + '</div>';
-      }
-      html += '</div>';
+    let html =
+      `<div style="margin-bottom:10px;color:#555;font-size:0.9em;">Found ${results.length} result${results.length > 1 ? 's' : ''}</div>`;
+    results.forEach(r => {
+      const snippet = highlight(r.snippet || '', query);
+      html += `
+        <div class="search-result-item"
+             data-label="${r.label}"
+             data-psdata="${r.data}"
+             style="padding:12px;margin:8px 0;background:#f5f5f5;border-radius:6px;cursor:pointer;transition:background .15s;">
+          <div style="font-weight:700;margin-bottom:6px;color:#333;">${r.label}</div>
+          <div style="color:#555;font-size:0.9em;">${snippet}</div>
+          ${r.source ? `<div style="color:#888;font-size:0.8em;margin-top:4px;">${r.source}</div>` : ''}
+        </div>`;
     });
-
     searchResults.innerHTML = html;
 
-    // Add click handlers to results
-    const resultItems = searchResults.querySelectorAll('.search-result-item');
-    resultItems.forEach(item => {
+    // Click handlers
+    searchResults.querySelectorAll('.search-result-item').forEach(item => {
       item.addEventListener('click', function() {
         const label = this.getAttribute('data-label');
         const psdata = this.getAttribute('data-psdata');
-        selectPsalmFromSearch(label, psdata);
+        applySearchSelection(label, psdata);
+        closeModal();
       });
-      
-      // Hover effect
-      item.addEventListener('mouseenter', function() {
-        this.style.background = '#e8e8e8';
-      });
-      item.addEventListener('mouseleave', function() {
-        this.style.background = '#f5f5f5';
-      });
+      item.addEventListener('mouseenter', () => item.style.background = '#e8e8e8');
+      item.addEventListener('mouseleave', () => item.style.background = '#f5f5f5');
     });
   }
 
-  // Helper function to highlight match in snippet
-  function highlightMatchInSnippet(snippet, query) {
-    if (!snippet || !query) return snippet;
-    
-    const normalizedSnippet = normalizeStringForSearch(snippet);
-    const normalizedQuery = normalizeStringForSearch(query.trim());
-    const matchStartInSnippet = normalizedSnippet.indexOf(normalizedQuery);
-    
-    if (matchStartInSnippet === -1) return snippet;
-    
-    // Find the match length in the original text
-    let matchEnd = matchStartInSnippet;
-    let normalizedCharsMatched = 0;
-    
-    while (normalizedCharsMatched < normalizedQuery.length && matchEnd < snippet.length) {
-      const char = snippet[matchEnd];
-      const normalizedChar = normalizeStringForSearch(char);
-      if (normalizedChar.length > 0) {
-        normalizedCharsMatched += normalizedChar.length;
-      }
-      matchEnd++;
-    }
-    
-    const beforeMatch = snippet.substring(0, matchStartInSnippet);
-    const match = snippet.substring(matchStartInSnippet, matchEnd);
-    const afterMatch = snippet.substring(matchEnd);
-    return beforeMatch + '<mark style="background:#ffd966;">' + match + '</mark>' + afterMatch;
-  }
-
-  // Select psalm from search results
-  function selectPsalmFromSearch(label, psdata) {
-    // Close modal
-    if (searchModal) {
-      searchModal.style.display = "none";
-      searchInput.value = "";
-      searchResults.innerHTML = "";
-    }
-
-    // Find the psalm button and click it
+  function applySearchSelection(label, psdata) {
+    // Try to locate the psalm button already rendered
     const textsContainer = document.getElementById('texts');
     if (textsContainer) {
-      const psalms = textsContainer.querySelectorAll('.psalm-btn');
-      psalms.forEach(btn => {
-        if (btn.dataset.label === label) {
-          btn.click();
-          return;
-        }
-      });
+      const btn = Array.from(textsContainer.querySelectorAll('.psalm-btn'))
+        .find(b => b.dataset.label === label);
+      if (btn) {
+        btn.click();
+        return;
+      }
+    }
+    // If psalm buttons not present yet (edge case), fall back to setting hidden input directly
+    const hiddenInput = document.getElementById('pstext');
+    if (hiddenInput) {
+      hiddenInput.value = label;
+      hiddenInput.dataset.psdata = psdata;
+      try { updateSelectionSummary(); } catch(_) {}
     }
   }
 
-  // Real-time search as user types
-  if (searchInput) {
-    let searchTimeout;
-    searchInput.addEventListener('input', function() {
-      clearTimeout(searchTimeout);
-      searchTimeout = setTimeout(() => {
-        searchPsalms(this.value);
-      }, 300); // Debounce by 300ms
+  // Search button click
+  if (executeSearchBtn) {
+    executeSearchBtn.addEventListener('click', function() {
+      const q = searchInput ? searchInput.value : '';
+      searchPsalms(q);
     });
   }
+
+  // Show instructions initially
+  showInstructions();
 }
+
+// Initialize after DOM
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', domContentLoadedHandler1980);
+  document.addEventListener('DOMContentLoaded', initPsalmSearchModal);
 } else {
-  domContentLoadedHandler1980();
+  initPsalmSearchModal();
 }
