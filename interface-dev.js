@@ -1,9 +1,13 @@
 window.INTERFACE_DEV_BUILD = '2025-10-28-2';
 
 /* ----------------------------- URL parameter application ----------------------------- */
-document.addEventListener("DOMContentLoaded", () => {
+if (document.readyState === 'loading') {
+  document.addEventListener("DOMContentLoaded", () => {
+    try { applyURLParametersToForm(); } catch(e) { console.warn('applyURLParametersToForm error', e); }
+  });
+} else {
   try { applyURLParametersToForm(); } catch(e) { console.warn('applyURLParametersToForm error', e); }
-});
+}
 
 function applyURLParametersToForm() {
   const urlParams = new URLSearchParams(window.location.search);
@@ -34,7 +38,7 @@ function applyURLParametersToForm() {
 }
 
 /* ----------------------------- Modals (Share, Paper Size) ----------------------------- */
-document.addEventListener("DOMContentLoaded", function() {
+function setupModals() {
   function setupModalCloseOnOutsideClick(modalId) {
     const modal = document.getElementById(modalId);
     if (!modal) return;
@@ -44,10 +48,15 @@ document.addEventListener("DOMContentLoaded", function() {
   }
   setupModalCloseOnOutsideClick("shareModal");
   setupModalCloseOnOutsideClick("paperSizeModal");
-});
+}
+if (document.readyState === 'loading') {
+  document.addEventListener("DOMContentLoaded", setupModals);
+} else {
+  setupModals();
+}
 
 /* ----------------------------- Share modal wiring ----------------------------- */
-document.addEventListener("DOMContentLoaded", function() {
+function setupShareModal() {
   const shareLink = document.getElementById("shareLink");
   const shareModal = document.getElementById("shareModal");
   const shareUrlInput = document.getElementById("shareUrlInput");
@@ -104,12 +113,17 @@ document.addEventListener("DOMContentLoaded", function() {
       if (shareModal) shareModal.style.display = "none";
     });
   }
-});
+}
+if (document.readyState === 'loading') {
+  document.addEventListener("DOMContentLoaded", setupShareModal);
+} else {
+  setupShareModal();
+}
 
 /* ----------------------------- Sound menu ----------------------------- */
 let urlParamsUsed = false;
 
-document.addEventListener("DOMContentLoaded", function() {
+function setupSoundMenu() {
   const soundMenu = document.getElementById("soundMenu");
   const soundSettingsBtn = document.getElementById("soundSettingsBtn");
   const closeSoundMenu = document.getElementById("closeSoundMenu");
@@ -152,7 +166,12 @@ document.addEventListener("DOMContentLoaded", function() {
       try { await loadAudioAndPlayHandler(); } catch(e) {}
     });
   }
-});
+}
+if (document.readyState === 'loading') {
+  document.addEventListener("DOMContentLoaded", setupSoundMenu);
+} else {
+  setupSoundMenu();
+}
 
 /* ----------------------------- Tempo & layer volume helpers ----------------------------- */
 const tempoSlider = document.getElementById("tempoSlider");
@@ -1466,9 +1485,13 @@ function populateVersesFromSelectedText(rawObj) {
 }
 
 /* ----------------------------- Tab navigation and sidenav open/close ----------------------------- */
-document.addEventListener("DOMContentLoaded", function() {
+if (document.readyState === 'loading') {
+  document.addEventListener("DOMContentLoaded", function() {
+    initializeTabNavigation();
+  });
+} else {
   initializeTabNavigation();
-});
+}
 
 function initializeTabNavigation() {
   const tabs = document.querySelectorAll('.sidenav-tab, .top-tab');
@@ -1527,7 +1550,7 @@ function closeNav() {
 }
 
 /* ----------------------------- iPhone Chrome fallback CSS injection ----------------------------- */
-document.addEventListener('DOMContentLoaded', function ensureSidenavStyles() {
+function ensureSidenavStyles() {
   try {
     const tab = document.querySelector('.sidenav-tab');
     const icon = document.querySelector('.sidenav-tab svg');
@@ -1559,7 +1582,12 @@ document.addEventListener('DOMContentLoaded', function ensureSidenavStyles() {
       document.head.appendChild(style);
     }
   } catch (e) { console.error('Error ensuring sidenav styles:', e); }
-});
+}
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', ensureSidenavStyles);
+} else {
+  ensureSidenavStyles();
+}
 
 /* ----------------------------- Summary display & wiring ----------------------------- */
 function updateSelectionSummary() {
@@ -1609,7 +1637,7 @@ function updateSelectionSummary() {
   ensureSummaryGoButton(ready);
 }
 
-document.addEventListener("DOMContentLoaded", function () {
+function domContentLoadedHandler1639() {
   updateSelectionSummary();
   var srcEl = document.getElementById("pssource");
   if (srcEl) {
@@ -1631,7 +1659,12 @@ document.addEventListener("DOMContentLoaded", function () {
       setTimeout(updateSelectionSummary, 0);
     }
   });
-});
+}
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', domContentLoadedHandler1639);
+} else {
+  domContentLoadedHandler1639();
+}
 
 /* ----------------------------- NEXT buttons ----------------------------- */
 function switchToTab(tabKey) {
@@ -1704,7 +1737,7 @@ function hideNextButton(id) {
   if (btn) btn.style.display = 'none';
 }
 
-document.addEventListener('DOMContentLoaded', function () {
+function domContentLoadedHandler1734() {
   const src = document.getElementById('pssource');
   if (!src) return;
   const container = src.closest('.menu-item') || document.getElementById('panel-source');
@@ -1717,7 +1750,12 @@ document.addEventListener('DOMContentLoaded', function () {
   }
   src.addEventListener('change', maybeShowNextForSource);
   src.addEventListener('input', maybeShowNextForSource);
-});
+}
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', domContentLoadedHandler1734);
+} else {
+  domContentLoadedHandler1734();
+}
 
 let versesObserver;
 function watchForVersesAndShowNext() {
@@ -1769,12 +1807,17 @@ document.addEventListener('input', function (e) {
   if (e.target && e.target.id === 'pstune') maybeShowNextForTune();
 }, true);
 
-document.addEventListener('DOMContentLoaded', function () {
+function domContentLoadedHandler1799() {
   const tunesContainer = document.getElementById('tunes');
   if (!tunesContainer) return;
   const ob = new MutationObserver(() => { maybeShowNextForTune(); });
   ob.observe(tunesContainer, { childList: true, subtree: true });
-});
+}
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', domContentLoadedHandler1799);
+} else {
+  domContentLoadedHandler1799();
+}
 
 function ensureSummaryGoButton(shouldShow) {
   const holder = document.getElementById('summaryBtn');
@@ -1823,9 +1866,14 @@ function addTopTabTooltips() {
     tab.setAttribute('aria-label', label);
   });
 }
-document.addEventListener("DOMContentLoaded", function() {
+function domContentLoadedHandler1853() {
   try { addTopTabTooltips(); } catch(e) {}
-});
+}
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', domContentLoadedHandler1853);
+} else {
+  domContentLoadedHandler1853();
+}
 
 function wireTopTabTooltipDismissal() {
   const tabs = document.querySelectorAll('.sidenav-top-tabs .top-tab');
@@ -1851,14 +1899,24 @@ function wireTopTabTooltipDismissal() {
     });
   });
 }
-document.addEventListener("DOMContentLoaded", function() {
+function domContentLoadedHandler1881() {
   try { wireTopTabTooltipDismissal(); } catch(e) {}
-});
+}
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', domContentLoadedHandler1881);
+} else {
+  domContentLoadedHandler1881();
+}
 
 /* ----------------------------- Startup: fetch consolidated data ----------------------------- */
-document.addEventListener('DOMContentLoaded', function() {
+function domContentLoadedHandler1886() {
   try { fetchConsolidatedData(); } catch (e) { console.warn('fetchConsolidatedData failed', e); }
-});
+}
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', domContentLoadedHandler1886);
+} else {
+  domContentLoadedHandler1886();
+}
 
 function initializeTextAccordion() {
   const selectPsalm = document.getElementById('selectPsalm');
@@ -1941,16 +1999,21 @@ function initializeVerseAccordion() {
   });
 }
 
-document.addEventListener('DOMContentLoaded', function() {
+function domContentLoadedHandler1971() {
   // Use a slight delay to ensure all dynamic content is loaded first
   setTimeout(function() {
     initializeTextAccordion();
     initializeVerseAccordion();
   }, 100);
-});
+}
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', domContentLoadedHandler1971);
+} else {
+  domContentLoadedHandler1971();
+}
 
 /* ----------------------------- Text Search Modal ----------------------------- */
-document.addEventListener("DOMContentLoaded", function() {
+function domContentLoadedHandler1980() {
   // Helper function to normalize strings (for accent-insensitive search)
   // Reusing the same pattern as the tune search normalizeString function
   function normalizeStringForSearch(str) {
@@ -2154,4 +2217,9 @@ document.addEventListener("DOMContentLoaded", function() {
       }, 300); // Debounce by 300ms
     });
   }
-});
+}
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', domContentLoadedHandler1980);
+} else {
+  domContentLoadedHandler1980();
+}
