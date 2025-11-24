@@ -4,10 +4,6 @@ declare namespace output="http://www.w3.org/2010/xslt-xquery-serialization";
 declare option output:method "json";
 declare option output:media-type "application/json";
 
-(: Get search parameters :)
-let $query := request:get-parameter("query", "")
-let $source := request:get-parameter("source", "")
-
 (: Normalize for accent-insensitive search - remove diacritical marks :)
 declare function local:normalize($str as xs:string?) as xs:string {
   if (empty($str) or $str = '') then
@@ -38,6 +34,10 @@ declare function local:extract-snippet($text as xs:string, $query as xs:string, 
     else
       ""
 };
+
+(: Get search parameters :)
+let $query := request:get-parameter("query", "")
+let $source := request:get-parameter("source", "")
 
 (: Search through TEI documents :)
 let $results :=
