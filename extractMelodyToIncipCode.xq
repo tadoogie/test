@@ -166,8 +166,32 @@ declare function local:notes-to-abc($notes as element()*) as xs:string {
 };
 
 (:~
+ : Parse a key signature string (e.g., "2f", "3s", "0") into number of sharps/flats.
+ : 
+ : @param $keysig Key signature string (e.g., "2f" for 2 flats, "3s" for 3 sharps, "0" for C major)
+ : @return Number of sharps (positive) or flats (negative)
+ :)
+declare function local:parse-keysig($keysig as xs:string) as xs:integer {
+    if (empty($keysig) or $keysig = "" or $keysig = "0") then
+        0
+    else
+        (: Parse keysig like "2f" (2 flats) or "3s" (3 sharps) :)
+        (: Extract leading digits and trailing letter :)
+        let $num := if (matches($keysig, "^\d+")) then 
+                        xs:integer(replace($keysig, "^(\d+).*$", "$1"))
+                    else 0
+        let $type := replace($keysig, "^\d+", "")
+        return if ($type = "f") then -$num else $num
+};
+
+(:~
  : Get key signature information from scoreDef.
  : Returns the number of sharps (positive) or flats (negative).
+ : 
+ : MEI supports two attributes for key signature:
+ : - @key.sig (MEI 4.0+): The modern attribute name
+ : - @keysig (older MEI): Legacy attribute name
+ : This function checks @key.sig first, then falls back to @keysig for compatibility.
  :
  : @param $mei The MEI document
  : @return Map with 'fifths' (number of sharps/flats), 'mode', and 'raw' (original string)
@@ -178,13 +202,8 @@ declare function local:get-key-signature($mei as document-node()) as map(*) {
         if (empty($keysig) or $keysig = "") then
             map { "fifths": 0, "mode": "major", "raw": "0" }
         else
-            (: Parse keysig like "2f" (2 flats) or "3s" (3 sharps) or "0" :)
-            let $num := if (matches($keysig, "^\d+")) then 
-                            xs:integer(replace($keysig, "[^\d]", ""))
-                        else 0
-            let $type := replace($keysig, "[\d]", "")
-            return map {
-                "fifths": if ($type = "f") then -$num else $num,
+            map {
+                "fifths": local:parse-keysig($keysig),
                 "mode": "major",
                 "raw": $keysig
             }
@@ -201,8 +220,8 @@ declare function local:get-tonic($fifths as xs:integer) as xs:integer {
     (: Circle of fifths: each fifth adds 7 semitones mod 12 :)
     (: C=0, G=7, D=2, A=9, E=4, B=11, F#=6 (sharps) :)
     (: C=0, F=5, Bb=10, Eb=3, Ab=8, Db=1, Gb=6 (flats) :)
-    let $tonic := ($fifths * 7) mod 12
-    return if ($tonic < 0) then $tonic + 12 else $tonic
+    (: Use double mod to handle negative numbers consistently across XQuery implementations :)
+    (($fifths * 7) mod 12 + 12) mod 12
 };
 
 (:~
@@ -217,12 +236,7 @@ declare function local:get-tonic($fifths as xs:integer) as xs:integer {
  : @return Solfège notation string
  :)
 declare function local:notes-to-solfa($notes as element()*, $keysig as xs:string) as xs:string {
-    (: Parse keysig like "2f" (2 flats) or "3s" (3 sharps) or "0" :)
-    let $num := if (matches($keysig, "^\d+")) then 
-                    xs:integer(replace($keysig, "[^\d]", ""))
-                else 0
-    let $type := replace($keysig, "[\d]", "")
-    let $fifths := if ($type = "f") then -$num else $num
+    let $fifths := local:parse-keysig($keysig)
     let $tonic := local:get-tonic($fifths)
     
     (: Solfège syllables for each scale degree :)
@@ -290,10 +304,12 @@ declare function local:notes-to-intervals($notes as element()*) as xs:string {
             let $first-oct := xs:integer($first/@oct)
             let $first-accid := local:get-accidental($first)
             
-            (: Format starting pitch :)
+            (: Format starting pitch with accidental :)
             let $accid-str := 
                 if ($first-accid = "s") then "#"
                 else if ($first-accid = "f") then "b"
+                else if ($first-accid = "ss") then "##"
+                else if ($first-accid = "ff") then "bb"
                 else ""
             let $start := concat("START:", upper-case($first-pname), $accid-str, string($first-oct))
             
@@ -327,10 +343,10 @@ declare function local:notes-to-intervals($notes as element()*) as xs:string {
                                     local:get-accidental($prev)
                                 )
                                 let $interval := $curr-midi - $prev-midi
+                                (: Direction: U=up, D=down. Same note (interval=0) uses U0 per spec :)
                                 let $direction := 
-                                    if ($interval > 0) then "U"
-                                    else if ($interval < 0) then "D"
-                                    else "U"  (: Same note = U0 :)
+                                    if ($interval >= 0) then "U"
+                                    else "D"
                                 return concat($direction, string(abs($interval)))
                     default return ""
             
