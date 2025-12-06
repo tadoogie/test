@@ -1,88 +1,104 @@
 xquery version "3.1";
+
 declare namespace tei="http://www.tei-c.org/ns/1.0";
 declare namespace output="http://www.w3.org/2010/xslt-xquery-serialization";
+declare namespace request="http://exist-db.org/xquery/request";
+declare namespace xmldb="http://exist-db.org/xquery/xmldb";
+
 declare option output:method "json";
 declare option output:media-type "application/json";
 
-(: Normalize for accent-insensitive search - remove diacritical marks :)
+(: Accent-insensitive normalization: strip marks via \p{M} to avoid range regex issues :)
 declare function local:normalize($str as xs:string?) as xs:string {
-  if (empty($str) or $str = '') then
-    ''
+  if (empty($str) or $str = '') then ''
   else
-    (: Unicode NFD normalization to separate base characters from combining marks :)
     let $nfd := fn:normalize-unicode($str, 'NFD')
-    (: Remove combining diacritical marks (Unicode range 0300-036F) :)
-    return fn:replace($nfd, '[\u0300-\u036F]', '')
+    return fn:replace($nfd, '\p{M}+', '')
 };
 
-(: Extract snippet with context around match :)
-declare function local:extract-snippet($text as xs:string, $query as xs:string, $contextChars as xs:integer) as xs:string {
-  let $normalizedText := local:normalize(lower-case($text))
-  let $normalizedQuery := local:normalize(lower-case($query))
-  
-  return
-    if (contains($normalizedText, $normalizedQuery)) then
-      (: Find the position of the match :)
-      let $beforeMatch := substring-before($normalizedText, $normalizedQuery)
-      let $matchPos := string-length($beforeMatch) + 1
-      let $start := max((1, $matchPos - $contextChars))
-      let $end := min((string-length($text), $matchPos + string-length($normalizedQuery) + $contextChars))
-      let $snippet := substring($text, $start, $end - $start + 1)
-      let $prefix := if ($start > 1) then "..." else ""
-      let $suffix := if ($end < string-length($text)) then "..." else ""
-      return concat($prefix, $snippet, $suffix)
-    else
-      ""
+(: Reconstruct text from syllable segments:
+   - If a seg ends with '-', it continues the word (no space).
+   - If it doesn’t, insert a space after that syllable.
+   Then normalize whitespace. :)
+declare function local:reconstruct-text($node as node()) as xs:string {
+  let $chunks :=
+    for $seg in $node//tei:seg[@type='syl']
+    let $t := string($seg)
+    let $clean := replace($t, '-+$', '')
+    return if (ends-with($t, '-')) then $clean else concat($clean, ' ')
+  return normalize-space(string-join($chunks, ''))
 };
 
-(: Get search parameters :)
-let $query := request:get-parameter("query", "")
+(: Gather documents from any available collection among common candidates :)
+declare function local:collect-docs() as node()* {
+  let $base := '/db/apps/splitleaf-demo'
+  let $candidates := (
+    '/db/texts',
+    concat($base, '/texts'),
+    concat($base, '/data/texts'),
+    concat($base, '/data'),
+    $base
+  )
+  for $p in $candidates
+  where xmldb:collection-available($p)
+  return collection($p)
+};
+
+(: Build a snippet around the first match; we compute position on normalized text,
+   but extract from the original reconstructed text for readability. :)
+declare function local:build-snippet($text as xs:string, $normText as xs:string, $normQuery as xs:string, $ctx as xs:integer) as xs:string {
+  if (contains($normText, $normQuery)) then
+    let $before := substring-before($normText, $normQuery)
+    let $pos := string-length($before) + 1
+    let $start := max((1, $pos - $ctx))
+    let $end := min((string-length($text), $pos + string-length($normQuery) + $ctx))
+    let $snippetRaw := substring($text, $start, $end - $start + 1)
+    return concat(if ($start > 1) then "..." else "", $snippetRaw, if ($end < string-length($text)) then "..." else "")
+  else
+    ""
+};
+
+let $query  := request:get-parameter("query", "")
 let $source := request:get-parameter("source", "")
 
-(: Search through TEI documents :)
-let $results :=
-  if (string-length($query) = 0) then
-    ()
+return
+  if (string-length(normalize-space($query)) lt 2) then
+    array { }  (: Require at least 2 characters :)
   else
-    let $allDocs := 
-      if (string-length($source) > 0) then
-        collection("/db/texts")[.//tei:editionStmt/tei:edition/tei:title[@type="short"] = $source]
-      else
-        collection("/db/texts")
-    
-    for $doc in $allDocs
-    let $text := string-join($doc//tei:seg[@type="syl"], " ")
-    let $normalizedText := local:normalize(lower-case($text))
-    let $normalizedQuery := local:normalize(lower-case($query))
-    where contains($normalizedText, $normalizedQuery)
-    let $id := string($doc//tei:TEI/@xml:id)
-    let $label := string($doc//tei:titleStmt/tei:title)
-    let $snippet := local:extract-snippet($text, $query, 40)
-    let $mainTitle := string($doc//tei:editionStmt/tei:edition/tei:title[@type="main"])
-    let $editionDate := string($doc//tei:editionStmt/tei:edition/tei:date)
-    let $sourceInfo := 
-      if ($mainTitle != '' and $editionDate != '') then
-        concat($mainTitle, " (", $editionDate, ")")
-      else if ($mainTitle != '') then
-        $mainTitle
-      else if ($editionDate != '') then
-        $editionDate
-      else
-        ""
-    let $path := document-uri($doc)
-    let $metre := string($doc//tei:div/@met)
-    let $suggTune := normalize-space(string($doc//tei:notesStmt/tei:note[2]))
-    order by $label
-    return map {
-      "id": $id,
-      "label": $label,
-      "snippet": $snippet,
-      "source": $sourceInfo,
-      "path": $path,
-      "data": concat($id, ";", $metre, ";", $suggTune)
-    }
+    let $docs := local:collect-docs()
+    let $normQ := local:normalize(lower-case($query))
 
-(: Limit to 50 results for performance :)
-let $limitedResults := subsequence($results, 1, 50)
+    let $filteredDocs :=
+      if ($source != "") then
+        $docs[lower-case(.//tei:editionStmt/tei:edition/tei:title[@type="short"]) = lower-case($source)]
+      else
+        $docs
 
-return array { $limitedResults }
+    let $results :=
+      for $doc in $filteredDocs
+      let $text := local:reconstruct-text($doc)
+      let $normT := local:normalize(lower-case($text))
+      where contains($normT, $normQ)
+      let $id       := string($doc//tei:TEI/@xml:id)
+      let $label    := string($doc//tei:titleStmt/tei:title)
+      let $main     := string($doc//tei:editionStmt/tei:edition/tei:title[@type="main"])
+      let $date     := string($doc//tei:editionStmt/tei:edition/tei:date)
+      let $sourceInfo :=
+        if ($main != '' and $date != '') then concat($main, " (", $date, ")")
+        else if ($main != '') then $main
+        else if ($date != '') then $date
+        else ""
+      let $metre    := string($doc//tei:div/@met)
+      let $suggTune := normalize-space(string($doc//tei:notesStmt/tei:note[2]))
+      let $snippet  := local:build-snippet($text, $normT, $normQ, 40)
+      order by $label
+      return map {
+        "id": $id,
+        "label": $label,
+        "snippet": $snippet,
+        "source": $sourceInfo,
+        "path": document-uri($doc),
+        "data": concat($id, ";", $metre, ";", $suggTune)
+      }
+
+    return array { subsequence($results, 1, 50) }
