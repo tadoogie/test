@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Multi-Source Features Demo</title>
+    <style>
+        body { font-family: Arial; padding: 20px; max-width: 1200px; margin: 0 auto; }
+        .feature { margin: 30px 0; padding: 20px; border: 2px solid #6fc252; border-radius: 8px; }
+        .feature h2 { margin-top: 0; color: #6fc252; }
+        .code { background: #f5f5f5; padding: 15px; border-radius: 4px; overflow-x: auto; }
+        .highlight { background: yellow; padding: 2px 4px; }
+        .location { color: #666; font-size: 0.9em; font-style: italic; }
+        .visual { border: 1px solid #ddd; padding: 10px; margin: 10px 0; background: white; }
+        .source-button { 
+            display: inline-block;
+            padding: 8px 16px; 
+            margin: 4px; 
+            background: #d8e5d3; 
+            border: 1px solid #ccc;
+            border-radius: 4px; 
+            cursor: pointer; 
+        }
+        .source-button.active { background: #6fc252; color: white; }
+        .checkbox { margin: 8px 0; }
+        .checkbox input { margin-right: 8px; }
+    </style>
+</head>
+<body>
+    <h1>🎯 Multi-Source Text Search Features</h1>
+    <p>This page demonstrates the new multi-source functionality implemented in the PR.</p>
+
+    <div class="feature">
+        <h2>Feature 1: Multi-Select Source Buttons</h2>
+        <p class="location">📍 Location: Side menu → EDITION tab → Source buttons</p>
+        <p><strong>What changed:</strong> Source buttons now toggle on/off instead of single-select</p>
+        
+        <div class="visual">
+            <p><strong>Visual Example:</strong></p>
+            <div>
+                <button class="source-button active">Scottish Psalter (1650)</button>
+                <button class="source-button active">Trinity Psalter (2018)</button>
+                <button class="source-button">Book of Psalms (1871)</button>
+            </div>
+            <p style="margin-top: 10px;"><em>Click buttons to toggle selection. Green = selected.</em></p>
+        </div>
+
+        <p><strong>Code location:</strong></p>
+        <div class="code">
+File: <span class="highlight">resources/js/interface-dev.js</span>, lines 912-928
+Function: <span class="highlight">initializeSourceButtons()</span>
+
+Key line: <code>btn.classList.toggle('active');</code>
+        </div>
+
+        <p><strong>Testing:</strong></p>
+        <ol>
+            <li>Click on first source button → should turn green</li>
+            <li>Click on second source button → both should be green</li>
+            <li>Click on first button again → should deselect (no longer green)</li>
+            <li>Check summary at bottom → should show "2 sources selected"</li>
+        </ol>
+    </div>
+
+    <div class="feature">
+        <h2>Feature 2: Search Modal Source Filter</h2>
+        <p class="location">📍 Location: TEXT tab → Click "Find your phrase" → See "Search in:" section</p>
+        <p><strong>What's new:</strong> Search modal now has checkboxes to select which sources to search</p>
+        
+        <div class="visual">
+            <p><strong>Visual Example of Search Modal:</strong></p>
+            <div style="border: 2px solid #333; padding: 15px; background: white;">
+                <h3 style="margin-top: 0;">Find Your Phrase</h3>
+                <input type="text" placeholder="Type your phrase..." style="width: 90%; padding: 8px; margin: 10px 0;">
+                
+                <div style="margin: 10px 0;">
+                    <strong>Search in:</strong>
+                    <div class="checkbox">
+                        <input type="checkbox" id="demo-all" checked>
+                        <label for="demo-all">All sources</label>
+                    </div>
+                    <div class="checkbox">
+                        <input type="checkbox" id="demo-1" checked>
+                        <label for="demo-1">Scottish Psalter (1650)</label>
+                    </div>
+                    <div class="checkbox">
+                        <input type="checkbox" id="demo-2" checked>
+                        <label for="demo-2">Trinity Psalter (2018)</label>
+                    </div>
+                    <div class="checkbox">
+                        <input type="checkbox" id="demo-3">
+                        <label for="demo-3">Book of Psalms (1871)</label>
+                    </div>
+                </div>
+                
+                <button style="padding: 8px 16px; margin: 5px;">Search</button>
+                <button style="padding: 8px 16px; margin: 5px;">Close</button>
+            </div>
+        </div>
+
+        <p><strong>Code location:</strong></p>
+        <div class="code">
+File: <span class="highlight">page.html</span>, lines 861-863
+HTML element: <code>&lt;div id="searchSourcesList"&gt;&lt;/div&gt;</code>
+
+File: <span class="highlight">resources/js/interface-dev.js</span>, line 2237
+Function: <span class="highlight">populateSearchModalSourceList()</span>
+        </div>
+
+        <p><strong>Testing:</strong></p>
+        <ol>
+            <li>Select at least one source from EDITION tab</li>
+            <li>Go to TEXT tab</li>
+            <li>Click "Find your phrase" link</li>
+            <li>Modal should show "Search in:" section with checkboxes</li>
+            <li>Checkboxes should match your selected sources</li>
+            <li>Check/uncheck "All sources" → all boxes should toggle</li>
+        </ol>
+    </div>
+
+    <div class="feature">
+        <h2>Feature 3: Combined Text List</h2>
+        <p class="location">📍 Location: TEXT tab → Text selector area</p>
+        <p><strong>What's new:</strong> When multiple sources selected, shows combined texts from all sources</p>
+        
+        <p><strong>Code location:</strong></p>
+        <div class="code">
+File: <span class="highlight">resources/js/interface-dev.js</span>, lines 962-1023
+Function: <span class="highlight">handleMultipleSourceSelection(sourceLabels)</span>
+
+Key feature: Removes duplicates by text ID
+        </div>
+
+        <p><strong>Testing:</strong></p>
+        <ol>
+            <li>Select 2+ sources from EDITION tab</li>
+            <li>Go to TEXT tab</li>
+            <li>Text list should show psalms from all selected sources</li>
+            <li>No duplicate psalms (same ID = only shown once)</li>
+            <li>Metre filter should show all metres from selected sources</li>
+        </ol>
+    </div>
+
+    <div class="feature">
+        <h2>Feature 4: Enhanced Summary</h2>
+        <p class="location">📍 Location: Bottom of side menu → "Current Selections"</p>
+        <p><strong>What's new:</strong> Summary shows "X sources selected" when multiple sources active</p>
+        
+        <div class="visual">
+            <p><strong>Visual Example:</strong></p>
+            <div style="background: #555; color: white; padding: 15px; border-radius: 4px;">
+                <h4 style="margin-top: 0; color: #6fc252;">Current Selections</h4>
+                <div><strong>Source:</strong> <span style="color: #6fc252;">2 sources selected</span></div>
+                <div><strong>Text:</strong> Select Text</div>
+                <div><strong>Tune:</strong> Select Tune</div>
+            </div>
+        </div>
+
+        <p><strong>Code location:</strong></p>
+        <div class="code">
+File: <span class="highlight">resources/js/interface-dev.js</span>, lines 1605-1619
+Function: <span class="highlight">updateSelectionSummary()</span>
+
+Key logic: Splits comma-separated sources and counts them
+        </div>
+    </div>
+
+    <div class="feature">
+        <h2>Backend Support</h2>
+        <p class="location">📍 Location: Server-side XQuery file</p>
+        <p><strong>What's new:</strong> Backend handles comma-separated source parameters</p>
+        
+        <p><strong>Code location:</strong></p>
+        <div class="code">
+File: <span class="highlight">searchTexts.xq</span>, lines 72-79
+Feature: Tokenizes comma-separated source parameter
+
+Example: <code>&source=Scottish%20Psalter,Trinity%20Psalter</code>
+        </div>
+    </div>
+
+    <div class="feature" style="border-color: #ff9800; background: #fff3e0;">
+        <h2>🔧 If Features Not Visible</h2>
+        <ol>
+            <li><strong>Hard refresh:</strong> Press Ctrl+Shift+R (Windows) or Cmd+Shift+R (Mac)</li>
+            <li><strong>Check console:</strong> Open DevTools (F12) → Console tab → Look for errors</li>
+            <li><strong>Verify build:</strong> Console should log "Scripts loaded successfully"</li>
+            <li><strong>Check version:</strong> Build version should be <code>2025-12-06-1</code></li>
+            <li><strong>Verify files:</strong> Check that <code>resources/js/interface-dev.js</code> exists</li>
+            <li><strong>Clear cache:</strong> Browser settings → Clear cached files</li>
+        </ol>
+    </div>
+
+    <div style="margin-top: 40px; padding: 20px; background: #e8f5e9; border-radius: 8px;">
+        <h2>📋 Quick Verification Checklist</h2>
+        <ul style="list-style: none; padding: 0;">
+            <li>☐ Source buttons toggle on/off (green when active)</li>
+            <li>☐ Multiple sources can be selected simultaneously</li>
+            <li>☐ Summary shows "X sources selected"</li>
+            <li>☐ Search modal has "Search in:" section with checkboxes</li>
+            <li>☐ "All sources" checkbox selects/deselects all</li>
+            <li>☐ Combined text list shows texts from all sources</li>
+            <li>☐ Search works with selected sources</li>
+        </ul>
+    </div>
+
+</body>
+</html>
