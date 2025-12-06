@@ -2296,8 +2296,7 @@ function domContentLoadedHandler1980() {
     itemCheckboxes.forEach(function(cb) {
       cb.addEventListener('change', function() {
         const allChecked = Array.from(itemCheckboxes).every(function(c) { return c.checked; });
-        const noneChecked = Array.from(itemCheckboxes).every(function(c) { return !c.checked; });
-        allCheckbox.checked = allChecked || noneChecked;
+        allCheckbox.checked = allChecked;
       });
     });
   }
@@ -2329,7 +2328,7 @@ function domContentLoadedHandler1980() {
       }
       
       // Build the query URL with optional source filter
-      let url = `searchTexts.xq?query=${encodeURIComponent(query.trim())}`;
+      let url = `/searchTexts.xq?query=${encodeURIComponent(query.trim())}`;
       if (selectedSources && selectedSources.length > 0) {
         url += `&source=${encodeURIComponent(selectedSources.join(','))}`;
       }
