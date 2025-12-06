@@ -72,7 +72,9 @@ return
     let $sourceTokens := 
       if ($source != "") then
         for $token in tokenize($source, ',')
-        return normalize-space($token)
+        let $normalized := normalize-space($token)
+        where $normalized != ''
+        return $normalized
       else
         ()
 
