@@ -2223,12 +2223,25 @@ function domContentLoadedHandler1980() {
   // Populate search modal source list with checkboxes
   function populateSearchModalSourceList() {
     const searchSourcesList = document.getElementById('searchSourcesList');
-    if (!searchSourcesList) return;
+    if (!searchSourcesList) {
+      console.warn('populateSearchModalSourceList: searchSourcesList element not found');
+      return;
+    }
     
     searchSourcesList.innerHTML = '';
     
     const availableSources = Object.keys(window.sourceMap || {});
-    if (availableSources.length === 0) return;
+    console.log('populateSearchModalSourceList: availableSources =', availableSources);
+    
+    if (availableSources.length === 0) {
+      // Show message if no sources available yet
+      const msgDiv = document.createElement('div');
+      msgDiv.style.cssText = 'color:#888;font-style:italic;padding:5px 0;';
+      msgDiv.textContent = 'No sources available. Please select a source from the EDITION tab first.';
+      searchSourcesList.appendChild(msgDiv);
+      console.warn('populateSearchModalSourceList: No sources in sourceMap');
+      return;
+    }
     
     // Get currently selected sources from hidden input
     const psSourceInput = document.getElementById('pssource');
