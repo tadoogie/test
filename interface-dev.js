@@ -961,12 +961,6 @@ function clearTextSelection() {
     tuneButtons.innerHTML = '';
   }
   
-  // Hide search link
-  const searchContainer = document.getElementById('searchPhraseContainer');
-  if (searchContainer) {
-    searchContainer.style.display = 'none';
-  }
-  
   // Clear metre dropdown
   const metreContainer = document.getElementById('psMetreList');
   if (metreContainer) {
@@ -1233,15 +1227,8 @@ function setTexts() {
       versesEl.innerHTML = '';
       versesEl.style.display = 'none';
     }
-    // Hide search link
-    const searchContainer = document.getElementById('searchPhraseContainer');
-    if (searchContainer) searchContainer.style.display = 'none';
     return;
   }
-
-  // Show search link when texts are available
-  const searchContainer = document.getElementById('searchPhraseContainer');
-  if (searchContainer) searchContainer.style.display = 'block';
 
   // Create selector display
   const selectPsDiv = document.createElement('div');
