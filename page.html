@@ -466,6 +466,22 @@
             }
             #tunes { padding-top: 4px; } 
             #tuneButtons { margin-top: 6px; }
+            
+            /* Search modal source checkboxes */
+            #searchSourcesList > div {
+                margin: 6px 0;
+            }
+            
+            #searchSourcesList input[type="checkbox"] {
+                margin-right: 8px;
+                cursor: pointer;
+            }
+            
+            #searchSourcesList label {
+                cursor: pointer;
+                color: #333;
+                font-size: 0.95em;
+            }
         </style>
     </head>
     <body>
@@ -842,6 +858,10 @@
       <div>
         <h2 style="margin-top: 0">Find Your Phrase</h2>
         <input type="text" id="searchInput" placeholder="Type your phrase..." style="width:90%;margin:10px auto 12px auto;display:block;font-size:1em;padding:8px;border-radius:6px;border:1px solid #888;"/>
+        <div style="margin:10px auto 12px;width:90%;">
+          <label style="font-weight:600;color:#333;margin-bottom:8px;display:block;">Search in:</label>
+          <div id="searchSourcesList"></div>
+        </div>
         <div style="text-align:center;margin:0 0 14px;">
           <button id="executeSearchBtn">Search</button>
           <button id="closeSearchModalBtn">Close</button>

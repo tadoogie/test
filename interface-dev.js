@@ -910,20 +910,162 @@ function initializeSourceButtons() {
     btn.setAttribute('data-source-label', label);
 
     btn.addEventListener('click', function() {
-      document.querySelectorAll('.source-button').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      hiddenInput.value = label;
-      handleSourceSelection(label);
+      // Toggle selection (allow multiple)
+      btn.classList.toggle('active');
+      
+      // Update hidden input with comma-separated list
+      const selectedBtns = Array.from(sourceContainer.querySelectorAll('.source-button.active'));
+      const selectedLabels = selectedBtns.map(b => b.getAttribute('data-source-label'));
+      hiddenInput.value = selectedLabels.join(',');
+      
+      // Handle based on count
+      if (selectedLabels.length === 1) {
+        handleSourceSelection(selectedLabels[0]);
+      } else if (selectedLabels.length === 0) {
+        clearTextSelection();
+      } else {
+        handleMultipleSourceSelection(selectedLabels);
+      }
     });
 
     sourceContainer.appendChild(btn);
   });
 
   if (hiddenInput.value) {
-    const existing = Array.from(sourceContainer.querySelectorAll('.source-button'))
-      .find(b => b.getAttribute('data-source-label') === hiddenInput.value);
-    if (existing) existing.click();
+    const initialSources = hiddenInput.value.split(',').map(s => s.trim()).filter(Boolean);
+    initialSources.forEach(source => {
+      const existing = Array.from(sourceContainer.querySelectorAll('.source-button'))
+        .find(b => b.getAttribute('data-source-label') === source);
+      if (existing) existing.click();
+    });
   }
+}
+
+function clearTextSelection() {
+  // Clear text list
+  const container = document.getElementById('psTextList');
+  if (container) {
+    container.textContent = 'Select source first';
+  }
+  
+  // Clear verses
+  const versesEl = document.getElementById('verses');
+  if (versesEl) {
+    versesEl.innerHTML = '';
+    versesEl.style.display = 'none';
+  }
+  
+  // Clear tune selection
+  const tuneButtons = document.getElementById('tuneButtons');
+  if (tuneButtons) {
+    tuneButtons.innerHTML = '';
+  }
+  
+  // Hide search link
+  const searchContainer = document.getElementById('searchPhraseContainer');
+  if (searchContainer) {
+    searchContainer.style.display = 'none';
+  }
+  
+  // Clear metre dropdown
+  const metreContainer = document.getElementById('psMetreList');
+  if (metreContainer) {
+    metreContainer.textContent = 'Select source first';
+  }
+  
+  try { updateSelectionSummary(); } catch (_) {}
+}
+
+function handleMultipleSourceSelection(sourceLabels) {
+  // Combine texts from all selected sources
+  const allTexts = [];
+  const seenIds = new Set();
+  const allMetres = new Set();
+  
+  sourceLabels.forEach(function(label) {
+    const texts = window.sourceMap && window.sourceMap[label] ? window.sourceMap[label] : [];
+    texts.forEach(function(t) {
+      // Remove duplicates by text ID
+      if (!seenIds.has(t.id)) {
+        seenIds.add(t.id);
+        allTexts.push(t);
+      }
+      // Collect unique metres
+      if (t.metre) {
+        allMetres.add(t.metre);
+      }
+    });
+  });
+  
+  // Build psalm list
+  const psList = allTexts.map(function(t) {
+    const label = t.label || '';
+    const teiID = t.id || '';
+    const metre = t.metre || '';
+    const sugg = t.suggTune || '';
+    return { label: label, data: `${teiID};${metre};${sugg}`, rawObj: t };
+  });
+  
+  const psLabels = psList.map(l => l.label);
+  
+  window.fullPsList = psList;
+  window.fullPsLabels = psLabels;
+  
+  // Populate metre filter dropdown
+  let selMetElem = document.getElementById('selMet');
+  
+  if (!selMetElem || selMetElem.tagName.toLowerCase() !== 'select') {
+    const container = document.getElementById('psMetreList');
+    if (container) {
+      const select = document.createElement('select');
+      select.id = 'selMet';
+      select.className = 'metre-picker';
+      const defaultOpt = document.createElement('option');
+      defaultOpt.value = '';
+      defaultOpt.textContent = 'Filter by metre (optional)';
+      select.appendChild(defaultOpt);
+      
+      container.innerHTML = '';
+      container.appendChild(select);
+      selMetElem = select;
+    }
+  }
+  
+  if (selMetElem && selMetElem.tagName.toLowerCase() === 'select') {
+    selMetElem.innerHTML = '';
+    const defaultOpt = document.createElement('option');
+    defaultOpt.value = '';
+    defaultOpt.textContent = 'Filter by metre (optional)';
+    selMetElem.appendChild(defaultOpt);
+    
+    const metresArray = Array.from(allMetres);
+    if (metresArray.length) {
+      const sorted = sortMetres(metresArray);
+      sorted.forEach(function(m) {
+        const opt = document.createElement('option');
+        opt.value = m;
+        opt.textContent = m;
+        selMetElem.appendChild(opt);
+      });
+    } else {
+      const none = document.createElement('option');
+      none.value = '';
+      none.disabled = true;
+      none.textContent = 'No metres available';
+      selMetElem.appendChild(none);
+    }
+    
+    selMetElem.addEventListener('change', function() {
+      setTexts();
+    });
+  }
+  
+  setTexts();
+  
+  try { updateSelectionSummary(); } catch (_) {}
+  
+  const container = document.getElementById('panel-source') || document.querySelector('.menu-item');
+  try { ensureNextButton(container, 'next-btn-source', () => switchToTab('text')); } catch (_) {}
 }
 
 function handleSourceSelection(sourceLabel) {
@@ -1603,7 +1745,20 @@ function updateSelectionSummary() {
   if (!srcOut || !txtOut || !tuneOut) return;
 
   var sourceVal = srcEl && srcEl.value ? srcEl.value.trim() : "";
-  srcOut.textContent = sourceVal || "Select Source";
+  
+  // Handle comma-separated sources
+  if (sourceVal) {
+    var sources = sourceVal.split(',').map(s => s.trim()).filter(Boolean);
+    if (sources.length > 1) {
+      srcOut.textContent = sources.length + " sources selected";
+    } else if (sources.length === 1) {
+      srcOut.textContent = sources[0];
+    } else {
+      srcOut.textContent = "Select Source";
+    }
+  } else {
+    srcOut.textContent = "Select Source";
+  }
 
   var textTitle = txtEl && txtEl.value ? txtEl.value.trim() : "";
   var versesText = versesEl && versesEl.textContent ? versesEl.textContent.trim() : "";
@@ -2044,6 +2199,7 @@ function domContentLoadedHandler1980() {
     searchLink.addEventListener("click", function(e) {
       e.preventDefault();
       if (searchModal) {
+        populateSearchModalSourceList();
         searchModal.style.display = "flex";
         searchInput.focus();
         showSearchInstructions();
@@ -2076,6 +2232,75 @@ function domContentLoadedHandler1980() {
     if (!searchResults) return;
     searchResults.innerHTML = '<div style="padding:20px;text-align:center;color:#555;">Type a word or phrase to search through all psalm texts in the selected source.</div>';
   }
+  
+  // Populate search modal source list with checkboxes
+  function populateSearchModalSourceList() {
+    const searchSourcesList = document.getElementById('searchSourcesList');
+    if (!searchSourcesList) return;
+    
+    searchSourcesList.innerHTML = '';
+    
+    const availableSources = Object.keys(window.sourceMap || {});
+    if (availableSources.length === 0) return;
+    
+    // Get currently selected sources from hidden input
+    const psSourceInput = document.getElementById('pssource');
+    const selectedSources = psSourceInput && psSourceInput.value ? 
+      psSourceInput.value.split(',').map(s => s.trim()).filter(Boolean) : [];
+    
+    // Add "All sources" checkbox
+    const allDiv = document.createElement('div');
+    const allCheckbox = document.createElement('input');
+    allCheckbox.type = 'checkbox';
+    allCheckbox.id = 'search-source-all';
+    allCheckbox.className = 'search-source-all';
+    allCheckbox.checked = selectedSources.length === 0 || selectedSources.length === availableSources.length;
+    
+    const allLabel = document.createElement('label');
+    allLabel.htmlFor = 'search-source-all';
+    allLabel.textContent = 'All sources';
+    
+    allDiv.appendChild(allCheckbox);
+    allDiv.appendChild(allLabel);
+    searchSourcesList.appendChild(allDiv);
+    
+    // Add individual source checkboxes
+    availableSources.forEach(function(source) {
+      const div = document.createElement('div');
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.className = 'search-source-item';
+      checkbox.value = source;
+      checkbox.id = 'search-source-' + source.replace(/\s+/g, '-');
+      checkbox.checked = selectedSources.length === 0 || selectedSources.includes(source);
+      
+      const label = document.createElement('label');
+      label.htmlFor = checkbox.id;
+      label.textContent = source;
+      
+      div.appendChild(checkbox);
+      div.appendChild(label);
+      searchSourcesList.appendChild(div);
+    });
+    
+    // Wire up "All sources" toggle
+    allCheckbox.addEventListener('change', function() {
+      const itemCheckboxes = searchSourcesList.querySelectorAll('.search-source-item');
+      itemCheckboxes.forEach(function(cb) {
+        cb.checked = allCheckbox.checked;
+      });
+    });
+    
+    // Wire up individual checkboxes to update "All sources"
+    const itemCheckboxes = searchSourcesList.querySelectorAll('.search-source-item');
+    itemCheckboxes.forEach(function(cb) {
+      cb.addEventListener('change', function() {
+        const allChecked = Array.from(itemCheckboxes).every(function(c) { return c.checked; });
+        const noneChecked = Array.from(itemCheckboxes).every(function(c) { return !c.checked; });
+        allCheckbox.checked = allChecked || noneChecked;
+      });
+    });
+  }
 
   // Search through psalms using server-side XQuery
   async function searchPsalms(query) {
@@ -2088,14 +2313,25 @@ function domContentLoadedHandler1980() {
     searchResults.innerHTML = '<div style="padding:20px;text-align:center;color:#555;">Searching...</div>';
 
     try {
-      // Get the current source filter if one is selected
-      const psSourceInput = document.getElementById('pssource');
-      const currentSource = psSourceInput ? psSourceInput.value : '';
+      // Collect selected sources from checkboxes in search modal
+      const sourceAllChk = document.getElementById('search-source-all');
+      let selectedSources = [];
+      
+      if (sourceAllChk && sourceAllChk.checked) {
+        // "All sources" is checked - search all sources (pass empty array)
+        selectedSources = [];
+      } else {
+        // Collect individually checked sources
+        const checked = Array.from(document.querySelectorAll('#searchSourcesList input.search-source-item:checked'))
+          .map(i => i.value)
+          .filter(Boolean);
+        selectedSources = checked;
+      }
       
       // Build the query URL with optional source filter
-      let url = `/searchTexts.xq?query=${encodeURIComponent(query.trim())}`;
-      if (currentSource) {
-        url += `&source=${encodeURIComponent(currentSource)}`;
+      let url = `searchTexts.xq?query=${encodeURIComponent(query.trim())}`;
+      if (selectedSources && selectedSources.length > 0) {
+        url += `&source=${encodeURIComponent(selectedSources.join(','))}`;
       }
       
       const response = await fetch(url);

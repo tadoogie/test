@@ -67,10 +67,19 @@ return
   else
     let $docs := local:collect-docs()
     let $normQ := local:normalize(lower-case($query))
+    
+    (: Tokenize comma-separated sources :)
+    let $sourceTokens := 
+      if ($source != "") then
+        for $token in tokenize($source, ',')
+        return normalize-space($token)
+      else
+        ()
 
     let $filteredDocs :=
-      if ($source != "") then
-        $docs[lower-case(.//tei:editionStmt/tei:edition/tei:title[@type="short"]) = lower-case($source)]
+      if (count($sourceTokens) > 0) then
+        $docs[lower-case(.//tei:editionStmt/tei:edition/tei:title[@type="short"]) = 
+              for $token in $sourceTokens return lower-case($token)]
       else
         $docs
 
