@@ -1,4 +1,4 @@
-window.INTERFACE_DEV_BUILD = '2025-10-28-2';
+window.INTERFACE_DEV_BUILD = '2025-12-06-1';
 /*This is my new comment to check if this is updated*/
 
 /* ----------------------------- URL parameter application ----------------------------- */
