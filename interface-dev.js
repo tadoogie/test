@@ -2248,55 +2248,107 @@ function domContentLoadedHandler1980() {
     const selectedSources = psSourceInput && psSourceInput.value ? 
       psSourceInput.value.split(',').map(s => s.trim()).filter(Boolean) : [];
     
-    // Add "All sources" checkbox
-    const allDiv = document.createElement('div');
-    const allCheckbox = document.createElement('input');
-    allCheckbox.type = 'checkbox';
-    allCheckbox.id = 'search-source-all';
-    allCheckbox.className = 'search-source-all';
-    allCheckbox.checked = selectedSources.length === 0 || selectedSources.length === availableSources.length;
+    // Container for buttons
+    const buttonContainer = document.createElement('div');
+    buttonContainer.style.cssText = 'display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px;';
     
-    const allLabel = document.createElement('label');
-    allLabel.htmlFor = 'search-source-all';
-    allLabel.textContent = 'All sources';
+    // Add "All sources" button
+    const allButton = document.createElement('button');
+    allButton.type = 'button';
+    allButton.id = 'search-source-all';
+    allButton.className = 'search-source-button search-source-all';
+    allButton.textContent = 'All sources';
+    allButton.style.cssText = 'padding: 8px 16px; border: 1px solid #ccc; border-radius: 4px; background: #d8e5d3; cursor: pointer; font-size: 0.95em;';
     
-    allDiv.appendChild(allCheckbox);
-    allDiv.appendChild(allLabel);
-    searchSourcesList.appendChild(allDiv);
+    // Set initial active state
+    if (selectedSources.length === 0 || selectedSources.length === availableSources.length) {
+      allButton.classList.add('active');
+      allButton.style.background = '#6fc252';
+      allButton.style.color = 'white';
+    }
     
-    // Add individual source checkboxes
+    buttonContainer.appendChild(allButton);
+    
+    // Add individual source buttons
     availableSources.forEach(function(source) {
-      const div = document.createElement('div');
-      const checkbox = document.createElement('input');
-      checkbox.type = 'checkbox';
-      checkbox.className = 'search-source-item';
-      checkbox.value = source;
-      checkbox.id = 'search-source-' + source.replace(/\s+/g, '-');
-      checkbox.checked = selectedSources.length === 0 || selectedSources.includes(source);
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'search-source-button search-source-item';
+      button.setAttribute('data-source', source);
+      button.textContent = source;
+      button.style.cssText = 'padding: 8px 16px; border: 1px solid #ccc; border-radius: 4px; background: #d8e5d3; cursor: pointer; font-size: 0.95em;';
       
-      const label = document.createElement('label');
-      label.htmlFor = checkbox.id;
-      label.textContent = source;
+      // Set initial active state
+      if (selectedSources.length === 0 || selectedSources.includes(source)) {
+        button.classList.add('active');
+        button.style.background = '#6fc252';
+        button.style.color = 'white';
+      }
       
-      div.appendChild(checkbox);
-      div.appendChild(label);
-      searchSourcesList.appendChild(div);
+      buttonContainer.appendChild(button);
     });
+    
+    searchSourcesList.appendChild(buttonContainer);
     
     // Wire up "All sources" toggle
-    allCheckbox.addEventListener('change', function() {
-      const itemCheckboxes = searchSourcesList.querySelectorAll('.search-source-item');
-      itemCheckboxes.forEach(function(cb) {
-        cb.checked = allCheckbox.checked;
-      });
+    allButton.addEventListener('click', function() {
+      const isActive = allButton.classList.contains('active');
+      
+      if (isActive) {
+        // Deactivate all
+        allButton.classList.remove('active');
+        allButton.style.background = '#d8e5d3';
+        allButton.style.color = '';
+        
+        searchSourcesList.querySelectorAll('.search-source-item').forEach(function(btn) {
+          btn.classList.remove('active');
+          btn.style.background = '#d8e5d3';
+          btn.style.color = '';
+        });
+      } else {
+        // Activate all
+        allButton.classList.add('active');
+        allButton.style.background = '#6fc252';
+        allButton.style.color = 'white';
+        
+        searchSourcesList.querySelectorAll('.search-source-item').forEach(function(btn) {
+          btn.classList.add('active');
+          btn.style.background = '#6fc252';
+          btn.style.color = 'white';
+        });
+      }
     });
     
-    // Wire up individual checkboxes to update "All sources"
-    const itemCheckboxes = searchSourcesList.querySelectorAll('.search-source-item');
-    itemCheckboxes.forEach(function(cb) {
-      cb.addEventListener('change', function() {
-        const allChecked = Array.from(itemCheckboxes).every(function(c) { return c.checked; });
-        allCheckbox.checked = allChecked;
+    // Wire up individual buttons
+    searchSourcesList.querySelectorAll('.search-source-item').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        // Toggle this button
+        const isActive = btn.classList.contains('active');
+        
+        if (isActive) {
+          btn.classList.remove('active');
+          btn.style.background = '#d8e5d3';
+          btn.style.color = '';
+        } else {
+          btn.classList.add('active');
+          btn.style.background = '#6fc252';
+          btn.style.color = 'white';
+        }
+        
+        // Update "All sources" button state
+        const allItemButtons = Array.from(searchSourcesList.querySelectorAll('.search-source-item'));
+        const allActive = allItemButtons.every(function(b) { return b.classList.contains('active'); });
+        const noneActive = allItemButtons.every(function(b) { return !b.classList.contains('active'); });
+        
+        if (allActive) {
+          allButton.classList.add('active');
+          allButton.style.background = '#6fc252';
+          allButton.style.color = 'white';
+        } else {
+          allButton.classList.remove('active');
+          allButton.style.background = '#d8e5d3';
+          allButton.style.color = '';
+        }
       });
     });
   }
@@ -2312,19 +2364,19 @@ function domContentLoadedHandler1980() {
     searchResults.innerHTML = '<div style="padding:20px;text-align:center;color:#555;">Searching...</div>';
 
     try {
-      // Collect selected sources from checkboxes in search modal
-      const sourceAllChk = document.getElementById('search-source-all');
+      // Collect selected sources from buttons in search modal
+      const sourceAllBtn = document.getElementById('search-source-all');
       let selectedSources = [];
       
-      if (sourceAllChk && sourceAllChk.checked) {
-        // "All sources" is checked - search all sources (pass empty array)
+      if (sourceAllBtn && sourceAllBtn.classList.contains('active')) {
+        // "All sources" is active - search all sources (pass empty array)
         selectedSources = [];
       } else {
-        // Collect individually checked sources
-        const checked = Array.from(document.querySelectorAll('#searchSourcesList input.search-source-item:checked'))
-          .map(i => i.value)
+        // Collect individually active sources
+        const activeButtons = Array.from(document.querySelectorAll('#searchSourcesList button.search-source-item.active'))
+          .map(btn => btn.getAttribute('data-source'))
           .filter(Boolean);
-        selectedSources = checked;
+        selectedSources = activeButtons;
       }
       
       // Build the query URL with optional source filter

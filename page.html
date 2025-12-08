@@ -467,20 +467,24 @@
             #tunes { padding-top: 4px; } 
             #tuneButtons { margin-top: 6px; }
             
-            /* Search modal source checkboxes */
-            #searchSourcesList > div {
-                margin: 6px 0;
-            }
-            
-            #searchSourcesList input[type="checkbox"] {
-                margin-right: 8px;
+            /* Search modal source buttons */
+            #searchSourcesList .search-source-button {
+                padding: 8px 16px;
+                border: 1px solid #ccc;
+                border-radius: 4px;
+                background: #d8e5d3;
                 cursor: pointer;
-            }
-            
-            #searchSourcesList label {
-                cursor: pointer;
-                color: #333;
                 font-size: 0.95em;
+                transition: background 0.2s, color 0.2s;
+            }
+            
+            #searchSourcesList .search-source-button:hover {
+                background: #c5dcc0;
+            }
+            
+            #searchSourcesList .search-source-button.active {
+                background: #6fc252;
+                color: white;
             }
         </style>
     </head>
