@@ -2513,6 +2513,23 @@ function domContentLoadedHandler1980() {
         psalms.forEach(btn => {
           if (btn.dataset.label === label) {
             btn.click();
+            
+            // After selecting the psalm, switch to TEXT tab and select all verses
+            setTimeout(function() {
+              // Switch to TEXT tab
+              switchToTab('text');
+              
+              // Select "All" verses (the default when a psalm is selected)
+              // The verse selection should already be set to "All" by the psalm click handler
+              // but we can ensure it's visible
+              const selectVersesEl = document.getElementById('selectVerses');
+              if (selectVersesEl) {
+                selectVersesEl.innerHTML = 'All';
+                selectVersesEl.classList.add('open');
+                selectVersesEl.setAttribute('aria-expanded', 'true');
+              }
+            }, 150);
+            
             return;
           }
         });
@@ -2520,14 +2537,20 @@ function domContentLoadedHandler1980() {
     }, 100);
   }
 
-  // Real-time search as user types
+  // Search button click handler
+  const executeSearchBtn = document.getElementById('executeSearchBtn');
+  if (executeSearchBtn && searchInput) {
+    executeSearchBtn.addEventListener('click', function() {
+      searchPsalms(searchInput.value);
+    });
+  }
+  
+  // Also allow Enter key in search input to trigger search
   if (searchInput) {
-    let searchTimeout;
-    searchInput.addEventListener('input', function() {
-      clearTimeout(searchTimeout);
-      searchTimeout = setTimeout(() => {
+    searchInput.addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') {
         searchPsalms(this.value);
-      }, 300); // Debounce by 300ms
+      }
     });
   }
 }
