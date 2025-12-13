@@ -80,8 +80,8 @@ return
 
     let $filteredDocs :=
       if (count($sourceTokens) > 0) then
-        $docs[lower-case(.//tei:editionStmt/tei:edition/tei:title[@type="short"]) = 
-              for $token in $sourceTokens return lower-case($token)]
+        $docs[some $token in $sourceTokens 
+              satisfies lower-case(.//tei:editionStmt/tei:edition/tei:title[@type="short"]) = lower-case($token)]
       else
         $docs
 
