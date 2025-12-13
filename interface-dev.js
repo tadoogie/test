@@ -2248,9 +2248,9 @@ function domContentLoadedHandler1980() {
     const selectedSources = psSourceInput && psSourceInput.value ? 
       psSourceInput.value.split(',').map(s => s.trim()).filter(Boolean) : [];
     
-    // Container for buttons
-    const buttonContainer = document.createElement('div');
-    buttonContainer.style.cssText = 'display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px;';
+    // Container for "All sources" button (on its own line)
+    const allButtonContainer = document.createElement('div');
+    allButtonContainer.style.cssText = 'margin-top: 8px; margin-bottom: 8px;';
     
     // Add "All sources" button
     const allButton = document.createElement('button');
@@ -2267,7 +2267,12 @@ function domContentLoadedHandler1980() {
       allButton.style.color = 'white';
     }
     
-    buttonContainer.appendChild(allButton);
+    allButtonContainer.appendChild(allButton);
+    searchSourcesList.appendChild(allButtonContainer);
+    
+    // Container for individual source buttons (on separate line)
+    const sourcesButtonContainer = document.createElement('div');
+    sourcesButtonContainer.style.cssText = 'display: flex; flex-wrap: wrap; gap: 8px;';
     
     // Add individual source buttons
     availableSources.forEach(function(source) {
@@ -2285,10 +2290,10 @@ function domContentLoadedHandler1980() {
         button.style.color = 'white';
       }
       
-      buttonContainer.appendChild(button);
+      sourcesButtonContainer.appendChild(button);
     });
     
-    searchSourcesList.appendChild(buttonContainer);
+    searchSourcesList.appendChild(sourcesButtonContainer);
     
     // Wire up "All sources" toggle
     allButton.addEventListener('click', function() {
@@ -2414,7 +2419,7 @@ function domContentLoadedHandler1980() {
       // Highlight the match in the snippet
       const snippet = highlightMatchInSnippet(result.snippet, query);
       
-      html += '<div class="search-result-item" data-label="' + result.label + '" data-psdata="' + result.data + '" style="padding:12px;margin:8px 0;background:#f5f5f5;border-radius:6px;cursor:pointer;border:1px solid #ddd;">';
+      html += '<div class="search-result-item" data-label="' + result.label + '" data-psdata="' + result.data + '" data-source="' + (result.source || '') + '" style="padding:12px;margin:8px 0;background:#f5f5f5;border-radius:6px;cursor:pointer;border:1px solid #ddd;">';
       html += '<div style="font-weight:700;margin-bottom:6px;color:#333;">' + result.label + '</div>';
       html += '<div style="color:#555;font-size:0.9em;">' + snippet + '</div>';
       if (result.source) {
@@ -2431,7 +2436,8 @@ function domContentLoadedHandler1980() {
       item.addEventListener('click', function() {
         const label = this.getAttribute('data-label');
         const psdata = this.getAttribute('data-psdata');
-        selectPsalmFromSearch(label, psdata);
+        const source = this.getAttribute('data-source');
+        selectPsalmFromSearch(label, psdata, source);
       });
       
       // Hover effect
@@ -2474,7 +2480,7 @@ function domContentLoadedHandler1980() {
   }
 
   // Select psalm from search results
-  function selectPsalmFromSearch(label, psdata) {
+  function selectPsalmFromSearch(label, psdata, source) {
     // Close modal
     if (searchModal) {
       searchModal.style.display = "none";
@@ -2482,17 +2488,36 @@ function domContentLoadedHandler1980() {
       searchResults.innerHTML = "";
     }
 
-    // Find the psalm button and click it
-    const textsContainer = document.getElementById('texts');
-    if (textsContainer) {
-      const psalms = textsContainer.querySelectorAll('.psalm-btn');
-      psalms.forEach(btn => {
-        if (btn.dataset.label === label) {
-          btn.click();
-          return;
-        }
-      });
+    // First, select the source if provided
+    if (source) {
+      const sourceContainer = document.getElementById('sourceButtonContainer');
+      if (sourceContainer) {
+        const sourceButtons = sourceContainer.querySelectorAll('.source-button');
+        sourceButtons.forEach(btn => {
+          const btnLabel = btn.getAttribute('data-source-label');
+          if (btnLabel === source) {
+            // If source is not already active, click it
+            if (!btn.classList.contains('active')) {
+              btn.click();
+            }
+          }
+        });
+      }
     }
+
+    // Wait a moment for the source selection to populate texts, then find and click the psalm
+    setTimeout(function() {
+      const textsContainer = document.getElementById('texts');
+      if (textsContainer) {
+        const psalms = textsContainer.querySelectorAll('.psalm-btn');
+        psalms.forEach(btn => {
+          if (btn.dataset.label === label) {
+            btn.click();
+            return;
+          }
+        });
+      }
+    }, 100);
   }
 
   // Real-time search as user types
