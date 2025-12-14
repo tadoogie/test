@@ -2411,7 +2411,7 @@ function domContentLoadedHandler1980() {
       // Highlight the match in the snippet
       const snippet = highlightMatchInSnippet(result.snippet, query);
       
-      html += '<div class="search-result-item" data-label="' + result.label + '" data-psdata="' + result.data + '" data-source="' + (result.source || '') + '" style="padding:12px;margin:8px 0;background:#f5f5f5;border-radius:6px;cursor:pointer;border:1px solid #ddd;">';
+      html += '<div class="search-result-item" data-label="' + result.label + '" data-psdata="' + result.data + '" data-source="' + (result.source || '') + '" data-source-short="' + (result.sourceShort || '') + '" style="padding:12px;margin:8px 0;background:#f5f5f5;border-radius:6px;cursor:pointer;border:1px solid #ddd;">';
       html += '<div style="font-weight:700;margin-bottom:6px;color:#333;">' + result.label + '</div>';
       html += '<div style="color:#555;font-size:0.9em;">' + snippet + '</div>';
       if (result.source) {
@@ -2429,7 +2429,8 @@ function domContentLoadedHandler1980() {
         const label = this.getAttribute('data-label');
         const psdata = this.getAttribute('data-psdata');
         const source = this.getAttribute('data-source');
-        selectPsalmFromSearch(label, psdata, source);
+        const sourceShort = this.getAttribute('data-source-short');
+        selectPsalmFromSearch(label, psdata, source, sourceShort);
       });
       
       // Hover effect
@@ -2472,8 +2473,8 @@ function domContentLoadedHandler1980() {
   }
 
   // Select psalm from search results
-  function selectPsalmFromSearch(label, psdata, source) {
-    console.log('selectPsalmFromSearch called:', { label, psdata, source });
+  function selectPsalmFromSearch(label, psdata, source, sourceShort) {
+    console.log('selectPsalmFromSearch called:', { label, psdata, source, sourceShort });
     
     // Close modal
     if (searchModal) {
@@ -2483,15 +2484,17 @@ function domContentLoadedHandler1980() {
     }
 
     // First, select the source if provided
-    if (source) {
-      console.log('Selecting source:', source);
+    // Use sourceShort to match the button's data-source-label (which is the short title)
+    if (sourceShort) {
+      console.log('Selecting source by short title:', sourceShort);
       const sourceContainer = document.getElementById('sourceButtonContainer');
       if (sourceContainer) {
         const sourceButtons = sourceContainer.querySelectorAll('.source-button');
         let sourceFound = false;
         sourceButtons.forEach(btn => {
           const btnLabel = btn.getAttribute('data-source-label');
-          if (btnLabel === source) {
+          console.log('Checking button with label:', btnLabel, 'against:', sourceShort);
+          if (btnLabel === sourceShort) {
             console.log('Found source button, clicking it');
             sourceFound = true;
             // Always click to ensure it's selected (single-select now)
@@ -2499,7 +2502,7 @@ function domContentLoadedHandler1980() {
           }
         });
         if (!sourceFound) {
-          console.warn('Source button not found:', source);
+          console.warn('Source button not found with short title:', sourceShort);
         }
       } else {
         console.warn('sourceButtonContainer not found');

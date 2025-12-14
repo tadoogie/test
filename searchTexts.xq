@@ -93,6 +93,7 @@ return
       let $id       := string($doc//tei:TEI/@xml:id)
       let $label    := string($doc//tei:titleStmt/tei:title)
       let $main     := string($doc//tei:editionStmt/tei:edition/tei:title[@type="main"])
+      let $short    := string($doc//tei:editionStmt/tei:edition/tei:title[@type="short"])
       let $date     := string($doc//tei:editionStmt/tei:edition/tei:date)
       let $sourceInfo :=
         if ($main != '' and $date != '') then concat($main, " (", $date, ")")
@@ -108,6 +109,7 @@ return
         "label": $label,
         "snippet": $snippet,
         "source": $sourceInfo,
+        "sourceShort": $short,
         "path": document-uri($doc),
         "data": concat($id, ";", $metre, ";", $suggTune)
       }
