@@ -910,34 +910,33 @@ function initializeSourceButtons() {
     btn.setAttribute('data-source-label', label);
 
     btn.addEventListener('click', function() {
-      // Toggle selection (allow multiple)
-      btn.classList.toggle('active');
+      // Single selection only - deselect all others
+      sourceContainer.querySelectorAll('.source-button').forEach(b => {
+        b.classList.remove('active');
+      });
       
-      // Update hidden input with comma-separated list
-      const selectedBtns = Array.from(sourceContainer.querySelectorAll('.source-button.active'));
-      const selectedLabels = selectedBtns.map(b => b.getAttribute('data-source-label'));
-      hiddenInput.value = selectedLabels.join(',');
+      // Select this button
+      btn.classList.add('active');
       
-      // Handle based on count
-      if (selectedLabels.length === 1) {
-        handleSourceSelection(selectedLabels[0]);
-      } else if (selectedLabels.length === 0) {
-        clearTextSelection();
-      } else {
-        handleMultipleSourceSelection(selectedLabels);
-      }
+      // Update hidden input with single source
+      const sourceLabel = btn.getAttribute('data-source-label');
+      hiddenInput.value = sourceLabel;
+      
+      // Handle source selection
+      handleSourceSelection(sourceLabel);
     });
 
     sourceContainer.appendChild(btn);
   });
 
   if (hiddenInput.value) {
-    const initialSources = hiddenInput.value.split(',').map(s => s.trim()).filter(Boolean);
-    initialSources.forEach(source => {
+    // Single source selection - take the first one if comma-separated
+    const initialSource = hiddenInput.value.split(',')[0].trim();
+    if (initialSource) {
       const existing = Array.from(sourceContainer.querySelectorAll('.source-button'))
-        .find(b => b.getAttribute('data-source-label') === source);
+        .find(b => b.getAttribute('data-source-label') === initialSource);
       if (existing) existing.click();
-    });
+    }
   }
 }
 
@@ -1733,16 +1732,9 @@ function updateSelectionSummary() {
 
   var sourceVal = srcEl && srcEl.value ? srcEl.value.trim() : "";
   
-  // Handle comma-separated sources
+  // Single source selection
   if (sourceVal) {
-    var sources = sourceVal.split(',').map(s => s.trim()).filter(Boolean);
-    if (sources.length > 1) {
-      srcOut.textContent = sources.length + " sources selected";
-    } else if (sources.length === 1) {
-      srcOut.textContent = sources[0];
-    } else {
-      srcOut.textContent = "Select Source";
-    }
+    srcOut.textContent = sourceVal;
   } else {
     srcOut.textContent = "Select Source";
   }
@@ -2481,6 +2473,8 @@ function domContentLoadedHandler1980() {
 
   // Select psalm from search results
   function selectPsalmFromSearch(label, psdata, source) {
+    console.log('selectPsalmFromSearch called:', { label, psdata, source });
+    
     // Close modal
     if (searchModal) {
       searchModal.style.display = "none";
@@ -2490,32 +2484,45 @@ function domContentLoadedHandler1980() {
 
     // First, select the source if provided
     if (source) {
+      console.log('Selecting source:', source);
       const sourceContainer = document.getElementById('sourceButtonContainer');
       if (sourceContainer) {
         const sourceButtons = sourceContainer.querySelectorAll('.source-button');
+        let sourceFound = false;
         sourceButtons.forEach(btn => {
           const btnLabel = btn.getAttribute('data-source-label');
           if (btnLabel === source) {
-            // If source is not already active, click it
-            if (!btn.classList.contains('active')) {
-              btn.click();
-            }
+            console.log('Found source button, clicking it');
+            sourceFound = true;
+            // Always click to ensure it's selected (single-select now)
+            btn.click();
           }
         });
+        if (!sourceFound) {
+          console.warn('Source button not found:', source);
+        }
+      } else {
+        console.warn('sourceButtonContainer not found');
       }
     }
 
     // Wait a moment for the source selection to populate texts, then find and click the psalm
     setTimeout(function() {
+      console.log('Looking for psalm button with label:', label);
       const textsContainer = document.getElementById('texts');
       if (textsContainer) {
         const psalms = textsContainer.querySelectorAll('.psalm-btn');
+        console.log('Found', psalms.length, 'psalm buttons');
+        let psalmFound = false;
         psalms.forEach(btn => {
           if (btn.dataset.label === label) {
+            console.log('Found matching psalm button, clicking it');
+            psalmFound = true;
             btn.click();
             
             // After selecting the psalm, switch to TEXT tab and select all verses
             setTimeout(function() {
+              console.log('Switching to TEXT tab');
               // Switch to TEXT tab
               switchToTab('text');
               
@@ -2528,13 +2535,18 @@ function domContentLoadedHandler1980() {
                 selectVersesEl.classList.add('open');
                 selectVersesEl.setAttribute('aria-expanded', 'true');
               }
-            }, 150);
+            }, 200);
             
             return;
           }
         });
+        if (!psalmFound) {
+          console.warn('Psalm button not found with label:', label);
+        }
+      } else {
+        console.warn('texts container not found');
       }
-    }, 100);
+    }, 200);
   }
 
   // Search button click handler
