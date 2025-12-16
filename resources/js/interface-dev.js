@@ -2242,7 +2242,7 @@ function domContentLoadedHandler1980() {
     
     // Container for "All sources" button (on its own line)
     const allButtonContainer = document.createElement('div');
-    allButtonContainer.style.cssText = 'margin-top: 8px; margin-bottom: 8px;';
+    allButtonContainer.style.cssText = 'margin-top: 8px; margin-bottom: 8px; text-align: center;';
     
     // Add "All sources" button
     const allButton = document.createElement('button');
