@@ -2272,8 +2272,28 @@ function domContentLoadedHandler1980() {
       button.type = 'button';
       button.className = 'search-source-button search-source-item';
       button.setAttribute('data-source', source);
-      button.textContent = source;
-      button.style.cssText = 'padding: 8px 16px; border: 1px solid #ccc; border-radius: 4px; background: #d8e5d3; cursor: pointer; font-size: 0.95em;';
+      
+      // Split source title into year and remainder
+      // Typical format: "1564 Psalm Buik" or "1650 Scottish Metrical"
+      const yearMatch = source.match(/^(\d{4})\s+(.+)$/);
+      if (yearMatch) {
+        // Create two-line structure: year on first line, rest on second
+        const yearSpan = document.createElement('div');
+        yearSpan.textContent = yearMatch[1];
+        yearSpan.style.cssText = 'font-weight: bold; font-size: 1.1em;';
+        
+        const titleSpan = document.createElement('div');
+        titleSpan.textContent = yearMatch[2];
+        titleSpan.style.cssText = 'font-size: 0.85em; margin-top: 2px;';
+        
+        button.appendChild(yearSpan);
+        button.appendChild(titleSpan);
+      } else {
+        // Fallback if format doesn't match
+        button.textContent = source;
+      }
+      
+      button.style.cssText = 'padding: 8px 16px; border: 1px solid #ccc; border-radius: 4px; background: #d8e5d3; cursor: pointer; font-size: 0.95em; text-align: center; min-width: 120px;';
       
       // Set initial active state
       if (selectedSources.length === 0 || selectedSources.includes(source)) {
