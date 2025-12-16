@@ -2264,7 +2264,7 @@ function domContentLoadedHandler1980() {
     
     // Container for individual source buttons (on separate line)
     const sourcesButtonContainer = document.createElement('div');
-    sourcesButtonContainer.style.cssText = 'display: flex; flex-wrap: wrap; gap: 8px;';
+    sourcesButtonContainer.style.cssText = 'display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;';
     
     // Add individual source buttons
     availableSources.forEach(function(source) {
