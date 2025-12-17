@@ -61,13 +61,15 @@ declare function local:build-snippet($text as xs:string, $normText as xs:string,
 (: Find the verse number (@n attribute of <lg>) that contains the match :)
 declare function local:find-verse-with-match($doc as node(), $normQuery as xs:string) as xs:string {
   let $verses := $doc//tei:lg
-  for $verse in $verses
-  let $verseText := local:reconstruct-text($verse)
-  let $normVerseText := local:normalize(lower-case($verseText))
-  where contains($normVerseText, $normQuery)
-  return string($verse/@n)
-  (: Return the first matching verse :)
-  [1]
+  let $matches :=
+    for $verse in $verses
+    let $verseText := local:reconstruct-text($verse)
+    let $normVerseText := local:normalize(lower-case($verseText))
+    where contains($normVerseText, $normQuery)
+    return string($verse/@n)
+  return
+    if (count($matches) > 0) then $matches[1]
+    else ""
 };
 
 let $query  := request:get-parameter("query", "")
