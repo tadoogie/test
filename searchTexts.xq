@@ -58,6 +58,20 @@ declare function local:build-snippet($text as xs:string, $normText as xs:string,
     ""
 };
 
+(: Find the verse number (@n attribute of <lg>) that contains the match :)
+declare function local:find-verse-with-match($doc as node(), $normQuery as xs:string) as xs:string {
+  let $verses := $doc//tei:lg
+  let $matches :=
+    for $verse in $verses
+    let $verseText := local:reconstruct-text($verse)
+    let $normVerseText := local:normalize(lower-case($verseText))
+    where contains($normVerseText, $normQuery)
+    return string($verse/@n)
+  return
+    if (count($matches) > 0) then $matches[1]
+    else ""
+};
+
 let $query  := request:get-parameter("query", "")
 let $source := request:get-parameter("source", "")
 
@@ -67,10 +81,21 @@ return
   else
     let $docs := local:collect-docs()
     let $normQ := local:normalize(lower-case($query))
+    
+    (: Tokenize comma-separated sources :)
+    let $sourceTokens := 
+      if ($source != "") then
+        for $token in tokenize($source, ',')
+        let $normalized := normalize-space($token)
+        where $normalized != ''
+        return $normalized
+      else
+        ()
 
     let $filteredDocs :=
-      if ($source != "") then
-        $docs[lower-case(.//tei:editionStmt/tei:edition/tei:title[@type="short"]) = lower-case($source)]
+      if (count($sourceTokens) > 0) then
+        $docs[some $token in $sourceTokens 
+              satisfies lower-case(.//tei:editionStmt/tei:edition/tei:title[@type="short"]) = lower-case($token)]
       else
         $docs
 
@@ -82,6 +107,7 @@ return
       let $id       := string($doc//tei:TEI/@xml:id)
       let $label    := string($doc//tei:titleStmt/tei:title)
       let $main     := string($doc//tei:editionStmt/tei:edition/tei:title[@type="main"])
+      let $short    := string($doc//tei:editionStmt/tei:edition/tei:title[@type="short"])
       let $date     := string($doc//tei:editionStmt/tei:edition/tei:date)
       let $sourceInfo :=
         if ($main != '' and $date != '') then concat($main, " (", $date, ")")
@@ -91,14 +117,17 @@ return
       let $metre    := string($doc//tei:div/@met)
       let $suggTune := normalize-space(string($doc//tei:notesStmt/tei:note[2]))
       let $snippet  := local:build-snippet($text, $normT, $normQ, 40)
+      let $verseNum := local:find-verse-with-match($doc, $normQ)
       order by $label
       return map {
         "id": $id,
         "label": $label,
         "snippet": $snippet,
         "source": $sourceInfo,
+        "sourceShort": $short,
         "path": document-uri($doc),
-        "data": concat($id, ";", $metre, ";", $suggTune)
+        "data": concat($id, ";", $metre, ";", $suggTune),
+        "verseNum": $verseNum
       }
 
     return array { subsequence($results, 1, 50) }

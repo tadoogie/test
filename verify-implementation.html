@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Verify Multi-Source Implementation</title>
+    <style>
+        body { font-family: Arial; padding: 20px; }
+        .pass { color: green; font-weight: bold; }
+        .fail { color: red; font-weight: bold; }
+        .section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; }
+        pre { background: #f5f5f5; padding: 10px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>Multi-Source Implementation Verification</h1>
+    
+    <div class="section">
+        <h2>1. Check page.html for Search Modal Source Filter</h2>
+        <p>Looking for: <code>&lt;div id="searchSourcesList"&gt;</code> in search modal</p>
+        <div id="result1"></div>
+    </div>
+    
+    <div class="section">
+        <h2>2. Check interface-dev.js for initializeSourceButtons Toggle</h2>
+        <p>Looking for: <code>btn.classList.toggle('active')</code></p>
+        <div id="result2"></div>
+    </div>
+    
+    <div class="section">
+        <h2>3. Check interface-dev.js for populateSearchModalSourceList</h2>
+        <p>Looking for: <code>function populateSearchModalSourceList()</code></p>
+        <div id="result3"></div>
+    </div>
+    
+    <div class="section">
+        <h2>4. Check searchTexts.xq for Source Tokenization</h2>
+        <p>Looking for: <code>tokenize($source, ',')</code></p>
+        <div id="result4"></div>
+    </div>
+
+    <script>
+        async function verify() {
+            const results = [];
+            
+            // Check page.html
+            try {
+                const pageHTML = await fetch('page.html').then(r => r.text());
+                const hasSearchSourcesList = pageHTML.includes('id="searchSourcesList"');
+                const hasSearchInLabel = pageHTML.includes('Search in:');
+                document.getElementById('result1').innerHTML = 
+                    (hasSearchSourcesList && hasSearchInLabel) 
+                    ? '<span class="pass">✓ PASS</span> - Search modal has source filter div and label'
+                    : '<span class="fail">✗ FAIL</span> - Missing search source filter';
+                results.push(hasSearchSourcesList && hasSearchInLabel);
+            } catch(e) {
+                document.getElementById('result1').innerHTML = 
+                    '<span class="fail">✗ ERROR</span> - Could not load page.html: ' + e.message;
+                results.push(false);
+            }
+            
+            // Check interface-dev.js
+            try {
+                const interfaceJS = await fetch('resources/js/interface-dev.js').then(r => r.text());
+                const hasToggle = interfaceJS.includes("btn.classList.toggle('active')");
+                const hasMultiSource = interfaceJS.includes('handleMultipleSourceSelection');
+                document.getElementById('result2').innerHTML = 
+                    (hasToggle && hasMultiSource) 
+                    ? '<span class="pass">✓ PASS</span> - Has toggle behavior and multi-source handler'
+                    : '<span class="fail">✗ FAIL</span> - Missing toggle or handler';
+                results.push(hasToggle && hasMultiSource);
+            } catch(e) {
+                document.getElementById('result2').innerHTML = 
+                    '<span class="fail">✗ ERROR</span> - Could not load interface-dev.js: ' + e.message;
+                results.push(false);
+            }
+            
+            // Check for populateSearchModalSourceList
+            try {
+                const interfaceJS = await fetch('resources/js/interface-dev.js').then(r => r.text());
+                const hasFunction = interfaceJS.includes('function populateSearchModalSourceList()');
+                const hasCheckboxes = interfaceJS.includes('search-source-all');
+                document.getElementById('result3').innerHTML = 
+                    (hasFunction && hasCheckboxes) 
+                    ? '<span class="pass">✓ PASS</span> - Has populateSearchModalSourceList with checkboxes'
+                    : '<span class="fail">✗ FAIL</span> - Missing function or checkboxes';
+                results.push(hasFunction && hasCheckboxes);
+            } catch(e) {
+                document.getElementById('result3').innerHTML = 
+                    '<span class="fail">✗ ERROR</span> - Could not verify: ' + e.message;
+                results.push(false);
+            }
+            
+            // Check searchTexts.xq
+            try {
+                const searchXQ = await fetch('searchTexts.xq').then(r => r.text());
+                const hasTokenize = searchXQ.includes("tokenize($source, ',')");
+                const hasSourceTokens = searchXQ.includes('$sourceTokens');
+                document.getElementById('result4').innerHTML = 
+                    (hasTokenize && hasSourceTokens) 
+                    ? '<span class="pass">✓ PASS</span> - Has source tokenization logic'
+                    : '<span class="fail">✗ FAIL</span> - Missing tokenization';
+                results.push(hasTokenize && hasSourceTokens);
+            } catch(e) {
+                document.getElementById('result4').innerHTML = 
+                    '<span class="fail">✗ ERROR</span> - Could not load searchTexts.xq: ' + e.message;
+                results.push(false);
+            }
+            
+            // Summary
+            const allPass = results.every(r => r);
+            const summary = document.createElement('div');
+            summary.className = 'section';
+            summary.innerHTML = '<h2>Summary</h2>' + 
+                (allPass 
+                    ? '<p class="pass">✓ All checks passed! Implementation is complete.</p>'
+                    : '<p class="fail">✗ Some checks failed. See details above.</p>');
+            document.body.appendChild(summary);
+        }
+        
+        verify();
+    </script>
+</body>
+</html>
