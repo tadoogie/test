@@ -2609,12 +2609,19 @@ function domContentLoadedHandler1980() {
       return;
     }
 
-    // First, deselect all verses
+    // First, deselect all verses (don't set inline styles - let CSS handle appearance)
     verseBtns.forEach(btn => {
       btn.dataset.selected = 'false';
       btn.classList.remove('active');
-      btn.style.background = '#f0f0f0';
-      btn.style.color = '#000';
+      // Remove any inline styles that may have been set
+      btn.style.background = '';
+      btn.style.color = '';
+    });
+
+    // Deselect any "Select All" button(s)
+    const selectAllBtns = verses.querySelectorAll('.stanza-control-btn');
+    selectAllBtns.forEach(btn => {
+      btn.classList.remove('active');
     });
 
     // Find the verse button with matching verse number
@@ -2627,11 +2634,9 @@ function domContentLoadedHandler1980() {
       const match = verseText.match(/\b(\d+)\b/);
       if (match && match[1] === verseNum) {
         console.log('Found matching verse button for verse', verseNum, ':', verseText);
-        // Select this verse
+        // Select this verse (let CSS handle the styling via .active class)
         btn.dataset.selected = 'true';
         btn.classList.add('active');
-        btn.style.background = '#4CAF50';
-        btn.style.color = '#fff';
         foundVerse = true;
         break;
       }
@@ -2643,8 +2648,6 @@ function domContentLoadedHandler1980() {
       if (verseBtns.length > 0) {
         verseBtns[0].dataset.selected = 'true';
         verseBtns[0].classList.add('active');
-        verseBtns[0].style.background = '#4CAF50';
-        verseBtns[0].style.color = '#fff';
       }
     }
 
