@@ -2629,9 +2629,10 @@ function domContentLoadedHandler1980() {
     let foundVerse = false;
     for (let btn of verseBtns) {
       const verseText = btn.textContent || '';
-      // Try to extract the verse number from the button text
-      // Common patterns: "1", "1.", "Verse 1", etc.
-      const match = verseText.match(/\b(\d+)\b/);
+      // Try to extract the verse number/designation from the button text
+      // Common patterns: "1", "1.", "Verse 1", "20-21", "16a", etc.
+      // Look for patterns like: digit(s), optionally followed by letter or hyphen+digit(s)
+      const match = verseText.match(/\b(\d+(?:[a-z]|-\d+)?)\b/i);
       if (match && match[1] === verseNum) {
         console.log('Found matching verse button for verse', verseNum, ':', verseText);
         // Select this verse (let CSS handle the styling via .active class)
