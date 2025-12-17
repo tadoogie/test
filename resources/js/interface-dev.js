@@ -1900,12 +1900,34 @@ function watchForVersesAndShowNext() {
   versesObserver = new MutationObserver(function () {
     if (verses.childElementCount > 0 || verses.textContent.trim().length > 0) {
       const verseSection = document.getElementById('VerseSection') || verses.parentElement;
-      ensureNextButton(verseSection, 'next-btn-text', () => switchToTab('tune'));
+      ensureNextButton(verseSection, 'next-btn-text', () => validateAndSwitchToTune());
       try { updateSelectionSummary(); } catch (_) {}
       versesObserver.disconnect();
     }
   });
   versesObserver.observe(verses, { childList: true, subtree: true, characterData: true });
+}
+
+// Validate verse selection before switching to tune tab
+function validateAndSwitchToTune() {
+  const verses = document.getElementById('verses');
+  if (!verses) {
+    switchToTab('tune');
+    return;
+  }
+
+  // Get all verse buttons
+  const verseBtns = verses.querySelectorAll('.verse-btn');
+  const selectedVerseBtns = Array.from(verseBtns).filter(btn => btn.dataset.selected === 'true');
+  
+  if (selectedVerseBtns.length < 2) {
+    // Show error message
+    alert('You must select at least two stanzas. Please select another and try again.');
+    return;
+  }
+
+  // Validation passed, proceed to tune tab
+  switchToTab('tune');
 }
 
 document.addEventListener('awesomplete-selectcomplete', function (e) {
@@ -2450,7 +2472,7 @@ function domContentLoadedHandler1980() {
         const psdata = this.getAttribute('data-psdata');
         const source = this.getAttribute('data-source');
         const sourceShort = this.getAttribute('data-source-short');
-        selectPsalmFromSearch(label, psdata, source, sourceShort);
+        selectPsalmFromSearch(label, psdata, source, sourceShort, query);
       });
       
       // Hover effect
@@ -2493,14 +2515,20 @@ function domContentLoadedHandler1980() {
   }
 
   // Select psalm from search results
-  function selectPsalmFromSearch(label, psdata, source, sourceShort) {
-    console.log('selectPsalmFromSearch called:', { label, psdata, source, sourceShort });
+  function selectPsalmFromSearch(label, psdata, source, sourceShort, searchQuery) {
+    console.log('selectPsalmFromSearch called:', { label, psdata, source, sourceShort, searchQuery });
     
     // Close modal
     if (searchModal) {
       searchModal.style.display = "none";
+      const query = searchInput.value; // Store the query before clearing
       searchInput.value = "";
       searchResults.innerHTML = "";
+      
+      // Store query for verse selection if not already provided
+      if (!searchQuery && query) {
+        searchQuery = query;
+      }
     }
 
     // First, select the source if provided
@@ -2543,20 +2571,23 @@ function domContentLoadedHandler1980() {
             psalmFound = true;
             btn.click();
             
-            // After selecting the psalm, switch to TEXT tab and select all verses
+            // After selecting the psalm, switch to TEXT tab and select only the matching verse
             setTimeout(function() {
               console.log('Switching to TEXT tab');
               // Switch to TEXT tab
               switchToTab('text');
               
-              // Select "All" verses (the default when a psalm is selected)
-              // The verse selection should already be set to "All" by the psalm click handler
-              // but we can ensure it's visible
-              const selectVersesEl = document.getElementById('selectVerses');
-              if (selectVersesEl) {
-                selectVersesEl.innerHTML = 'All';
-                selectVersesEl.classList.add('open');
-                selectVersesEl.setAttribute('aria-expanded', 'true');
+              // Find and select only the verse containing the search term
+              if (searchQuery) {
+                selectVerseWithSearchTerm(searchQuery);
+              } else {
+                // Fallback to selecting all verses if no search query
+                const selectVersesEl = document.getElementById('selectVerses');
+                if (selectVersesEl) {
+                  selectVersesEl.innerHTML = 'All';
+                  selectVersesEl.classList.add('open');
+                  selectVersesEl.setAttribute('aria-expanded', 'true');
+                }
               }
             }, 200);
             
@@ -2570,6 +2601,79 @@ function domContentLoadedHandler1980() {
         console.warn('texts container not found');
       }
     }, 200);
+  }
+
+  // Helper function to normalize text for search (same as backend)
+  function normalizeTextForSearch(text) {
+    if (!text) return '';
+    // Normalize to NFD and remove combining marks
+    const nfd = text.normalize('NFD');
+    return nfd.replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  }
+
+  // Select only the verse containing the search term
+  function selectVerseWithSearchTerm(searchQuery) {
+    console.log('Selecting verse with search term:', searchQuery);
+    const verses = document.getElementById('verses');
+    if (!verses) {
+      console.warn('verses element not found');
+      return;
+    }
+
+    // Get all verse buttons
+    const verseBtns = verses.querySelectorAll('.verse-btn');
+    if (verseBtns.length === 0) {
+      console.warn('No verse buttons found');
+      return;
+    }
+
+    // Normalize the search query
+    const normalizedQuery = normalizeTextForSearch(searchQuery);
+    console.log('Normalized query:', normalizedQuery);
+
+    // First, deselect all verses
+    verseBtns.forEach(btn => {
+      btn.dataset.selected = 'false';
+      btn.classList.remove('active');
+      btn.style.background = '#f0f0f0';
+      btn.style.color = '#000';
+    });
+
+    // Find the first verse containing the search term
+    let foundVerse = false;
+    for (let btn of verseBtns) {
+      const verseText = btn.textContent || '';
+      const normalizedVerse = normalizeTextForSearch(verseText);
+      
+      if (normalizedVerse.includes(normalizedQuery)) {
+        console.log('Found matching verse:', btn.textContent);
+        // Select this verse
+        btn.dataset.selected = 'true';
+        btn.classList.add('active');
+        btn.style.background = '#4CAF50';
+        btn.style.color = '#fff';
+        foundVerse = true;
+        break;
+      }
+    }
+
+    if (!foundVerse) {
+      console.warn('No verse found containing search term, selecting first verse as fallback');
+      // Fallback: select the first verse
+      if (verseBtns.length > 0) {
+        verseBtns[0].dataset.selected = 'true';
+        verseBtns[0].classList.add('active');
+        verseBtns[0].style.background = '#4CAF50';
+        verseBtns[0].style.color = '#fff';
+      }
+    }
+
+    // Update the summary display
+    const selectVersesEl = document.getElementById('selectVerses');
+    if (selectVersesEl) {
+      const selectedCount = Array.from(verseBtns).filter(btn => btn.dataset.selected === 'true').length;
+      selectVersesEl.innerHTML = selectedCount === verseBtns.length ? 'All' : `${selectedCount} selected`;
+    }
   }
 
   // Search button click handler
