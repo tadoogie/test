@@ -58,6 +58,18 @@ declare function local:build-snippet($text as xs:string, $normText as xs:string,
     ""
 };
 
+(: Find the verse number (@n attribute of <lg>) that contains the match :)
+declare function local:find-verse-with-match($doc as node(), $normQuery as xs:string) as xs:string {
+  let $verses := $doc//tei:lg
+  for $verse in $verses
+  let $verseText := local:reconstruct-text($verse)
+  let $normVerseText := local:normalize(lower-case($verseText))
+  where contains($normVerseText, $normQuery)
+  return string($verse/@n)
+  (: Return the first matching verse :)
+  [1]
+};
+
 let $query  := request:get-parameter("query", "")
 let $source := request:get-parameter("source", "")
 
@@ -103,6 +115,7 @@ return
       let $metre    := string($doc//tei:div/@met)
       let $suggTune := normalize-space(string($doc//tei:notesStmt/tei:note[2]))
       let $snippet  := local:build-snippet($text, $normT, $normQ, 40)
+      let $verseNum := local:find-verse-with-match($doc, $normQ)
       order by $label
       return map {
         "id": $id,
@@ -111,7 +124,8 @@ return
         "source": $sourceInfo,
         "sourceShort": $short,
         "path": document-uri($doc),
-        "data": concat($id, ";", $metre, ";", $suggTune)
+        "data": concat($id, ";", $metre, ";", $suggTune),
+        "verseNum": $verseNum
       }
 
     return array { subsequence($results, 1, 50) }

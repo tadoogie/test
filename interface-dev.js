@@ -2453,7 +2453,7 @@ function domContentLoadedHandler1980() {
       // Highlight the match in the snippet
       const snippet = highlightMatchInSnippet(result.snippet, query);
       
-      html += '<div class="search-result-item" data-label="' + result.label + '" data-psdata="' + result.data + '" data-source="' + (result.source || '') + '" data-source-short="' + (result.sourceShort || '') + '" style="padding:12px;margin:8px 0;background:#f5f5f5;border-radius:6px;cursor:pointer;border:1px solid #ddd;">';
+      html += '<div class="search-result-item" data-label="' + result.label + '" data-psdata="' + result.data + '" data-source="' + (result.source || '') + '" data-source-short="' + (result.sourceShort || '') + '" data-verse-num="' + (result.verseNum || '') + '" style="padding:12px;margin:8px 0;background:#f5f5f5;border-radius:6px;cursor:pointer;border:1px solid #ddd;">';
       html += '<div style="font-weight:700;margin-bottom:6px;color:#333;">' + result.label + '</div>';
       html += '<div style="color:#555;font-size:0.9em;">' + snippet + '</div>';
       if (result.source) {
@@ -2472,7 +2472,8 @@ function domContentLoadedHandler1980() {
         const psdata = this.getAttribute('data-psdata');
         const source = this.getAttribute('data-source');
         const sourceShort = this.getAttribute('data-source-short');
-        selectPsalmFromSearch(label, psdata, source, sourceShort, query);
+        const verseNum = this.getAttribute('data-verse-num');
+        selectPsalmFromSearch(label, psdata, source, sourceShort, verseNum);
       });
       
       // Hover effect
@@ -2515,20 +2516,14 @@ function domContentLoadedHandler1980() {
   }
 
   // Select psalm from search results
-  function selectPsalmFromSearch(label, psdata, source, sourceShort, searchQuery) {
-    console.log('selectPsalmFromSearch called:', { label, psdata, source, sourceShort, searchQuery });
+  function selectPsalmFromSearch(label, psdata, source, sourceShort, verseNum) {
+    console.log('selectPsalmFromSearch called:', { label, psdata, source, sourceShort, verseNum });
     
     // Close modal
     if (searchModal) {
       searchModal.style.display = "none";
-      const query = searchInput.value; // Store the query before clearing
       searchInput.value = "";
       searchResults.innerHTML = "";
-      
-      // Store query for verse selection if not already provided
-      if (!searchQuery && query) {
-        searchQuery = query;
-      }
     }
 
     // First, select the source if provided
@@ -2577,17 +2572,12 @@ function domContentLoadedHandler1980() {
               // Switch to TEXT tab
               switchToTab('text');
               
-              // Find and select only the verse containing the search term
-              if (searchQuery) {
-                selectVerseWithSearchTerm(searchQuery);
+              // Find and select only the verse with the matching verse number
+              if (verseNum) {
+                selectVerseByNumber(verseNum);
               } else {
-                // Fallback to selecting all verses if no search query
-                const selectVersesEl = document.getElementById('selectVerses');
-                if (selectVersesEl) {
-                  selectVersesEl.innerHTML = 'All';
-                  selectVersesEl.classList.add('open');
-                  selectVersesEl.setAttribute('aria-expanded', 'true');
-                }
+                // Fallback to selecting first verse if no verse number
+                selectVerseByNumber('1');
               }
             }, 200);
             
@@ -2603,17 +2593,9 @@ function domContentLoadedHandler1980() {
     }, 200);
   }
 
-  // Helper function to normalize text for search (same as backend)
-  function normalizeTextForSearch(text) {
-    if (!text) return '';
-    // Normalize to NFD and remove combining marks
-    const nfd = text.normalize('NFD');
-    return nfd.replace(/[\u0300-\u036f]/g, '').toLowerCase();
-  }
-
-  // Select only the verse containing the search term
-  function selectVerseWithSearchTerm(searchQuery) {
-    console.log('Selecting verse with search term:', searchQuery);
+  // Select only the verse with the given verse number
+  function selectVerseByNumber(verseNum) {
+    console.log('Selecting verse by number:', verseNum);
     const verses = document.getElementById('verses');
     if (!verses) {
       console.warn('verses element not found');
@@ -2627,10 +2609,6 @@ function domContentLoadedHandler1980() {
       return;
     }
 
-    // Normalize the search query
-    const normalizedQuery = normalizeTextForSearch(searchQuery);
-    console.log('Normalized query:', normalizedQuery);
-
     // First, deselect all verses
     verseBtns.forEach(btn => {
       btn.dataset.selected = 'false';
@@ -2639,14 +2617,16 @@ function domContentLoadedHandler1980() {
       btn.style.color = '#000';
     });
 
-    // Find the first verse containing the search term
+    // Find the verse button with matching verse number
+    // The verse button text should contain the verse number
     let foundVerse = false;
     for (let btn of verseBtns) {
       const verseText = btn.textContent || '';
-      const normalizedVerse = normalizeTextForSearch(verseText);
-      
-      if (normalizedVerse.includes(normalizedQuery)) {
-        console.log('Found matching verse:', btn.textContent);
+      // Try to extract the verse number from the button text
+      // Common patterns: "1", "1.", "Verse 1", etc.
+      const match = verseText.match(/\b(\d+)\b/);
+      if (match && match[1] === verseNum) {
+        console.log('Found matching verse button for verse', verseNum, ':', verseText);
         // Select this verse
         btn.dataset.selected = 'true';
         btn.classList.add('active');
@@ -2658,7 +2638,7 @@ function domContentLoadedHandler1980() {
     }
 
     if (!foundVerse) {
-      console.warn('No verse found containing search term, selecting first verse as fallback');
+      console.warn('No verse found with number:', verseNum, 'selecting first verse as fallback');
       // Fallback: select the first verse
       if (verseBtns.length > 0) {
         verseBtns[0].dataset.selected = 'true';
