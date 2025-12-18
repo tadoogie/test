@@ -1609,7 +1609,7 @@ function populateVersesFromSelectedText(rawObj) {
     };
   }
 
-  try { ensureNextButton(verseSection || versesEl.parentElement, 'next-btn-text', () => switchToTab('tune')); } catch (_) {}
+  try { ensureNextButton(verseSection || versesEl.parentElement, 'next-btn-text', () => validateAndSwitchToTune()); } catch (_) {}
   try { updateSelectionSummary(); } catch (_) {}
 }
 
