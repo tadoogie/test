@@ -2934,7 +2934,28 @@ function domContentLoadedHandlerMelodySearch() {
     const fullString = fullIntervals;
     
     // Find the match and highlight it
-    const matchIndex = fullString.indexOf(searchString);
+    // Use word boundary checking to avoid false positives like "12 0" matching "2 0"
+    let matchIndex = -1;
+    let searchIndex = 0;
+    
+    while (searchIndex <= fullString.length - searchString.length) {
+      const testIndex = fullString.indexOf(searchString, searchIndex);
+      if (testIndex === -1) break;
+      
+      // Check if this is a word boundary match (start of string or preceded by space)
+      const isStartBoundary = testIndex === 0 || fullString[testIndex - 1] === ' ';
+      // Check if followed by space or end of string
+      const endPos = testIndex + searchString.length;
+      const isEndBoundary = endPos === fullString.length || fullString[endPos] === ' ';
+      
+      if (isStartBoundary && isEndBoundary) {
+        matchIndex = testIndex;
+        break;
+      }
+      
+      searchIndex = testIndex + 1;
+    }
+    
     if (matchIndex === -1) {
       return fullString;
     }
