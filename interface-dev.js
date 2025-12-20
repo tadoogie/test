@@ -2927,9 +2927,10 @@ function domContentLoadedHandlerMelodySearch() {
 
   // Highlight the matching portion of the interval sequence
   function highlightMelodyMatch(fullIntervals, searchIntervals) {
-    // fullIntervals is a string like "2 0 2 1 2 -2 5"
-    // searchIntervals is an array like [2, 0, 2]
-    const searchString = searchIntervals.map(formatSignedInterval).join(' ');
+    // fullIntervals is a string like "2 0 2 1 2 -2 5" (raw format from MEI)
+    // searchIntervals is an array like [2, 0, 2] (raw numbers)
+    // We need to match using raw format (without + prefix)
+    const searchString = searchIntervals.join(' ');
     const fullString = fullIntervals;
     
     // Find the match and highlight it
