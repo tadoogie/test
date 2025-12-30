@@ -58,13 +58,16 @@ return
       let $pitchTokens := tokenize($fullPitches, '\s+')
       let $intervalDisplay := string-join(subsequence($intervalTokens, 1, 15), ' ')
       let $pitchDisplay := string-join(subsequence($pitchTokens, 1, 15), ' ')
+      let $intervalSuffix := if (count($intervalTokens) > 15) then " ..." else ""
+      let $pitchSuffix := if (count($pitchTokens) > 15) then " ..." else ""
       
       order by $title
       return map {
         "id": $id,
         "label": $title,
-        "intervalMatch": $intervalDisplay || (if (count($intervalTokens) > 15) then " ..." else ""),
-        "pitchMatch": $pitchDisplay || (if (count($pitchTokens) > 15) then " ..." else "")
+        "intervalMatch": concat($intervalDisplay, $intervalSuffix),
+        "pitchMatch": concat($pitchDisplay, $pitchSuffix)
       }
     
     return array { subsequence($results, 1, 50) }
+
