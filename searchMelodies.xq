@@ -30,7 +30,7 @@ let $signedinterval := request:get-parameter("signedinterval", "")
 
 return
   if (string-length(normalize-space($signedinterval)) eq 0) then
-    []  (: Return empty array :)
+    []
   else
     let $docs := local:collect-mei-docs()
     let $searchPattern := normalize-space($signedinterval)
@@ -43,30 +43,30 @@ return
       let $pitchCode := $doc//mei:incipCode[@form='pitchclass']
       
       (: Check if the search pattern appears in the interval code :)
-      where $intervalCode and contains(normalize-space(string($intervalCode)), $searchPattern)
+      where $intervalCode and contains(normalize-space(data($intervalCode)), $searchPattern)
       
       (: Extract tune metadata :)
-      let $id := string($doc//@xml:id[1])
-      let $title := string($doc//mei:title[1])
+      let $id := data(($doc//@xml:id)[1])
+      let $title := data(($doc//mei:title)[1])
       
       (: Get the full interval and pitch sequences :)
-      let $fullIntervals := normalize-space(string($intervalCode))
-      let $fullPitches := normalize-space(string($pitchCode))
+      let $fullIntervals := normalize-space(data($intervalCode))
+      let $fullPitches := normalize-space(data($pitchCode))
       
       (: Extract just the first 15 intervals/pitches for display :)
       let $intervalTokens := tokenize($fullIntervals, '\s+')
       let $pitchTokens := tokenize($fullPitches, '\s+')
       let $intervalDisplay := string-join(subsequence($intervalTokens, 1, 15), ' ')
       let $pitchDisplay := string-join(subsequence($pitchTokens, 1, 15), ' ')
-      let $intervalSuffix := if (count($intervalTokens) > 15) then " ..." else ""
-      let $pitchSuffix := if (count($pitchTokens) > 15) then " ..." else ""
+      let $intervalSuffix := if (count($intervalTokens) > 15) then ' ...' else ''
+      let $pitchSuffix := if (count($pitchTokens) > 15) then ' ...' else ''
       
       order by $title
       return map {
-        "id": $id,
-        "label": $title,
-        "intervalMatch": concat($intervalDisplay, $intervalSuffix),
-        "pitchMatch": concat($pitchDisplay, $pitchSuffix)
+        'id': if ($id) then $id else '',
+        'label': if ($title) then $title else 'Untitled',
+        'intervalMatch': concat($intervalDisplay, $intervalSuffix),
+        'pitchMatch': concat($pitchDisplay, $pitchSuffix)
       }
     
-    return [ subsequence($results, 1, 50) ]
+    return array { subsequence($results, 1, 50) }
