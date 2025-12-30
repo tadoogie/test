@@ -30,7 +30,7 @@ let $signedinterval := request:get-parameter("signedinterval", "")
 
 return
   if (string-length(normalize-space($signedinterval)) eq 0) then
-    array { }  (: Require search parameter :)
+    []  (: Return empty array :)
   else
     let $docs := local:collect-mei-docs()
     let $searchPattern := normalize-space($signedinterval)
@@ -69,5 +69,4 @@ return
         "pitchMatch": concat($pitchDisplay, $pitchSuffix)
       }
     
-    return array { subsequence($results, 1, 50) }
-
+    return [ subsequence($results, 1, 50) ]
