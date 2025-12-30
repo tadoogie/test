@@ -46,7 +46,7 @@ return
       where $intervalCode and contains(normalize-space(string($intervalCode)), $searchPattern)
       
       (: Extract tune metadata :)
-      let $id := string($doc/@xml:id)
+      let $id := string($doc//@xml:id[1])
       let $title := string($doc//mei:title[1])
       
       (: Get the full interval and pitch sequences :)
