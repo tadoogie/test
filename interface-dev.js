@@ -325,6 +325,39 @@ function ensurePstuneSearchUI(tuneLabels, tuneListObjs, initialValue) {
     try { tuneInput.placeholder = tuneInput.placeholder || '[Type here to filter tunes]'; } catch(e) {}
   }
 
+  // Create or reuse melody search link
+  let melodySearchContainer = document.getElementById('searchMelodyContainer');
+  if (!melodySearchContainer) {
+    melodySearchContainer = document.createElement('div');
+    melodySearchContainer.id = 'searchMelodyContainer';
+    melodySearchContainer.style.cssText = 'margin-top:10px;margin-bottom:10px;margin-left:8px;display:block;';
+    
+    const melodySearchLink = document.createElement('a');
+    melodySearchLink.href = '#';
+    melodySearchLink.id = 'searchMelodyLink';
+    melodySearchLink.style.cssText = 'color:#6fc252;text-decoration:none;font-size:1em;display:inline-flex;align-items:center;gap:10px;';
+    
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('viewBox', '0 0 640 640');
+    svg.setAttribute('width', '18');
+    svg.setAttribute('height', '18');
+    svg.setAttribute('aria-hidden', 'true');
+    svg.setAttribute('focusable', 'false');
+    svg.style.cssText = 'display:inline-block;vertical-align:middle;fill:currentColor;';
+    
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', 'M532 71C539.6 77.1 544 86.3 544 96L544 400C544 444.2 501 480 448 480C395 480 352 444.2 352 400C352 355.8 395 320 448 320C459.2 320 470 321.6 480 324.6L480 207.9L256 257.7L256 464C256 508.2 213 544 160 544C107 544 64 508.2 64 464C64 419.8 107 384 160 384C171.2 384 182 385.6 192 388.6L192 160C192 145 202.4 132 217.1 128.8L505.1 64.8C514.6 62.7 524.5 65 532.1 71.1z');
+    svg.appendChild(path);
+    
+    const span = document.createElement('span');
+    span.textContent = 'Search by Melody';
+    
+    melodySearchLink.appendChild(svg);
+    melodySearchLink.appendChild(span);
+    melodySearchContainer.appendChild(melodySearchLink);
+    tunesContainer.appendChild(melodySearchContainer);
+  }
+
   if (!tuneButtonsContainer) {
     tuneButtonsContainer = document.createElement('div');
     tuneButtonsContainer.id = 'tuneButtons';
