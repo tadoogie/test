@@ -2913,8 +2913,8 @@ function domContentLoadedHandlerMelodySearch() {
         throw new Error(`Search failed: ${response.status} ${response.statusText}`);
       }
       
-      const results = await response.json();
-      displayMelodySearchResults(results, intervals, pitchClasses);
+      const data = await response.json();
+      displayMelodySearchResults(data.results || [], intervals, pitchClasses);
       
     } catch (error) {
       console.error('Melody search error:', error);
