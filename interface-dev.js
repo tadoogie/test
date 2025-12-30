@@ -356,6 +356,21 @@ function ensurePstuneSearchUI(tuneLabels, tuneListObjs, initialValue) {
     melodySearchLink.appendChild(span);
     melodySearchContainer.appendChild(melodySearchLink);
     tunesContainer.appendChild(melodySearchContainer);
+    
+    // Attach click handler to open melody search modal
+    melodySearchLink.addEventListener('click', function(e) {
+      e.preventDefault();
+      const modal = document.getElementById('melodySearchModal');
+      const input = document.getElementById('melodySearchInput');
+      if (modal && input) {
+        modal.style.display = 'flex';
+        input.focus();
+        const resultsDiv = document.getElementById('melodySearchResults');
+        if (resultsDiv) {
+          resultsDiv.innerHTML = '<div style="padding:20px;text-align:center;color:#555;">Enter pitch classes (0-11) separated by spaces to search for matching melodies.</div>';
+        }
+      }
+    });
   }
 
   if (!tuneButtonsContainer) {
