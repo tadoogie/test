@@ -3,33 +3,31 @@ declare namespace mei="http://www.music-encoding.org/ns/mei";
 declare namespace output="http://www.w3.org/2010/xslt-xquery-serialization";
 declare option output:method "json";
 
-(: Gather MEI documents from any available collection :)
-declare function local:collect-mei-docs() as node()* {
-  let $base := '/db/apps/splitleaf-demo'
-  let $candidates := (
-    '/db/mei',
-    '/db/tunes',
-    concat($base, '/mei'),
-    concat($base, '/tunes'),
-    concat($base, '/data/mei'),
-    concat($base, '/data/tunes'),
-    concat($base, '/data'),
-    $base
-  )
+(: Get search parameter :)
+let $signedinterval := request:get-parameter("signedinterval", "")
+
+(: Gather MEI documents from candidate collections :)
+let $base := '/db/apps/splitleaf-demo'
+let $candidates := (
+  '/db/mei',
+  '/db/tunes',
+  concat($base, '/mei'),
+  concat($base, '/tunes'),
+  concat($base, '/data/mei'),
+  concat($base, '/data/tunes'),
+  concat($base, '/data'),
+  $base
+)
+let $docs := 
   for $p in $candidates
   where xmldb:collection-available($p)
   return collection($p)//mei:mei
-};
-
-(: Get search parameter :)
-let $signedinterval := request:get-parameter("signedinterval", "")
 
 (: Search for matching interval patterns :)
 let $results :=
   if (string-length($signedinterval) = 0) then
     ()
   else
-    let $docs := local:collect-mei-docs()
     let $searchPattern := normalize-space($signedinterval)
     
     for $doc in $docs
