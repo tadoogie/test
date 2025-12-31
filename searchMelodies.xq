@@ -6,22 +6,8 @@ declare option output:method "json";
 (: Get search parameter :)
 let $signedinterval := request:get-parameter("signedinterval", "")
 
-(: Gather MEI documents from candidate collections :)
-let $base := '/db/apps/splitleaf-demo'
-let $candidates := (
-  '/db/mei',
-  '/db/tunes',
-  concat($base, '/mei'),
-  concat($base, '/tunes'),
-  concat($base, '/data/mei'),
-  concat($base, '/data/tunes'),
-  concat($base, '/data'),
-  $base
-)
-let $docs := 
-  for $p in $candidates
-  where xmldb:collection-available($p)
-  return collection($p)//mei:mei
+(: Only search in /db/tunes/ :)
+let $docs := collection('/db/tunes')//mei:mei
 
 (: Search for matching interval patterns :)
 let $results :=
