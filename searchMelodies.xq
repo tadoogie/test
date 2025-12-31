@@ -15,8 +15,8 @@ let $results :=
     let $intervalCode := $doc//mei:incipCode[@form="signedinterval"]
     let $pitchCode := $doc//mei:incipCode[@form="pitchclass"]
     where $intervalCode and contains(string($intervalCode), $signedinterval)
-    let $id := string($doc//@xml:id[1])
-    let $title := string($doc//mei:title[1])
+    let $id := string(($doc//@xml:id)[1])
+    let $title := string(($doc//mei:title)[1])
     let $intervalMatch := string($intervalCode)
     let $pitchMatch := string($pitchCode)
     order by $title
