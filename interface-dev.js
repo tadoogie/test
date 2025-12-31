@@ -325,6 +325,54 @@ function ensurePstuneSearchUI(tuneLabels, tuneListObjs, initialValue) {
     try { tuneInput.placeholder = tuneInput.placeholder || '[Type here to filter tunes]'; } catch(e) {}
   }
 
+  // Create or reuse melody search link
+  let melodySearchContainer = document.getElementById('searchMelodyContainer');
+  if (!melodySearchContainer) {
+    melodySearchContainer = document.createElement('div');
+    melodySearchContainer.id = 'searchMelodyContainer';
+    melodySearchContainer.style.cssText = 'margin-top:10px;margin-bottom:10px;margin-left:8px;display:block;';
+    
+    const melodySearchLink = document.createElement('a');
+    melodySearchLink.href = '#';
+    melodySearchLink.id = 'searchMelodyLink';
+    melodySearchLink.style.cssText = 'color:#6fc252;text-decoration:none;font-size:1em;display:inline-flex;align-items:center;gap:10px;';
+    
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('viewBox', '0 0 640 640');
+    svg.setAttribute('width', '18');
+    svg.setAttribute('height', '18');
+    svg.setAttribute('aria-hidden', 'true');
+    svg.setAttribute('focusable', 'false');
+    svg.style.cssText = 'display:inline-block;vertical-align:middle;fill:currentColor;';
+    
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', 'M532 71C539.6 77.1 544 86.3 544 96L544 400C544 444.2 501 480 448 480C395 480 352 444.2 352 400C352 355.8 395 320 448 320C459.2 320 470 321.6 480 324.6L480 207.9L256 257.7L256 464C256 508.2 213 544 160 544C107 544 64 508.2 64 464C64 419.8 107 384 160 384C171.2 384 182 385.6 192 388.6L192 160C192 145 202.4 132 217.1 128.8L505.1 64.8C514.6 62.7 524.5 65 532.1 71.1z');
+    svg.appendChild(path);
+    
+    const span = document.createElement('span');
+    span.textContent = 'Search by Melody';
+    
+    melodySearchLink.appendChild(svg);
+    melodySearchLink.appendChild(span);
+    melodySearchContainer.appendChild(melodySearchLink);
+    tunesContainer.appendChild(melodySearchContainer);
+    
+    // Attach click handler to open melody search modal
+    melodySearchLink.addEventListener('click', function(e) {
+      e.preventDefault();
+      const modal = document.getElementById('melodySearchModal');
+      const input = document.getElementById('melodySearchInput');
+      if (modal && input) {
+        modal.style.display = 'flex';
+        input.focus();
+        const resultsDiv = document.getElementById('melodySearchResults');
+        if (resultsDiv) {
+          resultsDiv.innerHTML = '<div style="padding:20px;text-align:center;color:#555;">Enter pitch classes (0-11) separated by spaces to search for matching melodies.</div>';
+        }
+      }
+    });
+  }
+
   if (!tuneButtonsContainer) {
     tuneButtonsContainer = document.createElement('div');
     tuneButtonsContainer.id = 'tuneButtons';
@@ -2732,3 +2780,310 @@ if (document.readyState === 'loading') {
 } else {
   domContentLoadedHandler1980();
 }
+
+/* ----------------------------- Melody Search Modal ----------------------------- */
+function domContentLoadedHandlerMelodySearch() {
+  // Translate pitch classes to signed intervals
+  function translatePitchClassesToSignedIntervals(pitchClasses) {
+    if (!Array.isArray(pitchClasses) || pitchClasses.length < 2) {
+      return [];
+    }
+    
+    const intervals = [];
+    for (let i = 1; i < pitchClasses.length; i++) {
+      const prev = pitchClasses[i - 1];
+      const curr = pitchClasses[i];
+      
+      // Calculate difference with octave wrapping
+      let diff = curr - prev;
+      
+      // Normalize to range [-6, +6] to handle octave wrapping
+      // If the interval is greater than 6 semitones, it's more likely the shorter way around
+      if (diff > 6) {
+        diff = diff - 12;
+      } else if (diff < -6) {
+        diff = diff + 12;
+      }
+      
+      intervals.push(diff);
+    }
+    
+    return intervals;
+  }
+  
+  // Format intervals with + prefix for positive numbers
+  function formatSignedInterval(interval) {
+    return interval >= 0 ? `+${interval}` : `${interval}`;
+  }
+  
+  const melodySearchLink = document.getElementById("searchMelodyLink");
+  const melodySearchModal = document.getElementById("melodySearchModal");
+  const melodySearchInput = document.getElementById("melodySearchInput");
+  const melodySearchResults = document.getElementById("melodySearchResults");
+  const closeMelodySearchBtn = document.getElementById("closeMelodySearchModalBtn");
+  const executeMelodySearchBtn = document.getElementById("executeMelodySearchBtn");
+
+  // Setup modal close on outside click
+  function setupMelodySearchModalCloseOnOutsideClick() {
+    if (!melodySearchModal) return;
+    melodySearchModal.addEventListener("click", function(e) {
+      if (e.target === melodySearchModal) {
+        melodySearchModal.style.display = "none";
+        melodySearchInput.value = "";
+        melodySearchResults.innerHTML = "";
+      }
+    });
+  }
+  setupMelodySearchModalCloseOnOutsideClick();
+
+  // Open modal
+  if (melodySearchLink) {
+    melodySearchLink.addEventListener("click", function(e) {
+      e.preventDefault();
+      if (melodySearchModal) {
+        melodySearchModal.style.display = "flex";
+        melodySearchInput.focus();
+        showMelodySearchInstructions();
+      }
+    });
+  }
+
+  // Close button
+  if (closeMelodySearchBtn) {
+    closeMelodySearchBtn.addEventListener("click", function() {
+      if (melodySearchModal) {
+        melodySearchModal.style.display = "none";
+        melodySearchInput.value = "";
+        melodySearchResults.innerHTML = "";
+      }
+    });
+  }
+
+  // ESC key to close
+  document.addEventListener("keydown", function(e) {
+    if (e.key === "Escape" && melodySearchModal && melodySearchModal.style.display === "flex") {
+      melodySearchModal.style.display = "none";
+      melodySearchInput.value = "";
+      melodySearchResults.innerHTML = "";
+    }
+  });
+
+  // Show initial instructions
+  function showMelodySearchInstructions() {
+    if (!melodySearchResults) return;
+    melodySearchResults.innerHTML = '<div style="padding:20px;text-align:center;color:#555;">Enter pitch classes (0-11) separated by spaces to search for matching melodies.</div>';
+  }
+
+  // Search melodies using server-side XQuery
+  async function searchMelodies(pitchClassInput) {
+    if (!pitchClassInput || pitchClassInput.trim().length === 0) {
+      showMelodySearchInstructions();
+      return;
+    }
+
+    // Parse pitch classes
+    const pitchClassStrings = pitchClassInput.trim().split(/\s+/);
+    const pitchClasses = pitchClassStrings.map(s => parseInt(s, 10));
+    
+    // Validate pitch classes
+    const invalidClasses = pitchClasses.filter(pc => isNaN(pc) || pc < 0 || pc > 11);
+    if (invalidClasses.length > 0) {
+      melodySearchResults.innerHTML = '<div style="padding:20px;text-align:center;color:#d32f2f;">Invalid pitch classes. Please enter numbers between 0 and 11.</div>';
+      return;
+    }
+    
+    if (pitchClasses.length < 2) {
+      melodySearchResults.innerHTML = '<div style="padding:20px;text-align:center;color:#d32f2f;">Please enter at least 2 pitch classes.</div>';
+      return;
+    }
+
+    // Translate to signed intervals
+    const intervals = translatePitchClassesToSignedIntervals(pitchClasses);
+    const intervalString = intervals.join(' ');
+
+    // Show loading state with the translated intervals
+    melodySearchResults.innerHTML = '<div style="padding:20px;text-align:center;color:#555;">Searching for intervals: ' + intervals.map(formatSignedInterval).join(' ') + '...</div>';
+
+    try {
+      // Call server-side search
+      const url = `searchMelodies.xq?signedinterval=${encodeURIComponent(intervalString)}`;
+      const response = await fetch(url);
+      
+      if (!response.ok) {
+        throw new Error(`Search failed: ${response.status} ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      displayMelodySearchResults(data.results || [], intervals, pitchClasses);
+      
+    } catch (error) {
+      console.error('Melody search error:', error);
+      melodySearchResults.innerHTML = '<div style="padding:20px;text-align:center;color:#d32f2f;">Search failed. Please try again.</div>';
+    }
+  }
+
+  // Display melody search results
+  function displayMelodySearchResults(results, searchIntervals, searchPitchClasses) {
+    if (!melodySearchResults) return;
+
+    if (!results || results.length === 0) {
+      melodySearchResults.innerHTML = '<div style="padding:20px;text-align:center;color:#555;">No matching tunes found for intervals: ' + searchIntervals.map(formatSignedInterval).join(' ') + '</div>';
+      return;
+    }
+
+    let html = '<div style="margin-bottom:10px;color:#555;font-size:0.9em;">Found ' + results.length + ' matching tune' + (results.length > 1 ? 's' : '') + '</div>';
+    html += '<div style="margin-bottom:10px;color:#555;font-size:0.85em;font-style:italic;">Search pattern: ' + searchPitchClasses.join(' ') + ' → ' + searchIntervals.map(formatSignedInterval).join(' ') + '</div>';
+    
+    results.forEach(result => {
+      html += '<div class="search-result-item melody-result-item" data-tune-id="' + result.id + '" data-tune-label="' + result.label + '" style="padding:12px;margin:8px 0;background:#f5f5f5;border-radius:6px;cursor:pointer;border:1px solid #ddd;">';
+      html += '<div style="font-weight:700;margin-bottom:6px;color:#333;">' + result.label + '</div>';
+      
+      // Show the interval match with highlighting
+      if (result.intervalMatch) {
+        const intervalDisplay = highlightMelodyMatch(result.intervalMatch, searchIntervals);
+        html += '<div style="color:#555;font-size:0.85em;margin-top:4px;"><strong>Intervals:</strong> ' + intervalDisplay + '</div>';
+      }
+      
+      // Show the pitch class match if available
+      if (result.pitchMatch) {
+        html += '<div style="color:#777;font-size:0.8em;margin-top:4px;"><strong>Pitch classes:</strong> ' + result.pitchMatch + '</div>';
+      }
+      
+      html += '</div>';
+    });
+
+    melodySearchResults.innerHTML = html;
+
+    // Add click handlers to results
+    const resultItems = melodySearchResults.querySelectorAll('.melody-result-item');
+    resultItems.forEach(item => {
+      item.addEventListener('click', function() {
+        const tuneId = this.getAttribute('data-tune-id');
+        const tuneLabel = this.getAttribute('data-tune-label');
+        selectTuneFromMelodySearch(tuneId, tuneLabel);
+      });
+      
+      // Hover effect
+      item.addEventListener('mouseenter', function() {
+        this.style.background = '#e8e8e8';
+      });
+      item.addEventListener('mouseleave', function() {
+        this.style.background = '#f5f5f5';
+      });
+    });
+  }
+
+  // Highlight the matching portion of the interval sequence
+  function highlightMelodyMatch(fullIntervals, searchIntervals) {
+    // fullIntervals is a string like "2 0 2 1 2 -2 5" (raw format from MEI)
+    // searchIntervals is an array like [2, 0, 2] (raw numbers)
+    // We need to match using raw format (without + prefix)
+    const searchString = searchIntervals.join(' ');
+    const fullString = fullIntervals;
+    
+    // Find the match and highlight it
+    // Use word boundary checking to avoid false positives like "12 0" matching "2 0"
+    let matchIndex = -1;
+    let searchIndex = 0;
+    
+    while (searchIndex <= fullString.length - searchString.length) {
+      const testIndex = fullString.indexOf(searchString, searchIndex);
+      if (testIndex === -1) break;
+      
+      // Check if this is a word boundary match (start of string or preceded by space)
+      const isStartBoundary = testIndex === 0 || fullString[testIndex - 1] === ' ';
+      // Check if followed by space or end of string
+      const endPos = testIndex + searchString.length;
+      const isEndBoundary = endPos === fullString.length || fullString[endPos] === ' ';
+      
+      if (isStartBoundary && isEndBoundary) {
+        matchIndex = testIndex;
+        break;
+      }
+      
+      searchIndex = testIndex + 1;
+    }
+    
+    if (matchIndex === -1) {
+      return fullString;
+    }
+    
+    const beforeMatch = fullString.substring(0, matchIndex);
+    const match = fullString.substring(matchIndex, matchIndex + searchString.length);
+    const afterMatch = fullString.substring(matchIndex + searchString.length);
+    
+    return beforeMatch + '<mark style="background:#ffd966;">' + match + '</mark>' + afterMatch;
+  }
+
+  // Select tune from melody search results
+  function selectTuneFromMelodySearch(tuneId, tuneLabel) {
+    console.log('selectTuneFromMelodySearch called:', { tuneId, tuneLabel });
+    
+    // Close modal
+    if (melodySearchModal) {
+      melodySearchModal.style.display = "none";
+      melodySearchInput.value = "";
+      melodySearchResults.innerHTML = "";
+    }
+
+    // Switch to TUNE tab
+    switchToTab('tune');
+    
+    // Wait a moment for the tune UI to be ready, then select the tune
+    setTimeout(function() {
+      const tuneInput = document.getElementById('pstune');
+      if (tuneInput) {
+        // Set the tune data
+        tuneInput.dataset.tuneid = tuneId;
+        tuneInput.dataset.tunelabel = tuneLabel;
+        tuneInput.value = tuneLabel;
+        window.globalPsTune = tuneId;
+        
+        // Filter tune buttons to show only this tune
+        try {
+          // This will trigger the tune button rendering
+          const tuneButtonsContainer = document.getElementById('tuneButtons');
+          if (tuneButtonsContainer) {
+            const tuneButtons = tuneButtonsContainer.querySelectorAll('.tune-btn');
+            tuneButtons.forEach(btn => {
+              if (btn.dataset.tuneid === tuneId) {
+                btn.classList.add('active');
+                btn.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+              } else {
+                btn.classList.remove('active');
+              }
+            });
+          }
+        } catch(e) {
+          console.warn('Error selecting tune button:', e);
+        }
+        
+        try { updateSelectionSummary(); } catch(_) {}
+        try { maybeShowNextForTune(); } catch(_) {}
+      }
+    }, 200);
+  }
+
+  // Search button click handler
+  if (executeMelodySearchBtn && melodySearchInput) {
+    executeMelodySearchBtn.addEventListener('click', function() {
+      searchMelodies(melodySearchInput.value);
+    });
+  }
+  
+  // Also allow Enter key in search input to trigger search
+  if (melodySearchInput) {
+    melodySearchInput.addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') {
+        searchMelodies(this.value);
+      }
+    });
+  }
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', domContentLoadedHandlerMelodySearch);
+} else {
+  domContentLoadedHandlerMelodySearch();
+}
+

@@ -533,6 +533,14 @@
                           <div id="sourceButtonContainer" style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px;"/>
                           <input type="hidden" id="pssource"/>
                         </div>
+                        <div id="searchPhraseContainer" style="margin-top:10px;margin-bottom:10px;margin-left:8px;display:block;">
+                          <a href="#" id="searchPhraseLink" style="color:#6fc252;text-decoration:none;font-size:1em;display:inline-flex;align-items:center;gap:10px;">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="18" height="18" aria-hidden="true" focusable="false" style="display:inline-block;vertical-align:middle;fill:currentColor;">
+                              <path d="M480 272C480 317.9 465.1 360.3 440 394.7L566.6 521.4C579.1 533.9 579.1 554.2 566.6 566.7C554.1 579.2 533.8 579.2 521.3 566.7L394.7 440C360.3 465.1 317.9 480 272 480C157.1 480 64 386.9 64 272C64 157.1 157.1 64 272 64C386.9 64 480 157.1 480 272zM272 416C351.5 416 416 351.5 416 272C416 192.5 351.5 128 272 128C192.5 128 128 192.5 128 272C128 351.5 192.5 416 272 416z"/>
+                            </svg>
+                            <span>Find your phrase</span>
+                          </a>
+                        </div>
                     </div>
             
                     <!-- TEXT Panel -->
@@ -551,14 +559,6 @@
                                 <br/>
                                 <div id="textSelector" class="menuSpan">
                                     <div id="psTextList" class="menuSpan" style="cursor:pointer;">Select source first</div>
-                                </div>
-                                 <div id="searchPhraseContainer" style="margin-top:10px;margin-bottom:10px;margin-left:8px;display:none;">
-                                    <a href="#" id="searchPhraseLink" style="color:#6fc252;text-decoration:none;font-size:1em;display:inline-flex;align-items:center;gap:10px;">
-                                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="18" height="18" aria-hidden="true" focusable="false" style="display:inline-block;vertical-align:middle;fill:currentColor;">
-                                        <path d="M480 272C480 317.9 465.1 360.3 440 394.7L566.6 521.4C579.1 533.9 579.1 554.2 566.6 566.7C554.1 579.2 533.8 579.2 521.3 566.7L394.7 440C360.3 465.1 317.9 480 272 480C157.1 480 64 386.9 64 272C64 157.1 157.1 64 272 64C386.9 64 480 157.1 480 272zM272 416C351.5 416 416 351.5 416 272C416 192.5 351.5 128 272 128C192.5 128 128 192.5 128 272C128 351.5 192.5 416 272 416z"/>
-                                      </svg>
-                                      <span>Find your phrase</span>
-                                    </a>
                                 </div>
                                 <div class="submenu">
                                     <div id="texts" style="display:none;"/>
@@ -590,9 +590,7 @@
                           Select a Tune:
                         </span>
                         <br/>
-                        <div id="tunes" class="menuSpan">Select source first.
-                        <div id="tuneButtons"/>
-                        </div>
+                        <div id="tunes" class="menuSpan">Select source first.</div>
                       </div>
                     </div>
             
@@ -847,6 +845,20 @@
           <button id="closeSearchModalBtn">Close</button>
         </div>
         <div id="searchResults" style="max-height:400px;overflow-y:auto;margin:10px auto;width:90%;"/>
+      </div>
+    </div>
+    
+    <!-- Melody Search Modal -->
+    <div id="melodySearchModal" style="display:none;">
+      <div>
+        <h2 style="margin-top: 0">Search by Melody</h2>
+        <p style="color:#555;font-size:0.9em;margin:10px auto;width:90%;text-align:center;">Enter pitch classes as numbers (0-11), separated by spaces.<br/>Example: "0 2 4 5 7" for C major pentatonic</p>
+        <input type="text" id="melodySearchInput" placeholder="e.g., 3 5 5 7 8" style="width:90%;margin:10px auto 12px auto;display:block;font-size:1em;padding:8px;border-radius:6px;border:1px solid #888;"/>
+        <div style="text-align:center;margin:0 0 14px;">
+          <button id="executeMelodySearchBtn">Search</button>
+          <button id="closeMelodySearchModalBtn">Close</button>
+        </div>
+        <div id="melodySearchResults" style="max-height:400px;overflow-y:auto;margin:10px auto;width:90%;"/>
       </div>
     </div>
     <script src="https://www.verovio.org/javascript/latest/verovio-toolkit-wasm.js" defer="defer"/>

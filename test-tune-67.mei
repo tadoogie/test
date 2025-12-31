@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mei xmlns="http://www.music-encoding.org/ns/mei" xml:id="test-tune-67">
+  <meiHead>
+    <fileDesc>
+      <titleStmt>
+        <title>Test Tune 67 (Amazing Grace)</title>
+      </titleStmt>
+    </fileDesc>
+  </meiHead>
+  <music>
+    <body>
+      <mdiv>
+        <score>
+          <scoreDef>
+            <staffGrp>
+              <staffDef n="1"/>
+            </staffGrp>
+          </scoreDef>
+          <section>
+            <!-- Melody incipit metadata -->
+            <incip>
+              <incipCode form="pitchclass">3 5 5 7 8 10 8 1 1 0 8 8 7 5 5 3</incipCode>
+              <incipCode form="signedinterval">2 0 2 1 2 -2 5 0 -1 -4 0 -1 -2 0 -2</incipCode>
+            </incip>
+          </section>
+        </score>
+      </mdiv>
+    </body>
+  </music>
+</mei>
