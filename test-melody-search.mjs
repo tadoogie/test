@@ -183,5 +183,46 @@ test('Component initializes without errors', () => {
   delete global.window;
 });
 
+test('Class constants are defined correctly', () => {
+  if (typeof MelodySearchResults.CIRCLE_RADIUS !== 'number') {
+    throw new Error('CIRCLE_RADIUS not defined');
+  }
+  if (MelodySearchResults.CIRCLE_RADIUS !== 45) {
+    throw new Error('CIRCLE_RADIUS has unexpected value');
+  }
+  if (typeof MelodySearchResults.CIRCLE_CIRCUMFERENCE !== 'number') {
+    throw new Error('CIRCLE_CIRCUMFERENCE not defined');
+  }
+  // Check if circumference is calculated correctly (2 * PI * radius)
+  const expectedCircumference = 2 * Math.PI * MelodySearchResults.CIRCLE_RADIUS;
+  if (Math.abs(MelodySearchResults.CIRCLE_CIRCUMFERENCE - expectedCircumference) > 0.01) {
+    throw new Error('CIRCLE_CIRCUMFERENCE calculated incorrectly');
+  }
+  if (typeof MelodySearchResults.DEFAULT_DURATION_MS !== 'number') {
+    throw new Error('DEFAULT_DURATION_MS not defined');
+  }
+});
+
+test('Custom duration option is respected', () => {
+  const mockContainer = { innerHTML: '', appendChild: () => {}, querySelector: () => null };
+  const mockToolkit = { loadData: () => {}, renderToMIDI: () => '', setOptions: () => {} };
+  
+  global.document = { addEventListener: () => {} };
+  global.window = {};
+  
+  // Create component with custom duration
+  const customDuration = 3000;
+  const component = new MelodySearchResults(mockContainer, mockToolkit, { 
+    defaultDuration: customDuration 
+  });
+  
+  if (component.defaultDuration !== customDuration) {
+    throw new Error('Custom duration not applied');
+  }
+  
+  delete global.document;
+  delete global.window;
+});
+
 // Run all tests
 runTests();

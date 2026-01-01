@@ -8,12 +8,20 @@
  */
 
 export class MelodySearchResults {
-  constructor(containerElement, verovioToolkit) {
+  // Constants for circle dimensions
+  static CIRCLE_RADIUS = 45;
+  static CIRCLE_CIRCUMFERENCE = 2 * Math.PI * MelodySearchResults.CIRCLE_RADIUS; // ~283
+  static DEFAULT_DURATION_MS = 5000; // Default MIDI duration if not calculable
+  
+  constructor(containerElement, verovioToolkit, options = {}) {
     this.container = containerElement;
     this.vrvToolkit = verovioToolkit;
     this.currentlyPlaying = null;
     this.audioContext = null;
     this.playbackStopTime = null;
+    
+    // Allow customization of default duration
+    this.defaultDuration = options.defaultDuration || MelodySearchResults.DEFAULT_DURATION_MS;
     
     // Initialize audio context on first user interaction
     this.initAudioContext();
@@ -98,7 +106,7 @@ export class MelodySearchResults {
     const bgCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
     bgCircle.setAttribute('cx', '50');
     bgCircle.setAttribute('cy', '50');
-    bgCircle.setAttribute('r', '45');
+    bgCircle.setAttribute('r', String(MelodySearchResults.CIRCLE_RADIUS));
     bgCircle.setAttribute('class', 'progress-bg');
     svg.appendChild(bgCircle);
     
@@ -106,7 +114,7 @@ export class MelodySearchResults {
     const progressCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
     progressCircle.setAttribute('cx', '50');
     progressCircle.setAttribute('cy', '50');
-    progressCircle.setAttribute('r', '45');
+    progressCircle.setAttribute('r', String(MelodySearchResults.CIRCLE_RADIUS));
     progressCircle.setAttribute('class', 'progress-fill');
     progressCircle.setAttribute('data-progress', '0');
     svg.appendChild(progressCircle);
@@ -227,7 +235,7 @@ export class MelodySearchResults {
     const progressCircle = button.querySelector('.progress-fill');
     if (progressCircle) {
       progressCircle.setAttribute('data-progress', '0');
-      progressCircle.style.strokeDashoffset = '283'; // Reset to start (2 * PI * r = 2 * PI * 45)
+      progressCircle.style.strokeDashoffset = String(MelodySearchResults.CIRCLE_CIRCUMFERENCE);
     }
     
     this.currentlyPlaying = null;
@@ -297,20 +305,32 @@ export class MelodySearchResults {
   }
   
   /**
-   * Estimate MIDI duration (rough estimation)
+   * Estimate MIDI duration
+   * @param {string} midiData - MIDI binary data as string
+   * @returns {number} Duration in milliseconds
+   * 
+   * Note: This is a simplified estimation. For production use, consider:
+   * 1. Parsing MIDI headers to extract tempo and total ticks
+   * 2. Pre-calculating durations and storing with melody data
+   * 3. Using Verovio's timing information via getElementsAtTime
    */
   estimateMidiDuration(midiData) {
-    // This is a simplified duration estimation
-    // In practice, you'd parse the MIDI file properly
-    // For now, return a default duration
-    return 5000; // 5 seconds default
+    // TODO: Implement actual MIDI parsing for accurate duration
+    // Current implementation returns configurable default
+    // 
+    // For proper implementation, parse MIDI headers:
+    // - Read tempo from Set Tempo meta event (0xFF 0x51)
+    // - Calculate duration from total ticks and tempo
+    // - Account for time signature changes
+    
+    return this.defaultDuration;
   }
   
   /**
    * Animate circular progress
    */
   animateProgress(circle, duration) {
-    const circumference = 2 * Math.PI * 45; // 2 * PI * radius
+    const circumference = MelodySearchResults.CIRCLE_CIRCUMFERENCE;
     circle.style.strokeDasharray = circumference;
     circle.style.strokeDashoffset = circumference;
     
