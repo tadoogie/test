@@ -21,11 +21,14 @@ export class MelodySearchResults {
   
   initAudioContext() {
     // Audio context must be created after user interaction
-    document.addEventListener('click', () => {
-      if (!this.audioContext) {
-        this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
-      }
-    }, { once: true });
+    // Only initialize in browser environment
+    if (typeof document !== 'undefined' && typeof window !== 'undefined') {
+      document.addEventListener('click', () => {
+        if (!this.audioContext) {
+          this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        }
+      }, { once: true });
+    }
   }
   
   /**
