@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Melody Search Results Example</title>
+    
+    <!-- Verovio -->
+    <script src="https://www.verovio.org/javascript/latest/verovio-toolkit-wasm.js" defer></script>
+    
+    <!-- MIDI playback (optional, for MIDI playback support) -->
+    <script src='https://www.midijs.net/lib/midi.js'></script>
+    
+    <style id="melody-styles">
+        body {
+            font-family: 'Open Sans', Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #fff;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 24px;
+        }
+        
+        #melody-results-container {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Melody Search Results</h1>
+    <p>Click the play button to hear each melody:</p>
+    
+    <div id="melody-results-container"></div>
+    
+    <script type="module">
+        import { MelodySearchResults, melodySearchResultsCSS } from './js/melody-search-results.js';
+        
+        // Add component CSS to page
+        const styleEl = document.createElement('style');
+        styleEl.textContent = melodySearchResultsCSS;
+        document.head.appendChild(styleEl);
+        
+        // Wait for Verovio to load
+        document.addEventListener('DOMContentLoaded', () => {
+            verovio.module.onRuntimeInitialized = function () {
+                // Initialize Verovio toolkit
+                const tk = new verovio.toolkit();
+                tk.setOptions({
+                    scale: 40,
+                    pageWidth: 2100,
+                    pageHeight: 2970,
+                    adjustPageHeight: true
+                });
+                
+                // Sample data - replace with actual search results
+                // Note: The incipCode should be actual Plaine and Easie notation
+                // These are simplified examples
+                const sampleResults = [
+                    {
+                        title: "Old Hundredth",
+                        incipCode: "@clef:G-2 @keysig: @timesig:4/4 '8C'4D4E4F",
+                        workId: "tune001"
+                    },
+                    {
+                        title: "Amazing Grace",
+                        incipCode: "@clef:G-2 @keysig: @timesig:3/4 '4G4C4E",
+                        workId: "tune002"
+                    },
+                    {
+                        title: "St. Anne",
+                        incipCode: "@clef:G-2 @keysig: @timesig:4/4 '4C4D4E4C",
+                        workId: "tune003"
+                    }
+                ];
+                
+                // Create and render the melody search results
+                const container = document.getElementById('melody-results-container');
+                const melodyResults = new MelodySearchResults(container, tk);
+                melodyResults.render(sampleResults);
+            };
+        });
+    </script>
+</body>
+</html>
