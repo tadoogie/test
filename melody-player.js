@@ -206,7 +206,7 @@ async play(meiFileId, tuneName, button) {
 
         // Fetch the full MEI file from your server
         console.log('Fetching MEI file.. .');
-        const response = await fetch(`/path/to/tunes/${meiFileId}.xml`); // Adjust path as needed
+        const response = await fetch(`/db/tunes/${meiFileId}.xml`); // Adjust path as needed
         if (!response.ok) {
             throw new Error(`Failed to fetch MEI file: ${response.statusText}`);
         }
