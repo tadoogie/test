@@ -466,6 +466,58 @@
             }
             #tunes { padding-top: 4px; } 
             #tuneButtons { margin-top: 6px; }
+            
+            .clear-btn {
+                background:  transparent;
+                color: white;
+                border: none;
+                padding: 10px 18px;
+                border-radius:  6px;
+                font-size: 1em;
+                font-weight: 600;
+                cursor: pointer;
+                display: inline-flex;
+                flex-direction: column;  /* ← ADDED:  Stack icon and text vertically */
+                align-items:  center;
+                gap: 4px;  /* ← CHANGED:  Reduced gap for vertical layout */
+                transition: background 0.2s ease, transform 0.1s ease, color 0.2s ease;  /* ← ADDED: color transition */
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+                line-height: 1.1;  /* ← ADDED:  Tighter line height for multi-line text */
+                text-align: center;  /* ← ADDED: Center the text */
+            }
+            
+            .clear-btn:hover {
+                color: #ff6b6b !important;  /* ← ADDED: Red text on hover */
+                transform: translateY(-1px);
+            }
+            
+            .clear-btn:active {
+                transform: translateY(0);
+            }
+            
+            .clear-btn svg {
+                width: 30px;
+                height: 30px;
+                fill: currentColor;
+                flex-shrink: 0;  /* ← ADDED: Prevent icon from shrinking */
+            }
+            
+            /* Update next-btn-row to space buttons apart (left and right) */
+            .next-btn-row {
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              margin-top: 10px;
+              clear: both; 
+              width: 100%;
+              padding: 0 8px;
+            }
+            
+            /* Clear button specific - text color changes to red on hover */
+            .clear-btn:hover {
+              color: #ff6b6b ! important;
+            }
         </style>
     </head>
     <body>
