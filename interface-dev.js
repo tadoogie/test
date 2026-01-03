@@ -1970,6 +1970,46 @@ function hideNextButton(id) {
   if (btn) btn.style.display = 'none';
 }
 
+function ensureClearButton(containerEl, id, onClick) {
+  if (!containerEl) return null;
+  let row = containerEl.querySelector('. next-btn-row');
+  if (!row) {
+    row = document.createElement('div');
+    row.className = 'next-btn-row';
+    containerEl.appendChild(row);
+  }
+  
+  let btn = document.getElementById(id);
+  const clearSVG = `
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" aria-hidden="true">
+  <path d="M320 64C178.6 64 64 178.6 64 320C64 461.4 178.6 576 320 576C461.4 576 576 461.4 576 320C576 178.6 461.4 64 320 64zM175.8 431.8C164.3 443.3 145.7 443.3 134.2 431.8C122.7 420.3 122.7 401.7 134.2 390.2L278.4 246.1L134.2 101.9C122.7 90.4 122.7 71.8 134.2 60.3C145.7 48.8 164.3 48.8 175.8 60.3L320 204.5L464. 2 60.3C475.7 48.8 494.3 48.8 505.8 60.3C517.3 71.8 517.3 90.4 505.8 101.9L361.6 246.1L505.8 390.2C517.3 401.7 517.3 420.3 505.8 431.8C494.3 443.3 475.7 443.3 464.2 431.8L320 287.6L175.8 431.8z"/>
+</svg>`.trim();
+  
+  const html = clearSVG + 'Clear Selection';
+  
+  if (! btn) {
+    btn = document.createElement('button');
+    btn.id = id;
+    btn.type = 'button';
+    btn.className = 'next-btn clear-btn';
+    btn.innerHTML = html;
+    // Insert at the beginning of the row (left side)
+    row.insertBefore(btn, row.firstChild);
+  } else {
+    btn.innerHTML = html;
+    btn.style.display = 'inline-flex';
+    if (btn.parentElement !== row) row.insertBefore(btn, row.firstChild);
+  }
+  
+  btn.onclick = onClick;
+  return btn;
+}
+
+function hideClearButton(id) {
+  const btn = document.getElementById(id);
+  if (btn) btn.style.display = 'none';
+}
+
 function domContentLoadedHandler1734() {
   const src = document.getElementById('pssource');
   if (!src) return;
@@ -2039,14 +2079,70 @@ document.addEventListener('input', function (e) {
 });
 
 function maybeShowNextForTune() {
-  const tuneInput = document.getElementById('pstune');
+  const tuneInput = document. getElementById('pstune');
   const anchor = document.getElementById('tunes');
   if (!tuneInput || !anchor) return;
-  const chosen = (tuneInput.dataset && tuneInput.dataset.tuneid) || tuneInput.value.trim();
+  
+  const chosen = (tuneInput.dataset && tuneInput.dataset.tuneid) || tuneInput.value. trim();
+  
   if (chosen) {
+    // Show Next button
     ensureNextButtonAfter(anchor, 'next-btn-tune', () => switchToTab('options'));
+    
+    // Show Clear button
+    const tuneSection = document.getElementById('TuneSection') || anchor.parentElement;
+    ensureClearButton(tuneSection, 'clear-btn-tune', () => {
+      console.log('Clearing tune selection');
+      
+      // Clear the tune selection
+      tuneInput.value = '';
+      tuneInput. dataset.tuneid = '';
+      tuneInput.dataset.tunelabel = '';
+      window.globalPsTune = '';
+      
+      // Get the selected text's metre to restore filtered view
+      const psTextInput = document.getElementById('pstext');
+      let currentMetre = '';
+      if (psTextInput && psTextInput.dataset && psTextInput.dataset.psdata) {
+        const psdata = psTextInput.dataset.psdata. split(';');
+        currentMetre = psdata[1] || '';
+      }
+      
+      console.log('Restoring tune list filtered by metre:', currentMetre);
+      
+      // Deactivate all tune buttons
+      const tuneButtonsContainer = document. getElementById('tuneButtons');
+      if (tuneButtonsContainer) {
+        tuneButtonsContainer.querySelectorAll('.tune-btn, .verse-btn').forEach(b => {
+          b. classList.remove('active');
+        });
+      }
+      
+      // Re-run getTunes to restore the original filtered list by metre
+      // This will show all tunes matching the text's metre
+      const suggTune = '';  // No suggested tune since we're clearing
+      try {
+        getTunes(suggTune);
+      } catch(e) {
+        console.warn('Error calling getTunes:', e);
+        
+        // Fallback: if getTunes fails, just show all tunes
+        if (typeof renderTuneButtons === 'function') {
+          renderTuneButtons('');
+        }
+      }
+      
+      // Hide both buttons
+      hideNextButton('next-btn-tune');
+      hideClearButton('clear-btn-tune');
+      
+      // Update summary
+      try { updateSelectionSummary(); } catch(_) {}
+    });
   } else {
+    // Hide both buttons when no tune is selected
     hideNextButton('next-btn-tune');
+    hideClearButton('clear-btn-tune');
   }
 }
 
@@ -2825,15 +2921,29 @@ function domContentLoadedHandlerMelodySearch() {
 
   // Setup modal close on outside click
   function setupMelodySearchModalCloseOnOutsideClick() {
-    if (!melodySearchModal) return;
-    melodySearchModal.addEventListener("click", function(e) {
-      if (e.target === melodySearchModal) {
-        melodySearchModal.style.display = "none";
-        melodySearchInput.value = "";
-        melodySearchResults.innerHTML = "";
-      }
+    const modal = document.getElementById('melodySearchModal');
+    if (!modal) return;
+    
+    modal.addEventListener('click', function(e) {
+        // Check if click is on the modal backdrop (not the content div inside)
+        if (e.target === modal) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // Stop any playing melody FIRST
+            console.log('Clicking outside modal - stopping playback');
+            if (window.melodyPlayer && window.melodyPlayer.isPlaying) {
+                console.log('Stopping melody player');
+                window.melodyPlayer.stop();
+            }
+            
+            // Small delay to ensure stop completes before closing
+            setTimeout(() => {
+                modal.style.display = 'none';
+            }, 50);
+        }
     });
-  }
+}
   setupMelodySearchModalCloseOnOutsideClick();
 
   // Open modal
@@ -2850,23 +2960,39 @@ function domContentLoadedHandlerMelodySearch() {
 
   // Close button
   if (closeMelodySearchBtn) {
-    closeMelodySearchBtn.addEventListener("click", function() {
-      if (melodySearchModal) {
-        melodySearchModal.style.display = "none";
-        melodySearchInput.value = "";
-        melodySearchResults.innerHTML = "";
-      }
-    });
-  }
+        closeMelodySearchBtn.addEventListener('click', function() {
+            // Stop any playing melody
+            if (window.melodyPlayer && window. melodyPlayer.isPlaying) {
+                window.melodyPlayer.stop();
+            }
+            
+            const modal = document.getElementById('melodySearchModal');
+            if (modal) {
+                modal.style. display = 'none';
+            }
+        });
+    }
 
   // ESC key to close
-  document.addEventListener("keydown", function(e) {
-    if (e.key === "Escape" && melodySearchModal && melodySearchModal.style.display === "flex") {
-      melodySearchModal.style.display = "none";
-      melodySearchInput.value = "";
-      melodySearchResults.innerHTML = "";
-    }
-  });
+  document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            const modal = document.getElementById('melodySearchModal');
+            if (modal && modal. style.display !== 'none') {
+                e.preventDefault();
+                
+                // Stop any playing melody
+                console.log('Escape pressed - stopping playback');
+                if (window.melodyPlayer && window.melodyPlayer.isPlaying) {
+                    console.log('Stopping melody player');
+                    window.melodyPlayer. stop();
+                }
+                
+                setTimeout(() => {
+                    modal.style.display = 'none';
+                }, 50);
+            }
+        }
+    });
 
   // Show initial instructions
   function showMelodySearchInstructions() {
@@ -2924,57 +3050,157 @@ function domContentLoadedHandlerMelodySearch() {
 
   // Display melody search results
 function displayMelodySearchResults(results) {
-    const resultsContainer = document.getElementById('melodySearchResults');
-    if (!resultsContainer) return;
+    if (! melodySearchResults) return;
     
-    resultsContainer.innerHTML = '';
-    
-    if (! results || results.length === 0) {
-        resultsContainer. innerHTML = '<p style="text-align: center;color:#888;padding:20px;">No melodies found matching your search.</p>';
+    if (results.length === 0) {
+        melodySearchResults.innerHTML = '<div style="padding: 20px;text-align:center;color:#888;">No matching tunes found.  Try a different pattern.</div>';
         return;
     }
     
+    // Get the currently selected text's metre
+    const psTextInput = document.getElementById('pstext');
+    let currentMetre = '';
+    if (psTextInput && psTextInput.dataset && psTextInput.dataset.psdata) {
+        const psdata = psTextInput.dataset.psdata. split(';');
+        currentMetre = psdata[1] || ''; // metre is the second element
+    }
+    console.log('Current text metre:', currentMetre);
+    
+    // Helper function to normalize metres for comparison
+    function normalizeMetreForComparison(metre) {
+        if (!metre) return '';
+        
+        // Trim whitespace
+        let normalized = metre.trim();
+        
+        // Check if it ends with a period
+        if (! normalized.endsWith('.')) {
+            return normalized;
+        }
+        
+        // Remove the final period
+        normalized = normalized.slice(0, -1);
+        
+        // Check if the last character (before the period) is a letter
+        if (normalized.length > 0 && /[a-zA-Z]/. test(normalized[normalized.length - 1])) {
+            // Remove the letter and any trailing spaces
+            normalized = normalized.slice(0, -1).trim();
+        }
+        
+        return normalized;
+    }
+    
+    melodySearchResults.innerHTML = '';
+    
     results.forEach(result => {
         const resultItem = document.createElement('div');
-        resultItem.className = 'melody-result-item';
-        resultItem.style.display = 'flex';
-        resultItem.style.justifyContent = 'space-between';
-        resultItem.style.alignItems = 'center';
-        resultItem.style.padding = '12px 15px';
-        resultItem.style.borderBottom = '1px solid #ddd';
-        resultItem.style.transition = 'background-color 0.2s ease';
+        resultItem.style.cssText = 'padding:12px;margin:8px 0;background:#f5f5f5;border-radius:6px;cursor:pointer;display:flex;align-items:center;gap:12px;transition:background 0.2s;';
+        resultItem.addEventListener('mouseenter', () => resultItem.style.background = '#e8e8e8');
+        resultItem.addEventListener('mouseleave', () => resultItem.style.background = '#f5f5f5');
         
-        // Hover effect
-        resultItem.addEventListener('mouseenter', function() {
-            this.style. backgroundColor = '#f5f5f5';
+        // Check if metres match using normalized comparison
+        const normalizedCurrentMetre = normalizeMetreForComparison(currentMetre);
+        const normalizedResultMetre = normalizeMetreForComparison(result.metre);
+        const metreMatches = normalizedCurrentMetre && normalizedResultMetre && 
+                            normalizedCurrentMetre === normalizedResultMetre;
+        
+        // Create full label with date (to match button labels)
+        const fullLabel = result.date ? `${result.title} (${result.date})` : result.title;
+        
+        console.log('Metre comparison:', {
+            current: currentMetre,
+            currentNormalized: normalizedCurrentMetre,
+            result: result. metre,
+            resultNormalized: normalizedResultMetre,
+            matches: metreMatches,
+            fullLabel: fullLabel
         });
-        resultItem.addEventListener('mouseleave', function() {
-            this.style.backgroundColor = 'transparent';
-        });
         
-        // Tune name on the left
-        const tuneName = document.createElement('span');
-        tuneName.textContent = result.title || 'Unnamed Tune';
-        tuneName.style.flex = '1';
-        tuneName.style.fontWeight = '600';
-        tuneName.style.fontSize = '1.05em';
-        tuneName.style.color = '#333';
-        
-        // Play button on the right
+        // Create play button
         const playBtn = window.melodyPlayer.createPlayButton();
+        playBtn.style.flexShrink = '0';
+        
+        // Create main content container (fixed width to maintain alignment)
+        const contentContainer = document.createElement('div');
+        contentContainer.style.cssText = 'flex: 1;display:flex;align-items:center;gap:12px;min-width:0;';
+        
+        // Left side:  title, date, and metre (takes up available space)
+        const textInfo = document.createElement('div');
+        textInfo.style.cssText = 'flex:1;min-width:0;';
+        
+        // Tune title
+        const titleDiv = document.createElement('div');
+        titleDiv.textContent = result.title;
+        titleDiv.style.cssText = 'font-weight:bold;font-size:1em;color:#333;margin-bottom:2px;';
+        
+        // Date (NEW)
+        const dateDiv = document. createElement('div');
+        dateDiv.textContent = result.date || 'Date unknown';
+        dateDiv.style. cssText = 'font-size:0.85em;color:#888;margin-bottom:2px;';
+        
+        // Metre label
+        const metreDiv = document.createElement('div');
+        metreDiv.textContent = result.metre || 'Unknown metre';
+        metreDiv.style.cssText = 'font-size:0.85em;color:#666;font-weight:normal;';
+        
+        textInfo.appendChild(titleDiv);
+        textInfo.appendChild(dateDiv);
+        textInfo.appendChild(metreDiv);
+        
+        contentContainer.appendChild(textInfo);
+        
+        // Right side: warning if metre doesn't match (fixed width to maintain alignment)
+        const warningContainer = document.createElement('div');
+        warningContainer.style.cssText = 'width:180px;flex-shrink:0;text-align:right;';
+        
+        if (!metreMatches && currentMetre) {
+            const warningDiv = document.createElement('div');
+            warningDiv. textContent = 'This tune uses a different metre than your text. ';
+            warningDiv.style.cssText = 'color:#d32f2f;font-size:0.85em;line-height:1.3;';
+            warningContainer. appendChild(warningDiv);
+        }
+        
+        contentContainer.appendChild(warningContainer);
+        
+        resultItem.appendChild(playBtn);
+        resultItem.appendChild(contentContainer);
+        
+        // Play button click handler
         playBtn.addEventListener('click', function(e) {
             e.stopPropagation();
             
             window.melodyPlayer.play(
-                result.meiFileId,  // Pass the file ID instead of PAE code
+                result.meiFilePath,
                 result.title,
                 playBtn
             );
         });
         
-        resultItem.appendChild(tuneName);
-        resultItem.appendChild(playBtn);
-        resultsContainer.appendChild(resultItem);
+        // Click on result item to select the tune
+        resultItem.addEventListener('click', function() {
+            // Stop any playing melody
+            if (window.melodyPlayer) {
+                window.melodyPlayer. stop();
+            }
+            
+            // If metre matches, auto-select the tune and close modal
+            if (metreMatches) {
+                console.log('Metre matches - auto-selecting tune with full label:', fullLabel);
+                selectTuneFromMelodySearch(fullLabel, result.meiFilePath);  // Use fullLabel here
+                
+                // Close the search modal
+                const modal = document.getElementById('melodySearchModal');
+                if (modal) {
+                    modal. style.display = 'none';
+                }
+            } else {
+                // Metre doesn't match - just show a warning, don't auto-select
+                console.log('Metre mismatch - not auto-selecting');
+                alert(`This tune (${result.metre || 'unknown metre'}) does not match your text's metre (${currentMetre}). Please select a matching tune or change your text selection.`);
+            }
+        });
+        
+        melodySearchResults.appendChild(resultItem);
     });
 }
 
@@ -3021,53 +3247,125 @@ function displayMelodySearchResults(results) {
   }
 
   // Select tune from melody search results
-  function selectTuneFromMelodySearch(tuneId, tuneLabel) {
-    console.log('selectTuneFromMelodySearch called:', { tuneId, tuneLabel });
+  function selectTuneFromMelodySearch(tuneTitle, meiFilePath) {
+    console.log('=== selectTuneFromMelodySearch START ===');
+    console.log('tuneTitle:', tuneTitle);
+    console.log('meiFilePath:', meiFilePath);
     
-    // Close modal
-    if (melodySearchModal) {
-      melodySearchModal.style.display = "none";
-      melodySearchInput.value = "";
-      melodySearchResults.innerHTML = "";
-    }
-
     // Switch to TUNE tab
     switchToTab('tune');
     
-    // Wait a moment for the tune UI to be ready, then select the tune
+    // Wait for tune UI to be ready
     setTimeout(function() {
-      const tuneInput = document.getElementById('pstune');
-      if (tuneInput) {
-        // Set the tune data
-        tuneInput.dataset.tuneid = tuneId;
-        tuneInput.dataset.tunelabel = tuneLabel;
-        tuneInput.value = tuneLabel;
-        window.globalPsTune = tuneId;
+        console.log('Step 1: Looking for tune input and buttons container');
         
-        // Filter tune buttons to show only this tune
-        try {
-          // This will trigger the tune button rendering
-          const tuneButtonsContainer = document.getElementById('tuneButtons');
-          if (tuneButtonsContainer) {
-            const tuneButtons = tuneButtonsContainer.querySelectorAll('.tune-btn');
-            tuneButtons.forEach(btn => {
-              if (btn.dataset.tuneid === tuneId) {
-                btn.classList.add('active');
-                btn.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-              } else {
-                btn.classList.remove('active');
-              }
-            });
-          }
-        } catch(e) {
-          console.warn('Error selecting tune button:', e);
+        const tuneInput = document. getElementById('pstune');
+        const tuneButtonsContainer = document. getElementById('tuneButtons');
+        
+        console.log('tuneInput found:', !!tuneInput);
+        console.log('tuneButtonsContainer found:', !!tuneButtonsContainer);
+        
+        if (! tuneInput || !tuneButtonsContainer) {
+            console.error('Required elements not found');
+            return;
         }
         
-        try { updateSelectionSummary(); } catch(_) {}
-        try { maybeShowNextForTune(); } catch(_) {}
-      }
+        // Extract tune ID from file path
+        const fileName = meiFilePath. split('/').pop();
+        const tuneId = fileName.replace('. xml', '');
+        console.log('Extracted tuneId from path:', tuneId);
+        
+        // Check if renderTuneButtons function exists
+        console.log('renderTuneButtons function exists:', typeof renderTuneButtons);
+        console.log('window._pstuneMap exists:', typeof window._pstuneMap);
+        console.log('window._pstuneMap contents:', window._pstuneMap);
+        
+        // First, ensure all tune buttons are visible
+        console.log('Step 2: Rendering all tune buttons');
+        if (typeof renderTuneButtons === 'function') {
+            renderTuneButtons('');
+        }
+        
+        // Wait a moment for buttons to render
+        setTimeout(function() {
+            console. log('Step 3: Searching for tune button');
+            
+            // Find all tune buttons
+            const allButtons = tuneButtonsContainer.querySelectorAll('button');
+            console.log('Total buttons in container:', allButtons.length);
+            
+            // Log details about each button
+            allButtons. forEach((btn, index) => {
+                console.log(`Button ${index}:`, {
+                    className: btn.className,
+                    label: btn.dataset.label,
+                    tuneid: btn.dataset.tuneid,
+                    textContent: btn.textContent. substring(0, 50)
+                });
+            });
+            
+            // Try to find the matching button
+            let foundButton = null;
+            
+            allButtons.forEach(btn => {
+                if (btn.dataset.label === tuneTitle) {
+                    foundButton = btn;
+                    console.log('✓ FOUND MATCH by label:', tuneTitle);
+                }
+            });
+            
+            if (!foundButton) {
+                console.error('✗ NO MATCH FOUND for:', tuneTitle);
+                console.error('Searched among labels:', Array.from(allButtons).map(b => b.dataset.label));
+                return;
+            }
+            
+            console.log('Step 4: Applying selection');
+            const mappingId = foundButton.dataset.tuneid || '';
+            console.log('Using tuneid:', mappingId);
+            
+            // Apply the selection
+            tuneInput.dataset. tuneid = mappingId;
+            tuneInput.dataset.tunelabel = tuneTitle;
+            tuneInput.value = tuneTitle;
+            window.globalPsTune = mappingId;
+            
+            console. log('tuneInput.dataset after update:', tuneInput.dataset);
+            console.log('tuneInput.value after update:', tuneInput.value);
+            console.log('window.globalPsTune after update:', window.globalPsTune);
+            
+            // Mark button as active
+            console.log('Step 5: Marking button as active');
+            allButtons.forEach(b => {
+                if (b.classList.contains('active')) {
+                    console.log('Removing active from:', b.dataset.label);
+                }
+                b.classList.remove('active');
+            });
+            foundButton.classList.add('active');
+            console.log('Added active class to:', foundButton.dataset.label);
+            
+            // Filter to show only this tune
+            console.log('Step 6: Filtering to show only selected tune');
+            if (typeof renderTuneButtons === 'function') {
+                renderTuneButtons(tuneTitle);
+                console.log('Called renderTuneButtons with:', tuneTitle);
+            }
+            
+            // Scroll into view
+            foundButton. scrollIntoView({ behavior: 'smooth', block: 'center' });
+            
+            // Update UI
+            try { updateSelectionSummary(); } catch(e) { console.warn('updateSelectionSummary error:', e); }
+            try { maybeShowNextForTune(); } catch(e) { console.warn('maybeShowNextForTune error:', e); }
+            
+            console.log('=== selectTuneFromMelodySearch END ===');
+            
+        }, 300);
     }, 200);
-  }
+    
+    try { maybeShowNextForTune(); } catch(e) { console.warn('maybeShowNextForTune error:', e); }
+}
 
   // Search button click handler
   if (executeMelodySearchBtn && melodySearchInput) {
