@@ -1391,11 +1391,13 @@ dl dt { font-weight: bold; }
 
 /* Right-align the Next button and keep it below preceding content */
 .next-btn-row {
-  display: flex;
-  justify-content: flex-end;
+  display:  flex;
+  justify-content:  space-between;  /* ← Changed from flex-end */
+  align-items: center;  /* ← Added for vertical alignment */
   margin-top: 10px;
   clear: both; 
-  width: 330px 
+  width: 100%;  /* ← Changed from 330px to use full width */
+  padding: 0 8px;  /* ← Added for spacing from edges */
 }
 
 /* Next button (transparent, white, icon above text) */
@@ -1747,4 +1749,8 @@ div #tuneButtons button, .source-button {
     margin-top: 15px;
     padding: 0 8px;
     gap: 12px;
+}
+
+.clear-btn:hover {
+    color: #ff6b6b ! important;
 }
