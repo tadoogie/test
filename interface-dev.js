@@ -1997,15 +1997,18 @@ function ensureClearButton(containerEl, id, onClick) {
     btn = document.createElement('button');
     btn.id = id;
     btn.type = 'button';
-    btn.className = 'next-btn clear-btn';  // ← Both classes for shared base styles
+    btn.className = 'clear-btn';  // ← Both classes for shared base styles
     btn.innerHTML = html;
     // ← Insert at beginning (left side)
     row.insertBefore(btn, row.firstChild);
   } else {
     btn. innerHTML = html;
-    btn. className = 'next-btn clear-btn';  // ← Both classes for shared base styles
+    btn. className = 'clear-btn';  // ← Both classes for shared base styles
     btn.style.display = 'inline-flex';
-    if (btn.parentElement !== row) row.insertBefore(btn, row. firstChild);
+    if (btn.parentElement === row){
+        row.removeChild(btn);
+        }
+    row.insertBefore(btn, row.firstChild);
   }
   
   btn.onclick = onClick;
