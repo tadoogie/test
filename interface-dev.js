@@ -1965,27 +1965,22 @@ function ensureNextButtonAfter(anchorEl, id, onClick) {
   return btn;
 }
 
-function hideNextButton(id) {
-  const btn = document.getElementById(id);
-  if (btn) btn.style.display = 'none';
-}
-
 function ensureClearButton(containerEl, id, onClick) {
   if (!containerEl) return null;
   
-  // If containerEl is already a . next-btn-row, use it directly
-  let row = containerEl.classList && containerEl.classList. contains('next-btn-row') 
+  // Look for clear-next-btn-row specifically
+  let row = containerEl. classList && containerEl.classList.contains('clear-next-btn-row') 
     ? containerEl 
-    : containerEl.querySelector('.next-btn-row');
+    : containerEl.querySelector('. clear-next-btn-row');
   
-  // If no row exists, create one
+  // If no row exists, create one with the NEW class
   if (!row) {
-    row = document. createElement('div');
-    row.className = 'next-btn-row';
-    containerEl.appendChild(row);
+    row = document.createElement('div');
+    row.className = 'clear-next-btn-row';  // ← Changed class name
+    containerEl. appendChild(row);
   }
   
-  let btn = document.getElementById(id);
+  let btn = document. getElementById(id);
   const clearSVG = `
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" aria-hidden="true">
   <path d="M431.2 476.5L163.5 208.8C141.1 240.2 128 278.6 128 320C128 426 214 512 320 512C361.5 512 399.9 498.9 431.2 476.5zM476.5 431.2C498.9 399.8 512 361.4 512 320C512 214 426 128 320 128C278.5 128 240.1 141.1 208.8 163.5L476.5 431.2zM64 320C64 178.6 178.6 64 320 64C461.4 64 576 178.6 576 320C576 461.4 461.4 576 320 576C178.6 576 64 461.4 64 320z"/>
@@ -1997,17 +1992,16 @@ function ensureClearButton(containerEl, id, onClick) {
     btn = document.createElement('button');
     btn.id = id;
     btn.type = 'button';
-    btn.className = 'clear-btn';  // ← Both classes for shared base styles
+    btn.className = 'clear-btn';
     btn.innerHTML = html;
-    // ← Insert at beginning (left side)
     row.insertBefore(btn, row.firstChild);
   } else {
-    btn. innerHTML = html;
-    btn. className = 'clear-btn';  // ← Both classes for shared base styles
+    btn.innerHTML = html;
+    btn.className = 'clear-btn';
     btn.style.display = 'inline-flex';
-    if (btn.parentElement === row){
-        row.removeChild(btn);
-        }
+    if (btn.parentElement === row) {
+      row.removeChild(btn);
+    }
     row.insertBefore(btn, row.firstChild);
   }
   
@@ -2092,7 +2086,7 @@ function maybeShowNextForTune() {
   console.log('=== maybeShowNextForTune called ===');
   
   const tuneInput = document.getElementById('pstune');
-  const anchor = document.getElementById('tunes');
+  const anchor = document. getElementById('tunes');
   
   console.log('tuneInput:', tuneInput);
   console.log('anchor:', anchor);
@@ -2102,7 +2096,7 @@ function maybeShowNextForTune() {
     return;
   }
   
-  const chosen = (tuneInput.dataset && tuneInput.dataset.tuneid) || tuneInput.value. trim();
+  const chosen = (tuneInput.dataset && tuneInput.dataset.tuneid) || tuneInput.value.trim();
   console.log('chosen:', chosen);
   console.log('tuneInput.dataset. tuneid:', tuneInput.dataset.tuneid);
   console.log('tuneInput.value:', tuneInput.value);
@@ -2110,39 +2104,39 @@ function maybeShowNextForTune() {
   if (chosen) {
     console.log('✓ Tune is selected - showing buttons');
     
-    // ✅ FIXED: Use the same parent element for both buttons
-    // First ensure the Next button (which creates the . next-btn-row)
-    const nextBtn = ensureNextButtonAfter(anchor, 'next-btn-tune', () => switchToTab('options'));
-    console.log('Next button created/shown:', nextBtn);
+    // Create or get the row with the NEW clear-next-btn-row class
+    let btnRow = anchor.nextElementSibling;
+    if (!btnRow || !btnRow.classList. contains('clear-next-btn-row')) {
+      btnRow = document.createElement('div');
+      btnRow.className = 'clear-next-btn-row';
+      anchor.parentElement.insertBefore(btnRow, anchor.nextSibling);
+    }
+    console.log('Button row:', btnRow);
     
-    // Now use the row that was just created for the Clear button
-    const btnRow = nextBtn ?  nextBtn.parentElement : anchor. nextElementSibling;
-    console.log('Button row for Clear button:', btnRow);
-    
-    // Show Clear button in the same row
+    // Show Clear button first (goes to left)
     ensureClearButton(btnRow, 'clear-btn-tune', () => {
       console.log('Clearing tune selection');
       
       // Clear the tune selection
       tuneInput.value = '';
       tuneInput.dataset.tuneid = '';
-      tuneInput.dataset.tunelabel = '';
+      tuneInput.dataset. tunelabel = '';
       window.globalPsTune = '';
       
       // Get the selected text's metre to restore filtered view
       const psTextInput = document.getElementById('pstext');
       let currentMetre = '';
-      if (psTextInput && psTextInput.dataset && psTextInput.dataset.psdata) {
-        const psdata = psTextInput.dataset.psdata. split(';');
+      if (psTextInput && psTextInput. dataset && psTextInput.dataset. psdata) {
+        const psdata = psTextInput.dataset. psdata. split(';');
         currentMetre = psdata[1] || '';
       }
       
       console.log('Restoring tune list filtered by metre:', currentMetre);
       
       // Deactivate all tune buttons
-      const tuneButtonsContainer = document.getElementById('tuneButtons');
+      const tuneButtonsContainer = document. getElementById('tuneButtons');
       if (tuneButtonsContainer) {
-        tuneButtonsContainer. querySelectorAll('. tune-btn, .verse-btn').forEach(b => {
+        tuneButtonsContainer.querySelectorAll('. tune-btn, .verse-btn').forEach(b => {
           b.classList.remove('active');
         });
       }
@@ -2159,19 +2153,50 @@ function maybeShowNextForTune() {
         }
       }
       
-      // Hide both buttons
+      // Hide both buttons and remove the row
       hideNextButton('next-btn-tune');
       hideClearButton('clear-btn-tune');
+      if (btnRow && btnRow.parentElement) {
+        btnRow.parentElement.removeChild(btnRow);
+      }
       
       // Update summary
       try { updateSelectionSummary(); } catch(_) {}
     });
     console.log('Clear button created/shown');
     
+    // Create Next button DIRECTLY in the btnRow (not using ensureNextButton which creates its own row)
+    let nextBtn = document.getElementById('next-btn-tune');
+    if (!nextBtn) {
+      nextBtn = document.createElement('button');
+      nextBtn.id = 'next-btn-tune';
+      nextBtn.type = 'button';
+      nextBtn.className = 'next-btn';
+      nextBtn.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" aria-hidden="true">
+          <path d="M566.6 342.6C579.1 330.1 579.1 309.8 566.6 297.3L406.6 137.3C394.1 124.8 373.8 124.8 361.3 137.3C348.8 149.8 348.8 170.1 361.3 182.6L466.7 288L96 288C78.3 288 64 302.3 64 320C64 337.7 78.3 352 96 352L466.7 352L361.3 457.4C348.8 469.9 348.8 490.2 361.3 502.6C373.8 515.1 394.1 515.1 406.6 502.6L566.6 342.6z"/>
+        </svg>
+        Next
+      `;
+      btnRow.appendChild(nextBtn);
+    } else {
+      nextBtn.style.display = 'inline-flex';
+      if (nextBtn.parentElement !== btnRow) {
+        btnRow.appendChild(nextBtn);
+      }
+    }
+    nextBtn.onclick = () => switchToTab('options');
+    console.log('Next button created/shown');
+    
   } else {
     console.log('✗ No tune selected - hiding buttons');
     hideNextButton('next-btn-tune');
     hideClearButton('clear-btn-tune');
+    // Clean up the row
+    const btnRow = anchor.nextElementSibling;
+    if (btnRow && btnRow.classList.contains('clear-next-btn-row')) {
+      btnRow.parentElement.removeChild(btnRow);
+    }
   }
   
   console.log('=== maybeShowNextForTune end ===');
