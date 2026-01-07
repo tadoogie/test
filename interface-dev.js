@@ -2091,22 +2091,22 @@ function maybeShowNextForTune() {
   console.log('tuneInput:', tuneInput);
   console.log('anchor:', anchor);
   
-  if (! tuneInput || !anchor) {
+  if (!tuneInput || !anchor) {
     console.warn('Missing required elements');
     return;
   }
   
-  const chosen = (tuneInput.dataset && tuneInput.dataset.tuneid) || tuneInput.value.trim();
+  const chosen = (tuneInput.dataset && tuneInput. dataset.tuneid) || tuneInput.value.trim();
   console.log('chosen:', chosen);
-  console.log('tuneInput.dataset. tuneid:', tuneInput.dataset.tuneid);
-  console.log('tuneInput.value:', tuneInput.value);
+  console.log('tuneInput.dataset.tuneid:', tuneInput.dataset.tuneid);
+  console.log('tuneInput.value:', tuneInput. value);
   
   if (chosen) {
     console.log('✓ Tune is selected - showing buttons');
     
-    // Create or get the row with the NEW clear-next-btn-row class
+    // Create or get the row with the clear-next-btn-row class
     let btnRow = anchor.nextElementSibling;
-    if (!btnRow || !btnRow.classList. contains('clear-next-btn-row')) {
+    if (!btnRow || !btnRow.classList.contains('clear-next-btn-row')) {
       btnRow = document.createElement('div');
       btnRow.className = 'clear-next-btn-row';
       anchor.parentElement.insertBefore(btnRow, anchor.nextSibling);
@@ -2118,16 +2118,18 @@ function maybeShowNextForTune() {
       console.log('Clearing tune selection');
       
       // Clear the tune selection
-      tuneInput.value = '';
-      tuneInput.dataset.tuneid = '';
-      tuneInput.dataset. tunelabel = '';
+      if (tuneInput) {
+        tuneInput.value = '';
+        tuneInput.dataset.tuneid = '';
+        tuneInput.dataset.tunelabel = '';
+      }
       window.globalPsTune = '';
       
       // Get the selected text's metre to restore filtered view
       const psTextInput = document.getElementById('pstext');
       let currentMetre = '';
-      if (psTextInput && psTextInput. dataset && psTextInput.dataset. psdata) {
-        const psdata = psTextInput.dataset. psdata. split(';');
+      if (psTextInput && psTextInput.dataset && psTextInput.dataset.psdata) {
+        const psdata = psTextInput.dataset.psdata. split(';');
         currentMetre = psdata[1] || '';
       }
       
@@ -2136,21 +2138,16 @@ function maybeShowNextForTune() {
       // Deactivate all tune buttons
       const tuneButtonsContainer = document. getElementById('tuneButtons');
       if (tuneButtonsContainer) {
-        tuneButtonsContainer.querySelectorAll('. tune-btn, .verse-btn').forEach(b => {
-          b.classList.remove('active');
+        tuneButtonsContainer.querySelectorAll('.tune-btn, .verse-btn').forEach(b => {
+          b. classList.remove('active');
         });
       }
       
       // Re-run getTunes to restore the original filtered list by metre
-      const suggTune = '';
       try {
-        getTunes(suggTune);
+        getTunes(currentMetre);  // ← Pass currentMetre to show all tunes for that metre
       } catch(e) {
         console.warn('Error calling getTunes:', e);
-        
-        if (typeof renderTuneButtons === 'function') {
-          renderTuneButtons('');
-        }
       }
       
       // Hide both buttons and remove the row
@@ -2162,10 +2159,13 @@ function maybeShowNextForTune() {
       
       // Update summary
       try { updateSelectionSummary(); } catch(_) {}
+      
+      // Re-run maybeShowNextForTune to ensure buttons are hidden
+      setTimeout(() => maybeShowNextForTune(), 100);
     });
     console.log('Clear button created/shown');
     
-    // Create Next button DIRECTLY in the btnRow (not using ensureNextButton which creates its own row)
+    // Create Next button directly in the btnRow
     let nextBtn = document.getElementById('next-btn-tune');
     if (!nextBtn) {
       nextBtn = document.createElement('button');
@@ -3123,28 +3123,44 @@ function displayMelodySearchResults(results) {
     console.log('Current text metre:', currentMetre);
     
     // Helper function to normalize metres for comparison
-    function normalizeMetreForComparison(metre) {
-        if (!metre) return '';
-        
-        // Trim whitespace
-        let normalized = metre.trim();
-        
-        // Check if it ends with a period
-        if (! normalized.endsWith('.')) {
-            return normalized;
-        }
-        
-        // Remove the final period
-        normalized = normalized.slice(0, -1);
-        
-        // Check if the last character (before the period) is a letter
-        if (normalized.length > 0 && /[a-zA-Z]/. test(normalized[normalized.length - 1])) {
-            // Remove the letter and any trailing spaces
-            normalized = normalized.slice(0, -1).trim();
-        }
-        
+    // Helper function to normalize metres for comparison
+function normalizeMetreForComparison(metre) {
+    if (!metre) return '';
+    
+    // Trim whitespace
+    let normalized = metre.trim();
+    
+    // Remove anything in parentheses (and the parentheses themselves)
+    // This handles cases like "8.6.8.6. (6.)"
+    normalized = normalized.replace(/\s*\([^)]*\)/g, '').trim();
+    
+    // Check if it ends with a period
+    if (! normalized.endsWith('.')) {
         return normalized;
     }
+    
+    // Remove the final period temporarily
+    normalized = normalized.slice(0, -1);
+    
+    // Check if the last character (before the period) is a letter
+    // This handles cases like "8.6.8.6. D" or "8.6.8.6. T"
+    while (normalized.length > 0 && /[a-zA-Z]/.test(normalized[normalized.length - 1])) {
+        // Remove the letter
+        normalized = normalized.slice(0, -1).trim();
+        
+        // Remove trailing period if it exists after removing the letter
+        if (normalized.endsWith('.')) {
+            normalized = normalized.slice(0, -1);
+        }
+    }
+    
+    // Add back the final period if normalized string doesn't end with one
+    if (normalized.length > 0 && !normalized.endsWith('.')) {
+        normalized += '.';
+    }
+    
+    return normalized;
+}
     
     melodySearchResults.innerHTML = '';
     
@@ -3207,11 +3223,11 @@ function displayMelodySearchResults(results) {
         
         // Right side: warning if metre doesn't match (fixed width to maintain alignment)
         const warningContainer = document.createElement('div');
-        warningContainer.style.cssText = 'width:180px;flex-shrink:0;text-align:right;';
+        warningContainer.style.cssText = 'width:80px;flex-shrink:30px;text-align:right;';
         
         if (!metreMatches && currentMetre) {
             const warningDiv = document.createElement('div');
-            warningDiv. textContent = 'This tune uses a different metre than your text. ';
+            warningDiv. textContent = 'Tune\'s metre is different from text\'s';
             warningDiv.style.cssText = 'color:#d32f2f;font-size:0.85em;line-height:1.3;';
             warningContainer. appendChild(warningDiv);
         }
