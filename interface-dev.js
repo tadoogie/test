@@ -1,1043 +1,3463 @@
-<!--[if lt IE 8 ]> <html class="no-js ie7 oldie" lang="en"> <![endif]--><!--[if IE 8]> <html class="no-js ie8 oldie" lang="en"> <![endif]--><!--[if IE 9]> <html class="no-js ie9" lang="en"> <![endif]--><!--[if (gt IE 9)|!(IE)]><!--><!-- THIS IS THE TEST SERVER VERSION -->
-<html class="no-jQuery" lang="en"> <!--<![endif]-->
-    <!-- Version 1.0 -->
-    <head>
-        <meta charset="utf-8"/>
-        <meta http-equiv="X-UA-Compatible" content="IE=EDGE,chrome=1"/>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-        <title>Splitleaf Psalter Viewer</title>
-        <link rel="shortcut icon" href="/resources/images/leaf.ico"/>
-        <link type="text/css" rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open+Sans:400,600,700|Fjalla+One|Roboto+Slab:300,400,500,700"/>
-        <link rel="preload" href="resources/css/menu.css" as="style" onload="this.onload=null;this.rel='stylesheet'"/>
-        <noscript>
-            <link rel="stylesheet" href="resources/css/menu.css"/>
-        </noscript>
-        <link rel="stylesheet" href="resources/css/toggle.css"/>
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/awesomplete/1.1.5/awesomplete.min.css"/>
-        <script src="resources/js/midi-bridge.js"/>
-        
-        <style>
-            body, header, footer { position: relative; z-index: 1; }
-            .title {
-                display:flex;
-                align-items: flex-end;
-                border-bottom: 2px #555 solid;
-            }
-            .titleText {
-                margin: 0px 0px -10px -20px;
-                font-size: 18px;
-            }
-            .titleLogo {
-                margin-bottom: -5px;
-            }
-            .awesomplete mark {
-                background: #ffd966;
-            }
-            .footbar {
-                display: flex;
-                flex-direction: row;
-                justify-content: center;
-                font-size:1.1em;
-                margin: 20px 0;
-            }
-            .footbar-sm {
-                display: flex;
-                flex-direction: row;
-                justify-content: center;
-                font-size:0.8em;
-            }
-            .footbar a, .footbar-sm a
-            {
-                text-decoration: none;
-            }
-            .footbar div 
-            {
-                float: left;
-                margin: 0 10px;
-            }
-            #pssource::placeholder, #pstext::placeholder,
-#selMet::placeholder {
-                color: #fff; /* Change this to your desired color */
-                opacity: 1; /* Ensures color is not faded in Firefox */
-            }
-            #pssource::-webkit-input-placeholder, #pstext::-webkit-input-placeholder,
-#selMet::-webkit-input-placeholder { /* For WebKit browsers (Chrome, Safari, etc.) */
-                color: #fff; /* Change this to your desired color */
-            }
-            #pssource:-ms-input-placeholder, #pstext:-ms-input-placeholder,
-#selMet:-ms-input-placeholder { /* For Microsoft Edge and Internet Explorer */
-                color: #fff; /* Change this to your desired color */
-            }
-            div#textAndMetre {
-                display:contents;
-                margin:0px;
-                padding:0px;   
-            }
-            g.note.currently-playing, g.note.currently-playing * {
-              fill: #ff0000 !important; /* Highlight notes in red */
-              stroke: #ff0000 !important;
-              color: #ff0000 !important;
-            }
-            
-            @media (hover: none) and (pointer: coarse) {
-              #controls a:hover,
-              #controls a:active,
-              #controls a:focus,
-              .navbar a:hover,
-              .navbar a:active,
-              .navbar a:focus,
-              .dropdown:hover .submitbtn,
-              .dropdown:active .submitbtn,
-              .dropdown:focus .submitbtn {
-                background: inherit !important;
-                color: inherit !important;
-                box-shadow: none !important;
-                outline: none !important;
-                border: none !important;
-              }
-            }
-            
-            .reset-btn {
-              background: #777;
-              border: none;
-              padding: 8px;
-              border-radius: 4px;
-              cursor: pointer;
-              width: 36px;
-              height: 36px;
-              display: inline-flex;
-              align-items: center;
-              justify-content: center;
-              transition: background 0.2s ease;
-            }
-            
-            .reset-btn:hover {
-              background: #888;
-            }
-            
-            .reset-btn:active {
-              background: #666;
-            }
-            
-            .reset-icon {
-              width: 20px;
-              height: 20px;
-              fill: white;
-            }
-            
-            .reset-btn:hover .reset-icon {
-              fill: #fff;
-            }
-            
-            #closeSoundMenu:hover {
-              background: rgba(255, 255, 255, 0.1) !important;
-              color: #fff !important;
-            }
+window.INTERFACE_DEV_BUILD = '2025-12-06-1';
+/*This is my new comment to check if this is updated*/
 
-            #resetAudioBtn:hover svg {
-              fill: #ddd !important;
-              transform: scale(1.1);
-              transition: all 0.2s ease;
-            }
+/* ----------------------------- URL parameter application ----------------------------- */
+if (document.readyState === 'loading') {
+  document.addEventListener("DOMContentLoaded", () => {
+    try { applyURLParametersToForm(); } catch(e) { console.warn('applyURLParametersToForm error', e); }
+  });
+} else {
+  try { applyURLParametersToForm(); } catch(e) { console.warn('applyURLParametersToForm error', e); }
+}
 
-            #applyAudioBtn:hover svg {
-              fill: #45a049 !important;
-              transform: scale(1.1);
-              transition: all 0.2s ease;
-            }
+function applyURLParametersToForm() {
+  const urlParams = new URLSearchParams(window.location.search);
 
-            #resetAudioBtn:active svg, #applyAudioBtn:active svg {
-              transform: scale(0.95);
-            }
+  // 1. Handle 'psSource' parameter
+  const psSourceParam = urlParams.get('psSource') || urlParams.get('pssource');
+  if (psSourceParam) {
+    const psSourceInput = document.getElementById('pssource');
+    if (psSourceInput) {
+      psSourceInput.value = psSourceParam;
+      console.log(`URL parameter 'psSource' applied: ${psSourceParam}`);
+    } else {
+      window._initialPsSourceParam = psSourceParam;
+    }
+  }
 
-            /* Remove the box-based button styles and keep these clean icon styles */
-            #resetAudioBtn, #applyAudioBtn {
-              background: transparent !important;
-              border: none !important;
-              padding: 0 !important;
-            }
-            
-            /*Accordion styling */
-            .accordion-content { display: none; padding: 3px; background: #555; margin-left: 20px;}
-            .metre-btn, .source-btn, .tune-btn { margin: 4px 0; width: 100%; display: block; border-radius: 3px; border: none; background: #d8e5d3; padding: 8px; font-size: 1em; text-align: left; }
-            .metre-btn.active, .source-btn.active, .psalm-btn.active, .tune-btn.active, .verse-btn.active, .stanza-control-btn.active { background: #6fc252;color:white;}
-            div.accordion-content,  button.accordion-toggle, button.accordion-source {
-                color: white;
-            }
-            .accordion-toggle, .accordion-source {
-              position: relative;
-              display: flex;
-              align-items: center;
-              font-size: 1.1em;
-              background: #555;
-              border: none;
-              width: 100%;
-              text-align: left;
-              transition: background 0.2s;
-              cursor: pointer;
-              padding: 0px;
-            }
-            .accordion-caret {
-              display: inline-block;
-              margin-right: 12px;
-              width: 18px;
-              height: 18px;
-              transition: transform 0.25s cubic-bezier(.4,0,.2,1);
-              /* Using SVG for a nice carrot/chevron */
-              background: url("data:image/svg+xml,%3Csvg%20width%3D'18'%20height%3D'18'%20viewBox%3D'0%200%2018%2018'%20fill%3D'none'%20xmlns%3D'http%3A//www.w3.org/2000/svg'%3E%3Cpath%20d%3D'M6%204L12%209L6%2014'%20stroke%3D'%236fc151'%20stroke-width%3D'2'%20stroke-linecap%3D'round'%20stroke-linejoin%3D'round'/%3E%3C/svg%3E") center center no-repeat;
-              align-self: flex-start;
-              margin-top: 0.15em; 
-            }
-            .accordion-toggle.open .accordion-caret, .accordion-source.open .accordion-caret {
-              transform: rotate(90deg);
-            }
-            .accordion-content { display: none; }
-            .source-section { margin-bottom: 5px; }
-            
-            #metreList button {
-                padding:14px;
-                color:#fff;
-                margin: 8px;
-                border-radius: 10px;
-                border: 0px;
-                background: #888;
-            }
-            
-            #metrePicker, #tunePicker {
-              width: 280px;
-              font-size: 1em;
-              padding: 8px;
-              margin-bottom: 12px;
-              border-radius: 6px;
-              border: 1px solid #aaa;
-              background: #fff;
-              color: #fff;
-            }
-            
-            #metrePicker option {
-              font-size: 1.1em;
-            }
-            
-            .psalm-btn-container {
-                  display: flex;
-                  flex-wrap: wrap;
-                  gap: 2px 2px;             
-                  align-items: flex-start;
-                }
-            
-            .psalm-label, .psalm-subline {
-              display: block;
-              font-size: 0.66em;
-              font-family: 'Roboto Slab', 'Open Sans', 'Trebuchet MS', Verdana, Arial, Helvetica, sans-serif;
-              letter-spacing: 0.06em;
-              text-transform: uppercase;
-              margin: 0px;
-              line-height: 1;
-              text-align: center;
-            }
-            
-            .psalm-number, .verse-number {
-              display: block;
-              font-size: 1.6em;
-              font-weight: 700;
-              letter-spacing: -0.04em;
-              margin: 2px 0 2px 0;
-              line-height: 1;   
-              text-align: center;          /* ensure centering */
-              width: 100%;                 /* help center when font metrics vary */
-            }
-            
-            .psalm-btn:hover, verse-number:hover {
-              background: #eee;
-              color: #444
-            }
-            
-            .psalm-btn,
-            .psalm-btn .psalm-label,
-            .psalm-btn .psalm-number,
-            .psalm-btn .psalm-subline {
-              transition: background-color 150ms ease, color 150ms ease;
-            }
+  // 2. Handle 'pstext' parameter
+  const psTextParam = urlParams.get('pstext');
+  if (psTextParam) {
+    const psTextSelect = document.getElementById('pstext');
+    if (psTextSelect) {
+      psTextSelect.value = psTextParam;
+      console.log(`URL parameter 'pstext' applied: ${psTextParam}`);
+    } else {
+      window._initialPsTextParam = psTextParam;
+    }
+  }
+}
 
-            .psalm-btn:hover,
-            .verse-btn:hover, .stanza-control-btn:hover {
-              background: #a6d7a6;
-              color: #444
-            }
-            
-            .psalm-btn:focus .psalm-label,
-            .psalm-btn:active .psalm-label {
-              color: rgba(255,255,255,0.95);
-            }
-            
-            .psalm-btn:focus .psalm-number,
-            .psalm-btn:active .psalm-number, 
-            .stanza-control-btn:active .stanza-toggle-label,
-            .verse-btn:focus .verse-number,
-            .verse-btn:active .verse-number, 
-            .verse-btn.active .verse-number{
-              color: #ffffff !important;
-            }
-            
-            .psalm-btn:focus .psalm-subline,
-            .psalm-btn:active .psalm-subline {
-              color: rgba(255,255,255,0.9);
-            }
-            
-            .stanza-btn-container {
-                margin-left: -15px;
-            }
-            
-            .stanza-label {
-                color: white;
-                font-size: 1.2em;
-            }
-            
-            .stanza-controls {
-                display: flex;
-                gap: 8px;
-                margin-top: 10px;
-                margin-left:-15px;
-            }
-            
-            .stanza-control-btn {
-                color: white;
-                padding: 6px 8px 6px 6px;
-                border: 0px;
-                border-radius: 4px;
-                cursor: pointer;
-                background: #666;
-                border: 1px solid #444;
-            }
-            
-            .stanza-control-btn svg {
-              width: 1em;                 
-              height: 1em;
-              flex: 0 0 auto;              
-              fill: currentColor;          
-              vertical-align: middle;
-            }
-            
-            #L1-header {
-                width: 100%;
-                background: #5f6f4f;
-                padding: 5px 10px;
-            }
-            
-            #stanzaAccordion {
-                margin-bottom:12px;
-            }
-            
-            .accordion-source {
-                margin-bottom: 0.6em;
-            }
-            
-            div.row span.label {
-                font-weight:700;
-            }
-            
-            /* Psalm text selector (similar to verse selector) */
-            
-            #psalmButtons {
-              max-height: 0;
-              overflow: hidden;
-              transition: max-height 0.4s cubic-bezier(.4,0,.2,1);
-              opacity: 0;
-              transition-property: max-height, opacity;
-              transition-duration: 0.4s;
-            }
-            
-            #psalmButtons.expanded {
-              max-height: none;
-              opacity: 1;
-            }
-            
-            /* Psalm button styling - three-line layout */
-            .psalm-btn, .verse-btn {
-              display: inline-flex;
-              flex-direction: column;
-              align-items: center;
-              justify-content: center;
-              font-size: 1em;
-              padding: 3px;
-              margin: 2px;
-              min-width: 54px;
-              height: auto;
-              min-height: 65px;
-              text-align: center;
-              background: #666;
-              border: 1px solid #444;
-              border-radius: 6px;
-              cursor: pointer;
-              white-space: normal;
-              box-sizing: border-box;
-              transition: background-color 150ms ease, color 150ms ease;
-            }
-            
-            .psalm-btn .psalm-label {
-              display: block;
-              font-size: 0.66em;
-              font-family: 'Roboto Slab', 'Open Sans', 'Trebuchet MS', Verdana, Arial, Helvetica, sans-serif;
-              letter-spacing: 0.12em;
-              text-transform: uppercase;
-              margin: 0 0 2px 0;
-              line-height: 1;
-              text-align: center;
-              font-weight: 400;
-            }
-            
-            .psalm-btn .psalm-number {
-              display: block;
-              font-size: 1.6em;
-              font-weight: 650;
-              letter-spacing: -0.01em;
-              margin: 4px 0;
-              line-height: 0.8;
-              text-align: center;
-              width: 100%;
-              transform: scaleY(1.25);
-            }
-            
-            .psalm-btn .psalm-subline {
-              display: block;
-              font-size: 0.66em;
-              font-family: 'Roboto Slab', 'Open Sans', 'Trebuchet MS', Verdana, Arial, Helvetica, sans-serif;
-              letter-spacing: 0.12em;
-              text-transform: uppercase;
-              margin: 2px 0 0 0;
-              line-height: 1;
-              text-align: center;
-              font-weight: 400;
-            }
-            
-            .psalm-btn:focus .psalm-label,
-            .psalm-btn:active .psalm-label,
-            .psalm-btn:focus .psalm-subline,
-            .psalm-btn:active .psalm-subline {
-              color: rgba(255,255,255,0.95);
-            }
-            
-            .psalm-btn:focus .psalm-number,
-            .psalm-btn:active .psalm-number {
-              color: #ffffff;
-            }
-            
-            .psalm-btn.active {
-              background: #6fc252;
-              color: white;
-            }
-            
-            .psalm-btn.active .psalm-label,
-            .psalm-btn.active .psalm-number,
-            .psalm-btn.active .psalm-subline {
-              color: white;
-            }
-            
-            .verse-btn {
-                font-size: 1.2em;
-            }
-            
-            #selectPsalm, #selectVerses {
-              position: relative;
-              padding-right: 30px; /* Make room for the chevron */
-            }
+/* ----------------------------- Modals (Share, Paper Size) ----------------------------- */
+function setupModals() {
+  function setupModalCloseOnOutsideClick(modalId) {
+    const modal = document.getElementById(modalId);
+    if (!modal) return;
+    modal.addEventListener("click", function(e) {
+      if (e.target === modal) modal.style.display = "none";
+    });
+  }
+  setupModalCloseOnOutsideClick("shareModal");
+  setupModalCloseOnOutsideClick("paperSizeModal");
+}
+if (document.readyState === 'loading') {
+  document.addEventListener("DOMContentLoaded", setupModals);
+} else {
+  setupModals();
+}
 
-            #selectPsalm::after, #selectVerses::after {
-              content: '';
-              position: absolute;
-              right: 15px;
-              top: 40%;
-              transform: translateY(-50%);
-              width: 7px;
-              height: 7px;
-              border-right: 2px solid #fff;
-              border-bottom: 2px solid #fff;
-              transform: translateY(-50%) rotate(45deg);
-              transition: transform 0.3s ease;
-              pointer-events: none;
-            }
+/* ----------------------------- Share modal wiring ----------------------------- */
+function setupShareModal() {
+  const shareLink = document.getElementById("shareLink");
+  const shareModal = document.getElementById("shareModal");
+  const shareUrlInput = document.getElementById("shareUrlInput");
+  const copyBtn = document.getElementById("copyShareUrlBtn");
+  const closeBtn = document.getElementById("closeShareModalBtn");
 
-            /* Rotate chevron when expanded */
-            #selectPsalm.open::after, #selectVerses.open::after {
-              transform: translateY(-25%) rotate(-135deg);
-            }
-            #psMetreList {
-                margin-bottom: 15px;
-            }
-            #tunes { padding-top: 4px; } 
-            #tuneButtons { margin-top: 6px; }
-        
-            .clear-btn {
-              display: inline-flex;
-              flex-direction: column;
-              align-items: center;
-              justify-content: center;
-              gap: 6px;
-              padding: 8px 10px;
-              background: transparent;        /* transparent per your spec */
-              color: #fff;
-              border: none;
-              cursor: pointer;
-              font-weight: 700;
-              text-transform: uppercase;
-              letter-spacing: 0.04em;
-            }
-            
-            .clear-btn svg {
-              width: 30px;
-              height: 30px;
-              fill: currentColor;
-            }
-            
-            .clear-btn:hover {
-              background: transparent;
-              transform: translateY(-1px);
-            }
-            
-            /* Clear button specific - text color changes to red on hover */
-            .clear-btn:hover {
-              color: #ff6b6b ! important;
-            }
-            
-            .clear-next-btn-row {
-              display: flex;
-              justify-content: space-between;
-              align-items: center;
-              margin-top: 10px;
-              clear: both; 
-              width: 100%;
-              padding: 0 8px;
-            }
-        </style>
-    </head>
-    <body>
-        <section class="container fluid">
-        <div class="col-sm-12">
-            <div class="title">
-                <div class="titleLogo">
-                    <a href="index.html">
-                            <img src="resources/images/viewer-logo.png" alt="Splitleaf home"/>
-                        </a>
-                </div>
-                <div class="titleText">
-                    <h1>Digital Splitleaf Viewer</h1>
-                </div>
-            </div>
-            <!-- Hamburger button -->
-            <button id="menutoggle" aria-label="Open menu" class="hamburger">
-              <span class="hamburger-box">
-                <span class="hamburger-inner"/>
-              </span>
-            </button>
+  const facebookBtn = document.getElementById("share-facebook");
+  const xBtn = document.getElementById("share-x");
+  const redditBtn = document.getElementById("share-reddit");
+  const mastodonBtn = document.getElementById("share-mastodon");
 
-            <!-- Sidenav with Top Tabs -->
-            <div id="sidenav">
-              <div class="sidenav-container">
-                <!-- Content Area -->
-                <div class="sidenav-content">
-                  <!-- Horizontal top tabs -->
-                  <div class="sidenav-top-tabs" role="tablist" aria-label="Sidenav Tabs">
-                    <div class="top-tab active" role="tab" aria-selected="true" tabindex="0" data-tab="source">
-                      <svg xmlns="http://www.w3.org/2000/svg" class="top-tab-icon" viewBox="0 0 640 640" aria-hidden="true">
-                        <path d="M480 576L192 576C139 576 96 533 96 480L96 160C96 107 139 64 192 64L496 64C522.5 64 544 85.5 544 112L544 400C544 420.9 530.6 438.7 512 445.3L512 512C529.7 512 544 526.3 544 544C544 561.7 529.7 576 512 576L480 576zM192 448C174.3 448 160 462.3 160 480C160 497.7 174.3 512 192 512L448 512L448 448L192 448zM224 216C224 229.3 234.7 240 248 240L424 240C437.3 240 448 229.3 448 216C448 202.7 437.3 192 424 192L248 192C234.7 192 224 202.7 224 216zM248 288C234.7 288 224 298.7 224 312C224 325.3 234.7 336 248 336L424 336C437.3 336 448 325.3 448 312C448 298.7 437.3 288 424 288L248 288z"/>
-                      </svg>
-                    </div>
-                    <div class="top-tab" role="tab" aria-selected="false" tabindex="-1" data-tab="text">
-                      <svg xmlns="http://www.w3.org/2000/svg" class="top-tab-icon" viewBox="0 0 640 640" aria-hidden="true">
-                        <path d="M349.1 114.7C343.9 103.3 332.5 96 320 96C307.5 96 296.1 103.3 290.9 114.7L123.5 480L112 480C94.3 480 80 494.3 80 512C80 529.7 94.3 544 112 544L200 544C217.7 544 232 529.7 232 512C232 494.3 217.7 480 200 480L193.9 480L215.9 432L424.2 432L446.2 480L440.1 480C422.4 480 408.1 494.3 408.1 512C408.1 529.7 422.4 544 440.1 544L528.1 544C545.8 544 560.1 529.7 560.1 512C560.1 494.3 545.8 480 528.1 480L516.6 480L349.2 114.7zM394.8 368L245.2 368L320 204.8L394.8 368z"/>
-                      </svg>
-                    </div>
-                    <div class="top-tab" role="tab" aria-selected="false" tabindex="-1" data-tab="tune">
-                      <svg xmlns="http://www.w3.org/2000/svg" class="top-tab-icon" viewBox="0 0 640 640" aria-hidden="true">
-                        <path d="M532 71C539.6 77.1 544 86.3 544 96L544 400C544 444.2 501 480 448 480C395 480 352 444.2 352 400C352 355.8 395 320 448 320C459.2 320 470 321.6 480 324.6L480 207.9L256 257.7L256 464C256 508.2 213 544 160 544C107 544 64 508.2 64 464C64 419.8 107 384 160 384C171.2 384 182 385.6 192 388.6L192 160C192 145 202.4 132 217.1 128.8L505.1 64.8C514.6 62.7 524.5 65 532.1 71.1z"/>
-                      </svg>
-                    </div>
-                    <div class="top-tab" role="tab" aria-selected="false" tabindex="-1" data-tab="options">
-                      <svg xmlns="http://www.w3.org/2000/svg" class="top-tab-icon" viewBox="0 0 640 640" aria-hidden="true">
-                        <path d="M259.1 73.5C262.1 58.7 275.2 48 290.4 48L350.2 48C365.4 48 378.5 58.7 381.5 73.5L396 143.5C410.1 149.5 423.3 157.2 435.3 166.3L503.1 143.8C517.5 139 533.3 145 540.9 158.2L570.8 210C578.4 223.2 575.7 239.8 564.3 249.9L511 297.3C511.9 304.7 512.3 312.3 512.3 320C512.3 327.7 511.8 335.3 511 342.7L564.4 390.2C575.8 400.3 578.4 417 570.9 430.1L541 481.9C533.4 495 517.6 501.1 503.2 496.3L435.4 473.8C423.3 482.9 410.1 490.5 396.1 496.6L381.7 566.5C378.6 581.4 365.5 592 350.4 592L290.6 592C275.4 592 262.3 581.3 259.3 566.5L244.9 496.6C230.8 490.6 217.7 482.9 205.6 473.8L137.5 496.3C123.1 501.1 107.3 495.1 99.7 481.9L69.8 430.1C62.2 416.9 64.9 400.3 76.3 390.2L129.7 342.7C128.8 335.3 128.4 327.7 128.4 320C128.4 312.3 128.9 304.7 129.7 297.3L76.3 249.8C64.9 239.7 62.3 223 69.8 209.9L99.7 158.1C107.3 144.9 123.1 138.9 137.5 143.7L205.3 166.2C217.4 157.1 230.6 149.5 244.6 143.4L259.1 73.5zM320.3 400C364.5 399.8 400.2 363.9 400 319.7C399.8 275.5 363.9 239.8 319.7 240C275.5 240.2 239.8 276.1 240 320.3C240.2 364.5 276.1 400.2 320.3 400z"/>
-                      </svg>
-                    </div>
-                  </div>
-            
-                  <!-- Panels -->
-                  <div class="menuPanel">
-                    <!-- SOURCE Panel -->
-                    <div class="tab-panel active" id="panel-source">
-                      <div class="panel-heading">
-                                        <h3 class="panel-title">EDITION</h3>
-                                    </div>
-                      <div class="menu-item">
-                          <span class="menuHead">
-                            Select an Edition:
-                          </span>
-                          <br/>
-                          <div data-template="app:source"/>
-                          <div id="sourceButtonContainer" style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px;"/>
-                          <input type="hidden" id="pssource"/>
-                        </div>
-                        <div id="searchPhraseContainer" style="margin-top:10px;margin-bottom:10px;margin-left:8px;display:block;">
-                          <a href="#" id="searchPhraseLink" style="color:#6fc252;text-decoration:none;font-size:1em;display:inline-flex;align-items:center;gap:10px;">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="18" height="18" aria-hidden="true" focusable="false" style="display:inline-block;vertical-align:middle;fill:currentColor;">
-                              <path d="M480 272C480 317.9 465.1 360.3 440 394.7L566.6 521.4C579.1 533.9 579.1 554.2 566.6 566.7C554.1 579.2 533.8 579.2 521.3 566.7L394.7 440C360.3 465.1 317.9 480 272 480C157.1 480 64 386.9 64 272C64 157.1 157.1 64 272 64C386.9 64 480 157.1 480 272zM272 416C351.5 416 416 351.5 416 272C416 192.5 351.5 128 272 128C192.5 128 128 192.5 128 272C128 351.5 192.5 416 272 416z"/>
-                            </svg>
-                            <span>Find your phrase</span>
-                          </a>
-                        </div>
-                    </div>
-            
-                    <!-- TEXT Panel -->
-                    <div class="tab-panel" id="panel-text">
-                        <div class="panel-heading">
-                            <h3 class="panel-title">TEXT</h3>
-                        </div>
-                        <div id="textAndMetre">
-                            <div class="menu-item">
-                                <span class="menuHead">Filter by Metre (Optional):</span>
-                                <br/>
-                                <div id="psMetreList" class="menuSpan">Select source first</div>
-                            </div>
-                            <div class="menu-item" style="margin-top:0px">
-                                <span class="menuHead">Select a Text:</span>
-                                <br/>
-                                <div id="textSelector" class="menuSpan">
-                                    <div id="psTextList" class="menuSpan" style="cursor:pointer;">Select source first</div>
-                                </div>
-                                <div class="submenu">
-                                    <div id="texts" style="display:none;"/>
-                                </div>
-                            </div>
-                            <div id="VerseSection" class="menu-item">
-                                <span class="menuHead">
-                                    Select Verses:</span>
-                                <br/>
-                                <div style="font-style:italic;font-size:0.9em;margin:0px 0px 10px 6px;">Choose a minimum of 2</div>
-                                <div class="menuSpan" id="verseSelector">
-                                    <div id="selectVerses" class="menuSpan" style="cursor:pointer;">Select source first</div>
-                                    <input type="hidden" id="selectedStanzasData" name="stanzas" value=""/>
-                                </div>
-                                <div class="submenu">
-                                    <div id="verses" style="display:none;"/>
-                                </div>
-                             </div>
-                        </div>
-                    </div>
-            
-                    <!-- TUNE Panel -->
-                    <div class="tab-panel" id="panel-tune">
-                      <div class="panel-heading">
-                                        <h3 class="panel-title">TUNE</h3>
-                                    </div>
-                      <div id="TuneSection" class="menu-item">
-                        <span class="menuHead">
-                          Select a Tune:
-                        </span>
-                        <br/>
-                        <div id="tunes" class="menuSpan">Select source first.</div>
-                      </div>
-                    </div>
-            
-                    <!-- OPTIONS Panel -->
-                    <div class="tab-panel" id="panel-options">
-                      <div class="panel-heading">
-                                        <h3 class="panel-title">OPTIONS</h3>
-                                    </div>
-                      <div class="menu-item">
-                        <div id="optionsSpacer"/>
-                        <span class="displayGroup" style="margin-left:8px">Presentation Mode
-                          <label class="switch">
-                            <input id="psMode" name="presentation" type="checkbox"/>
-                            <span class="slider round"/>
-                          </label>
-                        </span>
-                      </div>
-                      <div class="menu-item right">
-                        <div id="submit" class="goBtn"/>
-                      </div>
-                    </div>
-                  </div>
-            
-                  <!-- Summary (sticky bottom) -->
-                  <div class="sidenav-summary" id="sidenavSummary">
-                    <div id="summaryText">
-                    <h4>Current Selections</h4>
-                    <div class="row">
-                      <span class="label">Source:</span>
-                      <span class="value" id="summary-source">Select Source</span>
-                    </div>
-                    <div class="row">
-                      <span class="label">Text:</span>
-                      <span class="value" id="summary-text">Select Text</span>
-                    </div>
-                    <div class="row">
-                      <span class="label">Tune:</span>
-                      <span class="value" id="summary-tune">Select Tune</span>
-                     </div>
-                     </div>
-                     <div id="summaryBtn"/>
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-        	<div id="controls">
-                <div class="vl">
-                    <a name="Create PDF" class="tooltip" id="printPDF">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="icon" viewBox="0 0 512 512">
-                            <path d="M128 0C92.7 0 64 28.7 64 64l0 96 64 0 0-96 226.7 0L384 93.3l0 66.7 64 0 0-66.7c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0L128 0zM384 352l0 32 0 64-256 0 0-64 0-16 0-16 256 0zm64 32l32 0c17.7 0 32-14.3 32-32l0-96c0-35.3-28.7-64-64-64L64 192c-35.3 0-64 28.7-64 64l0 96c0 17.7 14.3 32 32 32l32 0 0 64c0 35.3 28.7 64 64 64l256 0c35.3 0 64-28.7 64-64l0-64zM432 248a24 24 0 1 1 0 48 24 24 0 1 1 0-48z"/>
-                        </svg>
-                        <span class="tooltiptext">Create PDF</span>
-                    </a>
-                    <a class="tooltip" id="shareLink">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="icon" viewBox="50 50 512 512">
-                                <path d="M342.6 73.4C330.1 60.9 309.8 60.9 297.3 73.4L169.3 201.4C156.8 213.9 156.8 234.2 169.3 246.7C181.8 259.2 202.1 259.2 214.6 246.7L288 173.3L288 384C288 401.7 302.3 416 320 416C337.7 416 352 401.7 352 384L352 173.3L425.4 246.7C437.9 259.2 458.2 259.2 470.7 246.7C483.2 234.2 483.2 213.9 470.7 201.4L342.7 73.4zM160 416C160 398.3 145.7 384 128 384C110.3 384 96 398.3 96 416L96 480C96 533 139 576 192 576L448 576C501 576 544 533 544 480L544 416C544 398.3 529.7 384 512 384C494.3 384 480 398.3 480 416L480 480C480 497.7 465.7 512 448 512L192 512C174.3 512 160 497.7 160 480L160 416z"/>
-                        </svg>
-                        <span class="tooltiptext">Share</span>
-                    </a>
-                </div>
-                <div class="vl">
-                    <a class="tooltip" id="playMIDI">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="50 50 512 512" class="icon">
-                                <path d="M187.2 100.9C174.8 94.1 159.8 94.4 147.6 101.6C135.4 108.8 128 121.9 128 136L128 504C128 518.1 135.5 531.2 147.6 538.4C159.7 545.6 174.8 545.9 187.2 539.1L523.2 355.1C536 348.1 544 334.6 544 320C544 305.4 536 291.9 523.2 284.9L187.2 100.9z"/>
-                        </svg>
-                        <span class="tooltiptext">Play</span>
-                    </a>
-                    <a class="tooltip" id="pauseMIDI">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="50 50 512 512" class="icon">
-                               <path d="M160 96L480 96C515.3 96 544 124.7 544 160L544 480C544 515.3 515.3 544 480 544L160 544C124.7 544 96 515.3 96 480L96 160C96 124.7 124.7 96 160 96z"/>
-                        </svg>
-                        <span class="tooltiptext">Stop</span>
-                    </a>
-                    <a class="tooltip" id="soundSettingsBtn" style="cursor:pointer;">
-                      <svg xmlns="http://www.w3.org/2000/svg" class="icon" viewBox="50 50 512 512">
-                                <path d="M96 128C78.3 128 64 142.3 64 160C64 177.7 78.3 192 96 192L182.7 192C195 220.3 223.2 240 256 240C288.8 240 317 220.3 329.3 192L544 192C561.7 192 576 177.7 576 160C576 142.3 561.7 128 544 128L329.3 128C317 99.7 288.8 80 256 80C223.2 80 195 99.7 182.7 128L96 128zM96 288C78.3 288 64 302.3 64 320C64 337.7 78.3 352 96 352L342.7 352C355 380.3 383.2 400 416 400C448.8 400 477 380.3 489.3 352L544 352C561.7 352 576 337.7 576 320C576 302.3 561.7 288 544 288L489.3 288C477 259.7 448.8 240 416 240C383.2 240 355 259.7 342.7 288L96 288zM96 448C78.3 448 64 462.3 64 480C64 497.7 78.3 512 96 512L150.7 512C163 540.3 191.2 560 224 560C256.8 560 285 540.3 297.3 512L544 512C561.7 512 576 497.7 576 480C576 462.3 561.7 448 544 448L297.3 448C285 419.7 256.8 400 224 400C191.2 400 163 419.7 150.7 448L96 448z"/>
+  function getShareUrl() {
+    const baseUrl = "https://splitleaf.org/app.html";
+    const params = new URLSearchParams();
+    if (window.globalTeiID) params.append('teiID', window.globalTeiID);
+    if (window.globalPsTune) params.append('psTune', window.globalPsTune);
+    if (window.globalSelStanzas && window.globalSelStanzas.length > 0) {
+      params.append('selStanzas', window.globalSelStanzas.join(','));
+    }
+    params.append('autoGen', 'true');
+    return `${baseUrl}?${params.toString()}`;
+  }
 
-                                <!--<path d="M259.1 73.5C262.1 58.7 275.2 48 290.4 48L350.2 48C365.4 48 378.5 58.7 381.5 73.5L396 143.5C410.1 149.5 423.3 157.2 435.3 166.3L503.1 143.8C517.5 139 533.3 145 540.9 158.2L570.8 210C578.4 223.2 575.7 239.8 564.3 249.9L511 297.3C511.9 304.7 512.3 312.3 512.3 320C512.3 327.7 511.8 335.3 511 342.7L564.4 390.2C575.8 400.3 578.4 417 570.9 430.1L541 481.9C533.4 495 517.6 501.1 503.2 496.3L435.4 473.8C423.3 482.9 410.1 490.5 396.1 496.6L381.7 566.5C378.6 581.4 365.5 592 350.4 592L290.6 592C275.4 592 262.3 581.3 259.3 566.5L244.9 496.6C230.8 490.6 217.7 482.9 205.6 473.8L137.5 496.3C123.1 501.1 107.3 495.1 99.7 481.9L69.8 430.1C62.2 416.9 64.9 400.3 76.3 390.2L129.7 342.7C128.8 335.3 128.4 327.7 128.4 320C128.4 312.3 128.9 304.7 129.7 297.3L76.3 249.8C64.9 239.7 62.3 223 69.8 209.9L99.7 158.1C107.3 144.9 123.1 138.9 137.5 143.7L205.3 166.2C217.4 157.1 230.6 149.5 244.6 143.4L259.1 73.5zM320.3 400C364.5 399.8 400.2 363.9 400 319.7C399.8 275.5 363.9 239.8 319.7 240C275.5 240.2 239.8 276.1 240 320.3C240.2 364.5 276.1 400.2 320.3 400z"/>-->
-                            </svg>
-                      <span class="tooltiptext">Sound Settings</span>
-                    </a>
-                </div>
-                <div class="vl">
-                    <a class="tooltip" onclick="trUp()">
-                        <span class="icon-TransposeUpArrow"/>
-                        <span class="tooltiptext">Transpose Up</span>
-                    </a>
-                    <a class="tooltip" onclick="trDown()">
-                        <span class="icon-TransposeDwnArrow"/>
-                        <span class="tooltiptext">Transpose Down</span>
-                    </a>
-                </div>
-                <div class="vl">
-                    <a class="tooltip" onclick="zoomIn()">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="icon" viewBox="0 0 512 512">
-                                <path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM184 296c0 13.3 10.7 24 24 24s24-10.7 24-24l0-64 64 0c13.3 0 24-10.7 24-24s-10.7-24-24-24l-64 0 0-64c0-13.3-10.7-24-24-24s-24 10.7-24 24l0 64-64 0c-13.3 0-24 10.7-24 24s10.7 24 24 24l64 0 0 64z"/>
-                        </svg>
-                        <span class="tooltiptext">Zoom In</span>
-                    </a>
-                    <a class="tooltip" onclick="zoomOut()">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="icon" viewBox="0 0 512 512">
-                                <path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM136 184c-13.3 0-24 10.7-24 24s10.7 24 24 24l144 0c13.3 0 24-10.7 24-24s-10.7-24-24-24l-144 0z"/>
-                        </svg>
-                        <span class="tooltiptext">Zoom Out</span>
-                    </a>
-                </div>
-                <div style="display: inline-block">
-                    <a class="tooltip" onclick="firstPage()">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="icon" viewBox="0 0 512 512">
-                                <path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160zm352-160l-160 160c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L301.3 256 438.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0z"/>
-                        </svg>
-                        <span class="tooltiptext">First Page</span>
-                    </a>
-                    <a class="tooltip" onclick="prevPage()">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="icon" viewBox="0 0 320 512">
-                                <path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/>
-                        </svg>
-                        <span class="tooltiptext">Prev Page</span>
-                    </a>
-                    <a class="tooltip" onclick="nextPage()">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="icon" viewBox="0 0 320 512">
-                                <path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/>
-                        </svg>
-                        <span class="tooltiptext">Next Page</span>
-                    </a>
-                </div>
-            </div>
-            <div id="soundMenu" class="dropdown-menu" style="display: none;position: absolute;left: 15px;top: 140px;z-index: 5;background: #555;border: 1px solid rgb(68, 68, 68);padding: 18px 22px;border-radius: 8px;min-width: 250px;">
-              <h3 style="color:white;margin-top:-0.2em">Sound Settings</h3>
-              <div style="margin-bottom:12px">
-                <label for="tempoSlider" style="color:#fff;font-size:0.9em">Tempo multiplier: <span id="tempoDisplay">1.0</span> X</label>
-                <input type="range" id="tempoSlider" min="0.4" max="2.5" value="1.0" step="0.05"/>
-              </div>
-              <div style="margin-top:16px;margin-bottom:16px;">
-                <label style="color:#fff;">Voice Volumes:</label>
-                <div id="layerVolumeControls">
-                </div>
-              </div>
-             <div style="text-align: center; margin-top: 15px; display: flex; gap: 15px; justify-content: center; align-items: center;">
-                  <button id="resetAudioBtn" style="background: transparent; border: none; cursor: pointer; padding: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; margin-right:60px" title="Reset All">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" style="width: 30px; height: 40px; fill: #fff; margin-bottom: 4px;">
-                      <path d="M544.1 256L552 256C565.3 256 576 245.3 576 232L576 88C576 78.3 570.2 69.5 561.2 65.8C552.2 62.1 541.9 64.2 535 71L483.3 122.8C439 86.1 382 64 320 64C191 64 84.3 159.4 66.6 283.5C64.1 301 76.2 317.2 93.7 319.7C111.2 322.2 127.4 310 129.9 292.6C143.2 199.5 223.3 128 320 128C364.4 128 405.2 143 437.7 168.3L391 215C384.1 221.9 382.1 232.2 385.8 241.2C389.5 250.2 398.3 256 408 256L544.1 256zM573.5 356.5C576 339 563.8 322.8 546.4 320.3C529 317.8 512.7 330 510.2 347.4C496.9 440.4 416.8 511.9 320.1 511.9C275.7 511.9 234.9 496.9 202.4 471.6L249 425C255.9 418.1 257.9 407.8 254.2 398.8C250.5 389.8 241.7 384 232 384L88 384C74.7 384 64 394.7 64 408L64 552C64 561.7 69.8 570.5 78.8 574.2C87.8 577.9 98.1 575.8 105 569L156.8 517.2C201 553.9 258 576 320 576C449 576 555.7 480.6 573.4 356.5z"/>
-                    </svg>
-                    <span style="font-size: 14px; line-height: 1;">Reset</span>
-                  </button>
-                
-                  <button id="applyAudioBtn" style="background: transparent; border: none; cursor: pointer; padding: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white;" title="Apply and Play">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" style="width: 40px; height: 40px; fill: #4CAF50; margin-bottom: 4px;">
-                      <path d="M566.6 342.6C579.1 330.1 579.1 309.8 566.6 297.3L406.6 137.3C394.1 124.8 373.8 124.8 361.3 137.3C348.8 149.8 348.8 170.1 361.3 182.6L466.7 288L96 288C78.3 288 64 302.3 64 320C64 337.7 78.3 352 96 352L466.7 352L361.3 457.4C348.8 469.9 348.8 490.2 361.3 502.7C373.8 515.2 394.1 515.2 406.6 502.7L566.6 342.7z"/>
-                    </svg>
-                    <span style="font-size: 14px; line-height: 1;">Apply</span>
-                  </button>
-                  
-                  <!-- Close button moved to top right with larger icon -->
-                  <button id="closeSoundMenu" style="position: absolute; top: 8px; right: 8px; background: transparent; border: none; color: #ccc; cursor: pointer; padding: 4px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 4px;" title="Close">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" style="width: 24px; height: 24px; fill: currentColor;">
-                      <path d="M183.1 137.4C170.6 124.9 150.3 124.9 137.8 137.4C125.3 149.9 125.3 170.2 137.8 182.7L275.2 320L137.9 457.4C125.4 469.9 125.4 490.2 137.9 502.7C150.4 515.2 170.7 515.2 183.2 502.7L320.5 365.3L457.9 502.6C470.4 515.1 490.7 515.1 503.2 502.6C515.7 490.1 515.7 469.8 503.2 457.3L365.8 320L503.1 182.6C515.6 170.1 515.6 149.8 503.1 137.3C490.6 124.8 470.3 124.8 457.8 137.3L320.5 274.7L183.1 137.4z"/>
-                    </svg>
-                  </button>
-                </div>
-            </div>
-             <div style="height: 0px">
-            <midi-player id="verovio-midi-player" preload="auto" sound-font="https://storage.googleapis.com/magentadata/js/soundfonts/salamander" style="display: none;">
-            </midi-player>
-            </div>
-        </div>
-</section>
-<section class="container">
-    <div class="col-lg-12">
-    <div class="svg_output" id="svg_output">
-        <h2>Getting Started</h2>
-        <ol>
-            <li>Click on the <span style="color:white;font-size:30px;background:#555">☰</span> button at the top right</li>
-            <li>Select the text source you wish to use and click "NEXT"</li>
-            <li>Either filter the texts according to metre or select the psalm text you want</li>
-            <li>Select which verses you wish to sing, selecting a <strong>minimum of two.</strong> (NOTE: these are the biblical verses, not the stanzas) Click "NEXT".</li>
-            <li>All the tunes using the your text's metre are available, and you can type in the box to filter those tunes according to title. Either click "NEXT" to set the display options or click "GO" in the "Current Selections" section.</li>
-            <li>Select which options you wish and click "GO" to show your text and tune selections.</li>
-        </ol>
-    </div>
-</div>
-</section>
-<div id="paperSizeModal">
-    <div>
-      <h2>Choose Paper Size</h2>
-      <input type="radio" id="paperLetter" name="paperSize" value="LETTER" checked="true"/>
-      <label for="paperLetter">Letter (8.5" x 11")</label>
-                <br/>
-                <br/>
-      <input type="radio" id="paperA4" name="paperSize" value="A4"/>
-      <label for="paperA4">A4 (210mm x 297mm)</label>
-                <br/>
-                <br/>
-      <input type="radio" id="paperA5" name="paperSize" value="A5"/>
-      <label for="paperA5">A5 (148mm x 210mm)</label>
-                <br/>
-                <br/>
-      <input type="radio" id="paperStatement" name="paperSize" value="STATEMENT"/>
-      <label for="paperStatement">Statement (~5.5" x 8.5")</label>
-                <br/>
-                <br/>
-      <button id="generatePdfButton">Generate PDF</button>
-      <button id="cancelPdfButton">Cancel</button>
-    </div>
-  </div>
+  if (shareLink) {
+    shareLink.addEventListener("click", function() {
+      let url = getShareUrl();
+      if (shareUrlInput) shareUrlInput.value = url;
+      if (facebookBtn) facebookBtn.href = "https://www.facebook.com/sharer/sharer.php?u=" + encodeURIComponent(url);
+      if (xBtn) xBtn.href = "https://x.com/intent/tweet?url=" + encodeURIComponent(url);
+      if (redditBtn) redditBtn.href = "https://reddit.com/submit?url=" + encodeURIComponent(url);
+      if (mastodonBtn) mastodonBtn.href = "https://mastodon.social/share?text=" + encodeURIComponent(url);
+      if (shareModal) shareModal.style.display = "flex";
+    });
+  }
+
+  if (copyBtn) {
+    copyBtn.addEventListener("click", function() {
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(shareUrlInput.value).then(() => {
+          copyBtn.textContent = "Copied!";
+          setTimeout(() => { copyBtn.textContent = "Copy Link"; }, 1200);
+        });
+      } else {
+        shareUrlInput.select();
+        document.execCommand("copy");
+        copyBtn.textContent = "Copied!";
+        setTimeout(() => { copyBtn.textContent = "Copy Link"; }, 1200);
+      }
+    });
+  }
+
+  if (closeBtn) {
+    closeBtn.addEventListener("click", function() {
+      if (shareModal) shareModal.style.display = "none";
+    });
+  }
+}
+if (document.readyState === 'loading') {
+  document.addEventListener("DOMContentLoaded", setupShareModal);
+} else {
+  setupShareModal();
+}
+
+/* ----------------------------- Sound menu ----------------------------- */
+let urlParamsUsed = false;
+
+function setupSoundMenu() {
+  const soundMenu = document.getElementById("soundMenu");
+  const soundSettingsBtn = document.getElementById("soundSettingsBtn");
+  const closeSoundMenu = document.getElementById("closeSoundMenu");
+  const resetAudioBtn = document.getElementById("resetAudioBtn");
+  const applyAudioBtn = document.getElementById("applyAudioBtn");
+
+  function showSoundMenu() {
+    if (!soundMenu) return;
+    soundMenu.style.display = "block";
+    soundMenu.offsetHeight;
+    soundMenu.style.transform = "translateY(0)";
+    soundMenu.style.opacity = "1";
+  }
+  function hideSoundMenu() {
+    if (!soundMenu) return;
+    soundMenu.style.transform = "translateY(-20px)";
+    soundMenu.style.opacity = "0";
+    setTimeout(() => { soundMenu.style.display = "none"; }, 300);
+  }
+
+  if (soundSettingsBtn) {
+    soundSettingsBtn.addEventListener("click", function() {
+      if (!soundMenu) return;
+      if (soundMenu.style.display === "none" || soundMenu.style.display === "") showSoundMenu();
+      else hideSoundMenu();
+    });
+  }
+  if (closeSoundMenu) {
+    closeSoundMenu.addEventListener("click", hideSoundMenu);
+  }
+  if (resetAudioBtn) {
+    resetAudioBtn.addEventListener("click", function() {
+      resetAllAudioSettings();
+    });
+  }
+  if (applyAudioBtn) {
+    applyAudioBtn.addEventListener("click", async function() {
+      try { stopMIDIHandler(); } catch(e) {}
+      hideSoundMenu();
+      try { await loadAudioAndPlayHandler(); } catch(e) {}
+    });
+  }
+}
+if (document.readyState === 'loading') {
+  document.addEventListener("DOMContentLoaded", setupSoundMenu);
+} else {
+  setupSoundMenu();
+}
+
+/* ----------------------------- Tempo & layer volume helpers ----------------------------- */
+const tempoSlider = document.getElementById("tempoSlider");
+const tempoDisplay = document.getElementById("tempoDisplay");
+if (tempoSlider) {
+  tempoSlider.min = 0.2;
+  tempoSlider.max = 2.5;
+  tempoSlider.step = 0.05;
+  tempoSlider.value = 1.0;
+}
+let midiTempoAdjustment = 1.0;
+if (tempoSlider) {
+  tempoSlider.addEventListener("input", function() {
+    midiTempoAdjustment = parseFloat(tempoSlider.value);
+    if (tempoDisplay) tempoDisplay.textContent = midiTempoAdjustment.toFixed(2);
+  });
+}
+function getVoiceVolume(id) {
+  const el = document.getElementById(id);
+  return el ? (el.value / 100) : 0;
+}
+function resetAllAudioSettings() {
+  const tempoSlider = document.getElementById("tempoSlider");
+  const tempoDisplay = document.getElementById("tempoDisplay");
+  if (tempoSlider && tempoDisplay) {
+    tempoSlider.value = "1.0";
+    tempoDisplay.textContent = "1.00";
+    midiTempoAdjustment = 1.0;
+  }
+  if (window.currentLayers) {
+    window.currentLayers.forEach(layer => {
+      window.layerVolumes[layer.id] = 71;
+      window.layerMuteStates[layer.id] = false;
+      const slider = document.getElementById(`layer-volume-${layer.id}`);
+      const muteButton = document.getElementById(`mute-btn-${layer.id}`);
+      if (slider) slider.value = '71';
+      if (muteButton) {
+        muteButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" style="width: 20px; height: 20px; fill: #fff;">
+          <path d="M533.6 96.5C523.3 88.1 508.2 89.7 499.8 100C491.4 110.3 493 125.4 503.3 133.8C557.5 177.8 592 244.8 592 320C592 395.2 557.5 462.2 503.3 506.3C493 514.7 491.5 529.8 499.8 540.1C508.1[...]
+        </svg>`;
+      }
+    });
+  }
+  console.log('All audio settings reset to defaults');
+}
+
+/* ----------------------------- Metre sorting helper ----------------------------- */
+/**
+ * Custom sort for metre strings:
+ * - Priority order: 8.6.8.6., 8.8.8.8., 6.6.8.6. (if present, in this order)
+ * - Then all others sorted numerically by parsing the digit groups
+ */
+function sortMetres(metreArray) {
+  const priority = ['8.6.8.6.', '8.8.8.8.', '6.6.8.6.'];
   
-  <div id="shareModal" style="display:none;">
-  <div>
-    <h2 style="margin-top: 0">Share This Psalm Setting</h2>
-    <div style="display: flex; flex-wrap: wrap; gap: 22px; justify-content: center; margin: 40px 0;">
-      <a href="https://www.facebook.com/sharer/sharer.php?u=https://splitleaf.org/" id="share-facebook" target="_blank" title="Share on Facebook">
-        <!-- Facebook SVG -->
-        <svg xmlns="http://www.w3.org/2000/svg" width="38" height="38" viewBox="0 0 640 640" style="fill:#1877F2;">
-            <path d="M576 320C576 178.6 461.4 64 320 64C178.6 64 64 178.6 64 320C64 440 146.7 540.8 258.2 568.5L258.2 398.2L205.4 398.2L205.4 320L258.2 320L258.2 286.3C258.2 199.2 297.6 158.8 383.2 158.8C399.4 158.8 427.4 162 438.9 165.2L438.9 236C432.9 235.4 422.4 235 409.3 235C367.3 235 351.1 250.9 351.1 292.2L351.1 320L434.7 320L420.3 398.2L351 398.2L351 574.1C477.8 558.8 576 450.9 576 320z"/>
-                        </svg>
-      </a>
-      <a href="#" id="share-x" target="_blank" title="Share on X">
-          <!-- X SVG -->
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="38" height="38" style="fill:#000;">
-                            <path d="M453.2 112L523.8 112L369.6 288.2L551 528L409 528L297.7 382.6L170.5 528L99.8 528L264.7 339.5L90.8 112L236.4 112L336.9 244.9L453.2 112zM428.4 485.8L467.5 485.8L215.1 152L173.1 152L428.4 485.8z"/>
-          </svg>
-        </a>
-      <a href="#" id="share-reddit" target="_blank" title="Share on Reddit">
-        <!-- Reddit SVG -->
-        <svg xmlns="http://www.w3.org/2000/svg" width="38" height="38" viewBox="0 0 640 640" style="fill:#FF4500;">
-                <path d="M64 320C64 178.6 178.6 64 320 64C461.4 64 576 178.6 576 320C576 461.4 461.4 576 320 576L101.1 576C87.4 576 80.6 559.5 90.2 549.8L139 501C92.7 454.7 64 390.7 64 320zM413.6 217.6C437.2 217.6 456.3 198.5 456.3 174.9C456.3 151.3 437.2 132.2 413.6 132.2C393 132.2 375.8 146.8 371.8 166.2C337.3 169.9 310.4 199.2 310.4 234.6L310.4 234.8C272.9 236.4 238.6 247.1 211.4 263.9C201.3 256.1 188.6 251.4 174.9 251.4C141.9 251.4 115.1 278.2 115.1 311.2C115.1 335.2 129.2 355.8 149.5 365.3C151.5 434.7 227.1 490.5 320.1 490.5C413.1 490.5 488.8 434.6 490.7 365.2C510.9 355.6 524.8 335 524.8 311.2C524.8 278.2 498 251.4 465 251.4C451.3 251.4 438.7 256 428.6 263.8C401.2 246.8 366.5 236.1 328.6 234.7L328.6 234.5C328.6 209.1 347.5 188 372 184.6C376.4 203.4 393.3 217.4 413.5 217.4L413.6 217.6zM241.1 310.9C257.8 310.9 270.6 328.5 269.6 350.2C268.6 371.9 256.1 379.8 239.3 379.8C222.5 379.8 207.9 371 208.9 349.3C209.9 327.6 224.3 311 241 311L241.1 310.9zM431.2 349.2C432.2 370.9 417.5 379.7 400.8 379.7C384.1 379.7 371.5 371.8 370.5 350.1C369.5 328.4 382.3 310.8 399 310.8C415.7 310.8 430.2 327.4 431.1 349.1L431.2 349.2zM383.1 405.9C372.8 430.5 348.5 447.8 320.1 447.8C291.7 447.8 267.4 430.5 257.1 405.9C255.9 403 257.9 399.7 261 399.4C279.4 397.5 299.3 396.5 320.1 396.5C340.9 396.5 360.8 397.5 379.2 399.4C382.3 399.7 384.3 403 383.1 405.9z"/>
-                        </svg>
-      </a>
-      <a href="#" id="share-mastodon" target="_blank" title="Share on Mastodon">
-        <!-- Mastodon SVG -->
-        <svg xmlns="http://www.w3.org/2000/svg" width="38" height="38" viewBox="0 0 640 640" style="fill:#6364FF;">
-                            <path d="M529 243.1C529 145.9 465.3 117.4 465.3 117.4C402.8 88.7 236.7 89 174.8 117.4C174.8 117.4 111.1 145.9 111.1 243.1C111.1 358.8 104.5 502.5 216.7 532.2C257.2 542.9 292 545.2 320 543.6C370.8 540.8 399.3 525.5 399.3 525.5L397.6 488.6C397.6 488.6 361.3 500 320.5 498.7C280.1 497.3 237.5 494.3 230.9 444.7C230.3 440.1 230 435.4 230 430.8C315.6 451.7 388.7 439.9 408.7 437.5C464.8 430.8 513.7 396.2 519.9 364.6C529.7 314.8 528.9 243.1 528.9 243.1zM453.9 368.3L407.3 368.3L407.3 254.1C407.3 204.4 343.3 202.5 343.3 261L343.3 323.5L297 323.5L297 261C297 202.5 233 204.4 233 254.1L233 368.3L186.3 368.3C186.3 246.2 181.1 220.4 204.7 193.3C230.6 164.4 284.5 162.5 308.5 199.4L320.1 218.9L331.7 199.4C355.8 162.3 409.8 164.6 435.5 193.3C459.2 220.6 453.9 246.3 453.9 368.3L453.9 368.3z"/>
-                        </svg>
-      </a>
-    </div>
-    <input id="shareUrlInput" readonly="readonly" style="width:90%;margin:10px auto 18px auto;display:block;font-size:0.85em;padding:4px;text-align:center;background: #e9e9e9;" value=""/>
-    <div style="text-align:center;">
-      <button id="copyShareUrlBtn">Copy Link</button>
-      <button id="closeShareModalBtn">Cancel</button>
-    </div>
-  </div>
-</div>
+  function parseMetreDigits(metre) {
+    const str = String(metre || '');
+    const matches = str.match(/\d+/g);
+    return matches ? matches.map(d => parseInt(d, 10)) : [];
+  }
+  
+  function compareDigitArrays(a, b) {
+    const len = Math.max(a.length, b.length);
+    for (let i = 0; i < len; i++) {
+      const aVal = i < a.length ? a[i] : 0;
+      const bVal = i < b.length ? b[i] : 0;
+      if (aVal < bVal) return -1;
+      if (aVal > bVal) return 1;
+    }
+    return 0;
+  }
+  
+  return metreArray.slice().sort(function(a, b) {
+    const aStr = String(a || '');
+    const bStr = String(b || '');
+    
+    const aPriority = priority.indexOf(aStr);
+    const bPriority = priority.indexOf(bStr);
+    
+    if (aPriority !== -1 && bPriority !== -1) {
+      return aPriority - bPriority;
+    }
+    if (aPriority !== -1) return -1;
+    if (bPriority !== -1) return 1;
+    
+    const aDigits = parseMetreDigits(aStr);
+    const bDigits = parseMetreDigits(bStr);
+    const cmp = compareDigitArrays(aDigits, bDigits);
+    if (cmp !== 0) return cmp;
+    
+    return aStr.localeCompare(bStr);
+  });
+}
 
-  <!-- Search Modal -->
-  <div id="searchModal" style="display:none;">
-      <div>
-        <h2 style="margin-top: 0">Find Your Phrase</h2>
-        <input type="text" id="searchInput" placeholder="Type your phrase..." style="width:90%;margin:10px auto 12px auto;display:block;font-size:1em;padding:8px;border-radius:6px;border:1px solid #888;"/>
-        <div style="text-align:center;margin:0 0 14px;">
-          <button id="executeSearchBtn">Search</button>
-          <button id="closeSearchModalBtn">Close</button>
-        </div>
-        <div id="searchResults" style="max-height:400px;overflow-y:auto;margin:10px auto;width:90%;"/>
-      </div>
-    </div>
-    
-    <!-- Melody Search Modal -->
-    <div id="melodySearchModal" style="display:none;">
-      <div>
-        <h2 style="margin-top: 0">Search by Melody</h2>
-        <p style="color:#555;font-size:0.9em;margin:10px auto;width:90%;text-align:center;">This is a full database search. If you select a tune whose metre does <strong>not</strong> match your selected text, you will be taken back to the text selection tab, and your tune's metre will be automatically entered for you. Once you have selected a text, you can return to the tune tab, where you will will be able to select your tune.</p>
-        <input type="text" id="melodySearchInput" placeholder="e.g., 3 5 5 7 8" style="width:90%;margin:10px auto 12px auto;display:block;font-size:1em;padding:8px;border-radius:6px;border:1px solid #888;"/>
-        <div style="text-align:center;margin:0 0 14px;">
-          <button id="executeMelodySearchBtn">Search</button>
-          <button id="closeMelodySearchModalBtn">Close</button>
-        </div>
-        <div id="melodySearchResults" style="max-height:400px;overflow-y:auto;margin:10px auto;width:90%;"/>
-      </div>
-    </div>
-    <script src="https://www.verovio.org/javascript/latest/verovio-toolkit-wasm.js" defer="defer"/>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/awesomplete/1.1.5/awesomplete.min.js"/>
-    <script src="resources/js/melody-player.js" defer="defer"/>
-    <script async="" src="https://www.googletagmanager.com/gtag/js?id=G-9HSZZ1BZCT"/>
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"/>
+/* ----------------------------- getTunes & tune synchronization ----------------------------- */
 
-    <script src="https://cdn.jsdelivr.net/combine/npm/tone@14.7.58,npm/@magenta/music@1.23.1/es6/core.js,npm/focus-visible@5,npm/html-midi-player@1.5.0"/>
+/* syncTuneInputDataset: updated to prefer dataset.tunelabel, keep dataset.tuneid
+   This preserves backward compatibility with code that may call this function. */
+function syncTuneInputDataset() {
+  var tuneInput = document.getElementById("pstune");
+  var tuneListText = document.getElementById("pstuneListData");
+  var tuneList = tuneListText ? JSON.parse(tuneListText.value || tuneListText.textContent || '[]') : [];
+  if (!tuneInput) return;
+
+  // Prefer dataset.tunelabel (explicit selection), otherwise use the input's visible value
+  var selectedLabel = (tuneInput.dataset && tuneInput.dataset.tunelabel) ? tuneInput.dataset.tunelabel : tuneInput.value;
+
+  // If selectedLabel is empty, clear tuneid
+  if (!selectedLabel) {
+    tuneInput.dataset.tuneid = "";
+    window.globalPsTune = "";
+    return;
+  }
+
+  var selectedObj = tuneList.find(function(item){ return item.label === selectedLabel; });
+  if (selectedObj) {
+    tuneInput.dataset.tuneid = selectedObj.id;
+    // Also ensure dataset.tunelabel is set to the canonical label
+    tuneInput.dataset.tunelabel = selectedObj.label;
+    window.globalPsTune = selectedObj.id;
+  } else {
+    // We don't want to put an id into the visible input value anymore;
+    // keep the dataset empty if we couldn't find a match
+    tuneInput.dataset.tuneid = "";
+    window.globalPsTune = "";
+  }
+}
+
+function ensurePstuneSearchUI(tuneLabels, tuneListObjs, initialValue) {
+  const tunesContainer = document.getElementById('tunes');
+  let tuneButtonsContainer = document.getElementById('tuneButtons');
+
+  if (!tunesContainer) {
+    console.warn('#tunes container missing; cannot render tune search UI');
+    return;
+  }
+
+  // Create or reuse search input
+  let tuneInput = document.getElementById('pstune');
+  if (!tuneInput) {
+    tuneInput = document.createElement('input');
+    tuneInput.type = 'text';
+    tuneInput.id = 'pstune';
+    tuneInput.placeholder = '[Type here to filter tunes]';
+    tuneInput.autocomplete = 'off';
+    tuneInput.className = 'tune-search-input';
+    tunesContainer.innerHTML = '';
+    tunesContainer.appendChild(tuneInput);
+  } else {
+    try { tuneInput.placeholder = tuneInput.placeholder || '[Type here to filter tunes]'; } catch(e) {}
+  }
+
+  // Create or reuse melody search link
+  let melodySearchContainer = document.getElementById('searchMelodyContainer');
+  if (!melodySearchContainer) {
+    melodySearchContainer = document.createElement('div');
+    melodySearchContainer.id = 'searchMelodyContainer';
+    melodySearchContainer.style.cssText = 'margin-top:10px;margin-bottom:10px;margin-left:8px;display:block;';
     
-    <script src="resources/js/pdfkit.standalone.js"/>
-    <script src="resources/js/blob-stream.js"/>
-    <script src="resources/js/svg-to-pdfkit.js"/>
+    const melodySearchLink = document.createElement('a');
+    melodySearchLink.href = '#';
+    melodySearchLink.id = 'searchMelodyLink';
+    melodySearchLink.style.cssText = 'color:#6fc252;text-decoration:none;font-size:1em;display:inline-flex;align-items:center;gap:10px;';
     
-    <!-- Define the expected JS build for runtime verification -->
-    <script>window.EXPECTED_BUILD = '2025-10-28-2';</script>
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('viewBox', '0 0 640 640');
+    svg.setAttribute('width', '18');
+    svg.setAttribute('height', '18');
+    svg.setAttribute('aria-hidden', 'true');
+    svg.setAttribute('focusable', 'false');
+    svg.style.cssText = 'display:inline-block;vertical-align:middle;fill:currentColor;';
     
-    <!-- Versioned, deferred site scripts to avoid stale caches and preserve order -->
-    <script defer="defer" src="resources/js/app-dev.js"/>
-    <script defer="defer" src="resources/js/interface-dev.js"/>
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', 'M532 71C539.6 77.1 544 86.3 544 96L544 400C544 444.2 501 480 448 480C395 480 352 444.2 352 400C352 355.8 395 320 448 320C459.2 320 470 321.6 480 324.6L480 207.9L256 257.7L256 464C256 508.2 213 544 160 544C107 544 64 508.2 64 464C64 419.8 107 384 160 384C171.2 384 182 385.6 192 388.6L192 160C192 145 202.4 132 217.1 128.8L505.1 64.8C514.6 62.7 524.5 65 532.1 71.1z');
+    svg.appendChild(path);
     
-    <!-- Script validation check - logs warnings but does not reload to prevent infinite loop -->
-    <script>
-        (function () {
-          function loadedOK() {
-            return window.INTERFACE_DEV_BUILD === window.EXPECTED_BUILD &amp;&amp;
-                   typeof initializeTabNavigation === 'function';
-          }
+    const span = document.createElement('span');
+    span.textContent = 'Search by Melody';
+    
+    melodySearchLink.appendChild(svg);
+    melodySearchLink.appendChild(span);
+    melodySearchContainer.appendChild(melodySearchLink);
+    tunesContainer.appendChild(melodySearchContainer);
+    
+    // Attach click handler to open melody search modal
+    melodySearchLink.addEventListener('click', function(e) {
+      e.preventDefault();
+      const modal = document.getElementById('melodySearchModal');
+      const input = document.getElementById('melodySearchInput');
+      if (modal && input) {
+        modal.style.display = 'flex';
+        input.focus();
+        const resultsDiv = document.getElementById('melodySearchResults');
+        if (resultsDiv) {
+          resultsDiv.innerHTML = '<div style="padding:20px;text-align:center;color:#555;">Enter pitch classes (0-11) separated by spaces to search for matching melodies.</div>';
+        }
+      }
+    });
+  }
+
+  if (!tuneButtonsContainer) {
+    tuneButtonsContainer = document.createElement('div');
+    tuneButtonsContainer.id = 'tuneButtons';
+    tunesContainer.appendChild(tuneButtonsContainer);
+  }
+
+  // Build mapping label -> id
+  window._pstuneMap = {};
+  if (Array.isArray(tuneListObjs) && tuneListObjs.length) {
+    tuneListObjs.forEach(function(o) {
+      if (o && o.label) window._pstuneMap[o.label] = o.id || '';
+    });
+  } else if (Array.isArray(tuneLabels)) {
+    tuneLabels.forEach(function(l) {
+      window._pstuneMap[l] = window._pstuneMap[l] || '';
+    });
+  }
+
+  // ← NEW: Flag to track if user is clicking a button
+  let isClickingButton = false;
+
+  function clearActiveButton() {
+    const btns = tuneButtonsContainer.querySelectorAll('.verse-btn, .tune-btn');
+    btns.forEach(b => b.classList.remove('active'));
+  }
+
+  // Helper function to normalize strings by removing diacritical marks
+  // Uses Unicode NFD normalization to separate base characters from combining marks
+  function normalizeString(str) {
+    return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  }
+
+  function renderTuneButtons(filter) {
+     tuneButtonsContainer.innerHTML = '';
+    filter = (filter || '').toLowerCase().trim();
+
+    const sourceList = Array.isArray(tuneLabels) && tuneLabels.length ? tuneLabels : Object.keys(window._pstuneMap || {});
+
+    const matches = sourceList.filter(function(lbl) {
+        if (!filter) return true;
+        return normalizeString(lbl).indexOf(normalizeString(filter)) !== -1;
+    });
+
+    if (!matches.length) {
+      const p = document.createElement('div');
+      p.className = 'menuSpan';
+      p.textContent = 'No tunes match your search';
+      tuneButtonsContainer.appendChild(p);
+      return;
+    }
+
+    matches.forEach(function(lbl) {
+      const mappingId = window._pstuneMap[lbl] || '';
+
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'verse-btn tune-btn';
+      btn.dataset.label = lbl;
+      btn.dataset.tuneid = mappingId;
+
+      const m = lbl.trim().match(/^(.*?)(?:\s*\(([^)]+)\))?$/);
+      const title = (m && m[1]) ? m[1].trim() : lbl;
+      const paren = (m && m[2]) ? m[2].trim() : '';
+
+      const titleSpan = document.createElement('span');
+      titleSpan.className = 'tune-title';
+      titleSpan.textContent = title;
+
+      btn.appendChild(titleSpan);
+
+      if (paren) {
+        const dateSpan = document.createElement('span');
+        dateSpan.className = 'tune-date';
+        dateSpan.textContent = paren;
+        btn.appendChild(dateSpan);
+      }
+
+      // ← NEW: Set flag on mousedown (before blur fires)
+      btn.addEventListener('mousedown', function(e) {
+        isClickingButton = true;
+      });
+
+      btn.addEventListener('click', function(e) {
+        const input = document.getElementById('pstune');
+        if (input) {
+          // Store selection in dataset
+          input.dataset.tuneid = mappingId || '';
+          input.dataset.tunelabel = lbl || '';
           
-          // Check after scripts load, but DON'T reload - just log
-          setTimeout(function() {
-            if (!loadedOK()) {
-              console.warn('Script validation check failed. Expected build:', window.EXPECTED_BUILD, 'Found:', window.INTERFACE_DEV_BUILD);
-              console.warn('initializeTabNavigation exists:', typeof initializeTabNavigation === 'function');
-              // DO NOT RELOAD - just log the issue
-            } else {
-              console.log('Scripts loaded successfully');
-            }
-          }, 2000); // Increased timeout to 2 seconds to ensure deferred scripts execute
-        })();
-    </script>
-    <script>
-        window.dataLayer = window.dataLayer || [];
-        function gtag(){dataLayer.push(arguments);}
-        gtag('js', new Date());
-        gtag('config', 'G-9HSZZ1BZCT');
-        
-        function openNav() {
-            var sidenav = document.getElementById("sidenav");
-            var menutoggle = document.getElementById("menutoggle");
-            sidenav.style.width = "360px";
-            sidenav.style.height = "100%";
-            menutoggle.classList.add("is-active");
-        }
-        function closeNav() {
-          var sidenav = document.getElementById("sidenav");
-          var menutoggle = document.getElementById("menutoggle");
-          sidenav.style.width = "0";
-          menutoggle.classList.remove("is-active");
+          // Show the tune name in the input field
+          input.value = lbl;
+          
+          // Mark button as active
+          tuneButtonsContainer.querySelectorAll('.verse-btn, .tune-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+
+          // Update global variable
+          window.globalPsTune = mappingId || '';
+          
+          // Filter to show only this tune button
+          renderTuneButtons(lbl);
         }
 
-        document.addEventListener("DOMContentLoaded", function() {
-          // Awesomplete setup
-          if (typeof pssourceList !== "undefined" &amp;&amp; Array.isArray(pssourceList)) {
-              new Awesomplete(document.getElementById("pssource"), { list: pssourceList });
+        // ← NEW: Reset flag after click completes
+        isClickingButton = false;
+
+        try { updateSelectionSummary(); } catch(e) {}
+        try { maybeShowNextForTune(); } catch(e) {}
+      });
+
+      tuneButtonsContainer.appendChild(btn);
+    });
+
+    // After rendering, re-apply active state to the selected tune button
+    const currentInput = document.getElementById('pstune');
+    if (currentInput && currentInput.dataset && currentInput.dataset.tunelabel) {
+      const selectedLabel = currentInput.dataset.tunelabel;
+      try {
+        const chosenBtn = tuneButtonsContainer.querySelector(`[data-label="${CSS.escape(selectedLabel)}"]`);
+        if (chosenBtn) {
+          chosenBtn.classList.add('active');
+        }
+      } catch (e) {
+        const allBtns = tuneButtonsContainer.querySelectorAll('.tune-btn');
+        allBtns.forEach(function(btn) {
+          if (btn.dataset.label === selectedLabel) {
+            btn.classList.add('active');
           }
+        });
+      }
+    }
+  }
 
-          // Sidenav push logic
-           var sidenav = document.getElementById("sidenav");
-           var main = document.getElementById("main");
-           var menutoggle = document.getElementById("menutoggle");
-           var closemenu = document.getElementById("closemenu");
+  // When user clicks input (focus), clear it and show all tunes
+  tuneInput.addEventListener('focus', function() {
+    this.value = '';
+    renderTuneButtons('');
+    
+    try {
+      setTimeout(() => {
+        try {
+          tuneInput.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          setTimeout(() => { try { window.scrollTo(0, 1); } catch(_) {} }, 250);
+        } catch (e) {}
+      }, 250);
+    } catch(e) {}
+  });
+
+  // When user types, filter the list
+  tuneInput.addEventListener('input', function() {
+    renderTuneButtons(this.value || '');
+    try { updateSelectionSummary(); } catch(e) {}
+  });
+
+  // ← CHANGED: Only restore selection if user is NOT clicking a button
+  tuneInput.addEventListener('blur', function() {
+    // Use setTimeout to allow button click to complete first
+    setTimeout(() => {
+      if (!isClickingButton && this.dataset.tunelabel && !this.value) {
+        this.value = this.dataset.tunelabel;
+        renderTuneButtons(this.dataset.tunelabel);
+      }
+      // Reset flag just in case
+      isClickingButton = false;
+    }, 150);
+  });
+  
+  // Always keep input empty and show all tunes on initial load
+  tuneInput.value = '';
+  renderTuneButtons('');
+
+  try { maybeShowNextForTune(); } catch (_) {}
+}
+
+function getTunes(tuneLabel) {
+  var psInput = document.getElementById("pstext");
+  var psDataStr = psInput ? psInput.dataset.psdata : "";
+  if (!psDataStr) return;
+
+  var psData = psDataStr.split(";");
+  var teiID = psData[0];
+  var metre = psData[1];
+  var suggTune = tuneLabel || psData[2] || "201a";
+
+  var urlVariable = encodeURI("getTunes.xq?metre=" + metre + "&suggTune=" + suggTune + "&teiID=" + teiID);
+
+  var selMetInput = document.getElementById("selMet");
+  if (selMetInput) {
+    try { selMetInput.value = metre; } catch(_) {}
+  }
+
+  var tuneQuery = new XMLHttpRequest();
+  tuneQuery.open("GET", urlVariable, true);
+  tuneQuery.send();
+
+  tuneQuery.onreadystatechange = function() {
+    if (this.readyState == 4 && this.status == 200) {
+      document.getElementById("tunes").innerHTML = tuneQuery.responseText;
+
+      var tuneListText = document.getElementById("pstuneListData");
+      var tuneLabelsText = document.getElementById("pstuneLabelsData");
+      var tuneList = tuneListText ? JSON.parse(tuneListText.value || tuneListText.textContent || '[]') : [];
+      var tuneLabels = tuneLabelsText ? JSON.parse(tuneLabelsText.value || tuneLabelsText.textContent || '[]') : [];
+
+      // Initialize our persistent filter UI (input placeholder + buttons)
+      try {
+        ensurePstuneSearchUI(tuneLabels, tuneList, tuneLabel || '');
+      } catch (e) {
+        console.warn('ensurePstuneSearchUI failed', e);
+      }
+
+      const optionsSpacer = document.getElementById("optionsSpacer");
+      if (optionsSpacer) optionsSpacer.style.height = "15px";
+
+      setTimeout(function(){ try { updateSelectionSummary(); } catch(e) {} }, 0);
+
+      document.getElementById("submit").innerHTML =
+        "<button type='button' class='submitbtn' onclick='loadFile(); closeNav();'>" +
+        "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'>" +
+        "<path d='M21,4 C21.5128358,4 21.9355072,4.38604019 21.9932723,4.88337887 L22,5 L22,11.5 C22,13.3685634 20.5357224,14.8951264 18.6920352,14.9948211 L18.5,15 L5.415,15 L8.70710678,18.2928932 C9.06759074,18.6533772 9.09532028,19.2206082 8.79029539,19.6128994 L8.70710678,19.7071068 C8.34662282,20.0675907 7.77939176,20.0953203 7.38710056,19.7902954 L7.29289322,19.7071068 L2.29289322,14.7071068 C2.25749917,14.6717127 2.22531295,14.6343256 2.19633458,14.5953066 L2.12467117,14.4840621 L2.12467117,14.4840621 L2.07122549,14.371336 L2.07122549,14.371336 L2.03584514,14.265993 L2.03584514,14.265993 L2.0110178,14.1484669 L2.0110178,14.1484669 L2.00397748,14.0898018 L2.00397748,14.0898018 L2,14 L2.00278786,13.9247615 L2.00278786,13.9247615 L2.02024007,13.7992742 L2.02024007,13.7992742 L2.04973809,13.6878575 L2.04973809,13.6878575 L2.09367336,13.5767785 L2.09367336,13.5767785 L2.14599545,13.4792912 L2.14599545,13.4792912 L2.20970461,13.3871006 L2.20970461,13.3871006 L2.29289322,13.2928932 L2.29289322,13.2928932 L7.29289322,8.29289322 C7.68341751,7.90236893 8.31658249,7.90236893 8.70710678,8.29289322 C9.06759074,8.65337718 9.09532028,9.22060824 8.79029539,9.61289944 L8.70710678,9.70710678 L5.415,13 L18.5,13 C19.2796961,13 19.9204487,12.4051119 19.9931334,11.64446 L20,11.5 L20,5 C20,4.44771525 20.4477153,4 21,4 Z'></path>"+
+        "</svg>" +
+        "Go" +
+        "</button>";
+
+      loadcssfile();
+
+      try { watchForVersesAndShowNext(); } catch(e) {}
+    }
+  }
+}
+
+/* ----------------------------- Convert verse checkboxes to buttons ----------------------------- */
+/**
+ * This function finds all the checkbox-based verse selectors in #verses
+ * and converts them to mobile-friendly button-based selectors.
+ * Preserves Psalm 119 grouped structure with "select all" functionality.
+ */
+function convertVersesToButtons() {
+  const versesEl = document.getElementById('verses');
+  if (!versesEl) return;
+
+  // Find #indVerses container (this is where checkboxes live)
+  const indVerses = document.getElementById('indVerses');
+  if (!indVerses) return;
+
+  // Check if this is Psalm 119 (has multiple groups)
+  const verseGroups = indVerses.querySelectorAll('.verseGroup');
+  
+  if (verseGroups.length > 0) {
+    // Psalm 119 or similar: has sections with group headers
+    verseGroups.forEach(function(group, groupIdx) {
+      // Find the group header checkbox (if any)
+      const groupCheckbox = group.querySelector('input[type="checkbox"]');
+      const groupLabel = group.querySelector('.stanza-label');
+      
+      // Create "Select All" button for this group
+      const selectAllBtn = document.createElement('button');
+      selectAllBtn.type = 'button';
+      selectAllBtn.className = 'stanza-control-btn';
+      selectAllBtn.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" style="width: 1em; height: 1em; fill: currentColor;">
+          <path d="M438.6 105.4c12.5 12.5 12.5 32.8 0 45.3l-256 256c-12.5 12.5-32.8 12.5-45.3 0l-128-128c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0L160 338.7 393.4 105.4c12.5-12.5 32.8-12.5 45.3 0z"[...]
+        </svg>
+        <span class="stanza-toggle-label">Select All</span>
+      `;
+      selectAllBtn.dataset.groupIdx = groupIdx;
+      
+      // Find all verse checkboxes in this group
+      const verseCheckboxes = group.querySelectorAll('input[type="checkbox"][value]');
+      
+      // Convert each checkbox to a button
+      verseCheckboxes.forEach(function(checkbox) {
+        const verseValue = checkbox.value;
+        const verseBtn = document.createElement('button');
+        verseBtn.type = 'button';
+        verseBtn.className = 'verse-btn';
+        verseBtn.dataset.verse = verseValue;
+        verseBtn.dataset.selected = 'false';
         
-           menutoggle.addEventListener("click", function() {
-             stopMIDIHandler();
-             if (!menutoggle.classList.contains("is-active")) {
-               openNav();
-             } else {
-               closeNav();
-             }
-           });
-           document.addEventListener("keydown", function(e) {
-             if (e.key === "Escape") closeNav();
-           });
-          });
+        const verseNum = document.createElement('span');
+        verseNum.className = 'verse-number';
+        verseNum.textContent = verseValue;
+        verseBtn.appendChild(verseNum);
+        
+        // Click handler: toggle selection
+        verseBtn.addEventListener('click', function() {
+          const isSelected = verseBtn.dataset.selected === 'true';
+          verseBtn.dataset.selected = isSelected ? 'false' : 'true';
+          if (isSelected) {
+            verseBtn.classList.remove('active');
+          } else {
+            verseBtn.classList.add('active');
+          }
+          verseMenu();
+        });
+        
+        // Replace checkbox with button
+        if (checkbox.parentElement) {
+          checkbox.parentElement.replaceWith(verseBtn);
+        }
+      });
+      
+      // Wire up "Select All" button
+      selectAllBtn.addEventListener('click', function() {
+        const verseBtns = group.querySelectorAll('.verse-btn');
+        const allSelected = Array.from(verseBtns).every(btn => btn.dataset.selected === 'true');
+        
+        verseBtns.forEach(btn => {
+          btn.dataset.selected = allSelected ? 'false' : 'true';
+          if (allSelected) {
+            btn.classList.remove('active');
+          } else {
+            btn.classList.add('active');
+          }
+        });
+        
+        verseMenu();
+      });
+      
+      // Insert "Select All" button after the group label
+      if (groupLabel && groupLabel.nextSibling) {
+        groupLabel.parentElement.insertBefore(selectAllBtn, groupLabel.nextSibling);
+      } else if (groupLabel) {
+        groupLabel.parentElement.appendChild(selectAllBtn);
+      }
+      
+      // Remove original group checkbox if it exists
+      if (groupCheckbox && groupCheckbox.parentElement) {
+        groupCheckbox.parentElement.remove();
+      }
+    });
+  } else {
+    // Regular psalm: flat list of verse checkboxes
+    const verseCheckboxes = indVerses.querySelectorAll('input[type="checkbox"][value]');
+    
+    verseCheckboxes.forEach(function(checkbox) {
+      const verseValue = checkbox.value;
+      const verseBtn = document.createElement('button');
+      verseBtn.type = 'button';
+      verseBtn.className = 'verse-btn';
+      verseBtn.dataset.verse = verseValue;
+      verseBtn.dataset.selected = 'false';
+      
+      const verseNum = document.createElement('span');
+      verseNum.className = 'verse-number';
+      verseNum.textContent = verseValue;
+      verseBtn.appendChild(verseNum);
+      
+      verseBtn.addEventListener('click', function() {
+        const isSelected = verseBtn.dataset.selected === 'true';
+        verseBtn.dataset.selected = isSelected ? 'false' : 'true';
+        if (isSelected) {
+          verseBtn.classList.remove('active');
+        } else {
+          verseBtn.classList.add('active');
+        }
+        verseMenu();
+      });
+      
+      // Replace checkbox with button (preserve parent structure if it's a label)
+      if (checkbox.parentElement) {
+        const parent = checkbox.parentElement;
+        if (parent.tagName.toLowerCase() === 'label') {
+          parent.replaceWith(verseBtn);
+        } else {
+          checkbox.replaceWith(verseBtn);
+        }
+      }
+    });
+  }
+}
 
-        document.addEventListener('DOMContentLoaded', function() {
-          document.querySelectorAll('#controls a, .tooltip').forEach(function(el) {
-            el.addEventListener('touchend', function() {
-              el.blur();
-              var tooltip = el.querySelector('.tooltiptext');
-              if (tooltip) {
-                tooltip.style.display = 'none';
-                tooltip.style.visibility = 'hidden';
-                tooltip.style.opacity = '0';
+/* ----------------------------- Verses formatting and selection helpers ----------------------------- */
+function parseVerseToken(tok) {
+  const m = String(tok).trim().match(/^(\d+)([a-z])?$/i);
+  if (!m) return { raw: tok, num: NaN, suf: "" };
+  return { raw: tok, num: parseInt(m[1], 10), suf: (m[2] || "").toLowerCase() };
+}
+
+function tokensAdjacent(a, b) {
+  if (Number.isNaN(a.num) || Number.isNaN(b.num)) return false;
+  if (a.num === b.num && a.suf && b.suf && a.suf.length === 1 && b.suf.length === 1) {
+    return b.suf.charCodeAt(0) === a.suf.charCodeAt(0) + 1;
+  }
+  return b.num === a.num + 1;
+}
+
+function formatVersesCompact(list) {
+  if (!Array.isArray(list) || list.length === 0) return "";
+  const toks = list.map(parseVerseToken);
+  let out = [];
+  let rangeStart = toks[0];
+  let prev = toks[0];
+  for (let i = 1; i < toks.length; i++) {
+    const cur = toks[i];
+    if (tokensAdjacent(prev, cur)) {
+      prev = cur;
+    } else {
+      out.push(rangeStart.raw === prev.raw ? rangeStart.raw : (rangeStart.raw + "-" + prev.raw));
+      rangeStart = prev = cur;
+    }
+  }
+  out.push(rangeStart.raw === prev.raw ? rangeStart.raw : (rangeStart.raw + "-" + prev.raw));
+  return out.join(", ");
+}
+
+function verseMenu(){
+  var ind = document.getElementById("indVerses");
+  if (!ind) return;
+  
+  // Gather all verse buttons (selected and unselected)
+  var allVerseBtns = ind.querySelectorAll('.verse-btn');
+  var selVerseBtns = ind.querySelectorAll('.verse-btn[data-selected="true"]');
+  
+  var verseList = [];
+  
+  selVerseBtns.forEach(function(btn) {
+    verseList.push(btn.dataset.verse);
+  });
+  
+  // Filter out Psalm 119 section headers if applicable
+  if (document.getElementById("pstext") && document.getElementById("pstext").value === "Psalm 119"){
+    var ps119Array = ["ALEPH","BETH","GIMEL","DALETH","HE","VAV","ZAIN","HETH","TETH","YOD","CAPH","LAMED","MEM","NUN","SAMECH","AIN","PE","TSADE","KOPH","RES","SHIN","TAV"];
+    verseList = verseList.filter(function(el){ return !ps119Array.includes(el); });
+  }
+  
+  // Store in global variable
+  window.globalSelStanzas = verseList;
+  
+  // Store in hidden input for renderPsalm() to read
+  var hiddenInput = document.getElementById("selectedStanzasData");
+  if (!hiddenInput) {
+    // Create the hidden input if it doesn't exist
+    hiddenInput = document.createElement('input');
+    hiddenInput.type = 'hidden';
+    hiddenInput.id = 'selectedStanzasData';
+    hiddenInput.name = 'stanzas';
+    // Append to indVerses or verses container
+    if (ind) {
+      ind.appendChild(hiddenInput);
+    } else {
+      document.getElementById('verses').appendChild(hiddenInput);
+    }
+  }
+  hiddenInput.value = verseList.join(',');
+  
+  var display;
+  
+  // Check if all verses are selected
+  if (allVerseBtns.length > 0 && selVerseBtns.length === allVerseBtns.length) {
+    display = "All";
+  } else {
+    var compact = formatVersesCompact(verseList);
+    var limit = 40;
+    if (!compact) {
+      display = "Select verses below...";
+    } else if (compact.length > limit) {
+      var cut = limit;
+      if (compact.charAt(cut) === ",") { /* ok */ }
+      else if (compact.charAt(cut) === " ") { cut = cut - 1; }
+      else if (compact.charAt(cut + 1) === ",") { cut = cut + 1; }
+      else { while (cut > 0 && compact.charAt(cut) !== " ") cut--; cut = Math.max(0, cut - 1); }
+      display = compact.slice(0, Math.max(0, cut)) + "...";
+    } else {
+      display = compact;
+    }
+  }
+  
+   var box = document.getElementById("selectVerses");
+  if (box) box.innerHTML = display;
+  try { updateSelectionSummary(); } catch(_) {}
+  
+  // ADD THIS:  Update Next button state
+  updateNextButtonState();
+}
+
+// Add this new function:
+function updateNextButtonState() {
+  const nextBtn = document.getElementById('next-btn-text');
+  if (!nextBtn) return;
+  
+  const selectedVerses = getSelectedVerses();
+  
+  if (selectedVerses.length < 2) {
+    nextBtn.style.opacity = '0.5';
+    nextBtn.style.cursor = 'not-allowed';
+    nextBtn.disabled = true;
+  } else {
+    nextBtn. style.opacity = '1';
+    nextBtn.style.cursor = 'pointer';
+    nextBtn.disabled = false;
+  }
+}
+
+function getSelectedVerses() {
+  var ind = document.getElementById("indVerses");
+  if (! ind) return [];
+  
+  var selVerseBtns = ind.querySelectorAll('.verse-btn[data-selected="true"]');
+  var verseList = [];
+  
+  selVerseBtns.forEach(function(btn) {
+    verseList.push(btn.dataset.verse);
+  });
+  
+  // Filter out Psalm 119 section headers if applicable
+  if (document.getElementById("pstext") && document.getElementById("pstext").value === "Psalm 119"){
+    var ps119Array = ["ALEPH","BETH","GIMEL","DALETH","HE","VAV","ZAIN","HETH","TETH","YOD","CAPH","LAMED","MEM","NUN","SAMECH","AIN","PE","TSADE","KOPH","RES","SHIN","TAV"];
+    verseList = verseList.filter(function(el){ return ! ps119Array.includes(el); });
+  }
+  
+  return verseList;
+}
+
+/* ----------------------------- Utility helpers ----------------------------- */
+function myFunction() {
+  var dd = document.getElementById("myDropdown");
+  if (dd) dd.classList.toggle("show");
+}
+
+function filterFunction() {
+  var input = document.getElementById("myInput");
+  var div = document.getElementById("myDropdown");
+  if (!input || !div) return;
+  var filter = input.value.toUpperCase();
+  var a = div.getElementsByTagName("a");
+  for (var i = 0; i < a.length; i++) {
+    var txtValue = a[i].getAttribute("name") || a[i].innerText;
+    a[i].style.display = (txtValue.toUpperCase().indexOf(filter) > -1) ? "" : "none";
+  }
+}
+
+function toggle(section) {
+  var parSelect = document.getElementById("selectAll");
+  var selection = section.getAttribute("id");
+  var selChecks = document.getElementById(selection).getElementsByTagName("input");
+  if (parSelect && parSelect.checked == true) {
+    for (var a = 0; a < selChecks.length; a++){ selChecks[a].checked = true; }
+    document.getElementById("selectVerses").innerHTML = "All";
+  } else {
+    for (var b = 0; b < selChecks.length; b++){ selChecks[b].checked = false; }
+    document.getElementById("selectVerses").innerHTML = "Select verses below...";
+  }
+}
+
+function secToggle(section) {
+  var selection = section.getAttribute("id");
+  var selChecks = document.getElementById(selection).getElementsByTagName("input");
+  if (selChecks[0].checked == true) {
+    for (var a = 0; a < selChecks.length; a++){ selChecks[a].checked = true; }
+  } else {
+    for (var b = 0; b < selChecks.length; b++){ selChecks[b].checked = false; }
+  }
+  verseMenu();
+}
+
+function loadcssfile(){
+  var fileref=document.createElement("link");
+  fileref.setAttribute("rel", "stylesheet");
+  fileref.setAttribute("type", "text/css");
+  fileref.setAttribute("href", "resources/css/toggle.css");
+  document.getElementsByTagName('head')[0].appendChild(fileref);
+}
+
+/* ----------------------------- Consolidated server fetch and client-side UI building ----------------------------- */
+async function fetchConsolidatedData() {
+  try {
+    const resp = await fetch('getSourcesTextsMetres.xq', { cache: 'no-store' });
+    if (!resp.ok) throw new Error('Network response not ok: ' + resp.status);
+    const data = await resp.json();
+    window.consolidatedData = data || { sources: [], metres: [] };
+
+    window.sourceMap = {};
+    if (Array.isArray(window.consolidatedData.sources)) {
+      window.consolidatedData.sources.forEach(function(s) {
+        const label = (s && s.label) ? s.label : String(s || '');
+        const texts = (s && s.texts && Array.isArray(s.texts)) ? s.texts : [];
+        window.sourceMap[label] = texts;
+      });
+    }
+    window.globalMetres = Array.isArray(window.consolidatedData.metres) ? window.consolidatedData.metres.slice() : [];
+
+    initializeSourceButtons();
+
+  } catch (err) {
+    console.warn('Failed to fetch consolidated data (getSourcesTextsMetres.xq):', err);
+  }
+}
+
+function initializeSourceButtons() {
+  const sourceContainer = document.getElementById('sourceButtonContainer');
+  if (!sourceContainer) {
+    console.warn('#sourceButtonContainer not found - skipping source button generation.');
+    return;
+  }
+  sourceContainer.innerHTML = '';
+
+  const labels = Object.keys(window.sourceMap || {});
+  if (!labels.length) {
+    const span = document.createElement('div');
+    span.className = 'menuSpan';
+    span.textContent = 'No sources available';
+    sourceContainer.appendChild(span);
+    return;
+  }
+
+  let hiddenInput = document.getElementById('pssource');
+  if (!hiddenInput) {
+    hiddenInput = document.createElement('input');
+    hiddenInput.type = 'hidden';
+    hiddenInput.id = 'pssource';
+    sourceContainer.parentElement.appendChild(hiddenInput);
+    if (window._initialPsSourceParam) {
+      hiddenInput.value = window._initialPsSourceParam;
+      delete window._initialPsSourceParam;
+    }
+  }
+
+  labels.forEach(function(label) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'source-button';
+    btn.textContent = label;
+    btn.setAttribute('data-source-label', label);
+
+    btn.addEventListener('click', function() {
+      // Single selection only - deselect all others
+      sourceContainer.querySelectorAll('.source-button').forEach(b => {
+        b.classList.remove('active');
+      });
+      
+      // Select this button
+      btn.classList.add('active');
+      
+      // Update hidden input with single source
+      const sourceLabel = btn.getAttribute('data-source-label');
+      hiddenInput.value = sourceLabel;
+      
+      // Handle source selection
+      handleSourceSelection(sourceLabel);
+    });
+
+    sourceContainer.appendChild(btn);
+  });
+
+  if (hiddenInput.value) {
+    // Single source selection - take the first one if comma-separated
+    const initialSource = hiddenInput.value.split(',')[0].trim();
+    if (initialSource) {
+      const existing = Array.from(sourceContainer.querySelectorAll('.source-button'))
+        .find(b => b.getAttribute('data-source-label') === initialSource);
+      if (existing) existing.click();
+    }
+  }
+}
+
+function clearTextSelection() {
+  // Clear text list
+  const container = document.getElementById('psTextList');
+  if (container) {
+    container.textContent = 'Select source first';
+  }
+  
+  // Clear verses
+  const versesEl = document.getElementById('verses');
+  if (versesEl) {
+    versesEl.innerHTML = '';
+    versesEl.style.display = 'none';
+  }
+  
+  // Clear tune selection
+  const tuneButtons = document.getElementById('tuneButtons');
+  if (tuneButtons) {
+    tuneButtons.innerHTML = '';
+  }
+  
+  // Clear metre dropdown
+  const metreContainer = document.getElementById('psMetreList');
+  if (metreContainer) {
+    metreContainer.textContent = 'Select source first';
+  }
+  
+  try { updateSelectionSummary(); } catch (_) {}
+}
+
+function handleMultipleSourceSelection(sourceLabels) {
+  // Combine texts from all selected sources
+  const allTexts = [];
+  const seenIds = new Set();
+  const allMetres = new Set();
+  
+  sourceLabels.forEach(function(label) {
+    const texts = window.sourceMap && window.sourceMap[label] ? window.sourceMap[label] : [];
+    texts.forEach(function(t) {
+      // Remove duplicates by text ID
+      if (!seenIds.has(t.id)) {
+        seenIds.add(t.id);
+        allTexts.push(t);
+      }
+      // Collect unique metres
+      if (t.metre) {
+        allMetres.add(t.metre);
+      }
+    });
+  });
+  
+  // Build psalm list
+  const psList = allTexts.map(function(t) {
+    const label = t.label || '';
+    const teiID = t.id || '';
+    const metre = t.metre || '';
+    const sugg = t.suggTune || '';
+    return { label: label, data: `${teiID};${metre};${sugg}`, rawObj: t };
+  });
+  
+  const psLabels = psList.map(l => l.label);
+  
+  window.fullPsList = psList;
+  window.fullPsLabels = psLabels;
+  
+  // Populate metre filter dropdown
+  let selMetElem = document.getElementById('selMet');
+  
+  if (!selMetElem || selMetElem.tagName.toLowerCase() !== 'select') {
+    const container = document.getElementById('psMetreList');
+    if (container) {
+      const select = document.createElement('select');
+      select.id = 'selMet';
+      select.className = 'metre-picker';
+      const defaultOpt = document.createElement('option');
+      defaultOpt.value = '';
+      defaultOpt.textContent = 'Filter by metre (optional)';
+      select.appendChild(defaultOpt);
+      
+      container.innerHTML = '';
+      container.appendChild(select);
+      selMetElem = select;
+    }
+  }
+  
+  if (selMetElem && selMetElem.tagName.toLowerCase() === 'select') {
+    selMetElem.innerHTML = '';
+    const defaultOpt = document.createElement('option');
+    defaultOpt.value = '';
+    defaultOpt.textContent = 'Filter by metre (optional)';
+    selMetElem.appendChild(defaultOpt);
+    
+    const metresArray = Array.from(allMetres);
+    if (metresArray.length) {
+      const sorted = sortMetres(metresArray);
+      sorted.forEach(function(m) {
+        const opt = document.createElement('option');
+        opt.value = m;
+        opt.textContent = m;
+        selMetElem.appendChild(opt);
+      });
+    } else {
+      const none = document.createElement('option');
+      none.value = '';
+      none.disabled = true;
+      none.textContent = 'No metres available';
+      selMetElem.appendChild(none);
+    }
+    
+    selMetElem.addEventListener('change', function() {
+      setTexts();
+    });
+  }
+  
+  setTexts();
+  
+  try { updateSelectionSummary(); } catch (_) {}
+  
+  const container = document.getElementById('panel-source') || document.querySelector('.menu-item');
+  try { ensureNextButton(container, 'next-btn-source', () => switchToTab('text')); } catch (_) {}
+}
+
+function handleSourceSelection(sourceLabel) {
+  const texts = window.sourceMap && window.sourceMap[sourceLabel] ? window.sourceMap[sourceLabel] : [];
+
+  const psList = texts.map(function(t) {
+    const label = t.label || '';
+    const teiID = t.id || '';
+    const metre = t.metre || '';
+    const sugg = t.suggTune || '';
+    return { label: label, data: `${teiID};${metre};${sugg}`, rawObj: t };
+  });
+
+  const psLabels = psList.map(l => l.label);
+
+  window.fullPsList = psList;
+  window.fullPsLabels = psLabels;
+
+  const metresForSource = Array.from(new Set(texts.map(t => t.metre || '').filter(Boolean)));
+  let selMetElem = document.getElementById('selMet');
+
+  if (!selMetElem || selMetElem.tagName.toLowerCase() !== 'select') {
+    const container = document.getElementById('psMetreList');
+    if (container) {
+      const select = document.createElement('select');
+      select.id = 'selMet';
+      select.className = 'metre-picker';
+      const defaultOpt = document.createElement('option');
+      defaultOpt.value = '';
+      defaultOpt.textContent = 'Filter by metre (optional)';
+      select.appendChild(defaultOpt);
+
+      container.innerHTML = '';
+      container.appendChild(select);
+      selMetElem = select;
+    }
+  }
+
+  if (selMetElem && selMetElem.tagName.toLowerCase() === 'select') {
+    selMetElem.innerHTML = '';
+    const defaultOpt = document.createElement('option');
+    defaultOpt.value = '';
+    defaultOpt.textContent = 'Filter by metre (optional)';
+    selMetElem.appendChild(defaultOpt);
+
+    const sourceMetres = (metresForSource.length ? metresForSource : (window.globalMetres || []));
+    if (sourceMetres && sourceMetres.length) {
+      const sorted = sortMetres(sourceMetres);
+      sorted.forEach(function(m) {
+        const opt = document.createElement('option');
+        opt.value = m;
+        opt.textContent = m;
+        selMetElem.appendChild(opt);
+      });
+    } else {
+      const none = document.createElement('option');
+      none.value = '';
+      none.disabled = true;
+      none.textContent = 'No metres available';
+      selMetElem.appendChild(none);
+    }
+
+    selMetElem.addEventListener('change', function() {
+      setTexts();
+    });
+
+    if (window._initialSelMetParam && selMetElem.querySelector(`option[value="${window._initialSelMetParam}"]`)) {
+      selMetElem.value = window._initialSelMetParam;
+      delete window._initialSelMetParam;
+    }
+  }
+
+  setTexts();
+
+  try { updateSelectionSummary(); } catch (_) {}
+
+  const container = document.getElementById('panel-source') || document.querySelector('.menu-item');
+  try { ensureNextButton(container, 'next-btn-source', () => switchToTab('text')); } catch (_) {}
+}
+
+function setTexts() {
+  const selMetEl = document.getElementById("selMet");
+  const selectedMetre = selMetEl ? selMetEl.value : '';
+  const fullList = Array.isArray(window.fullPsList) ? window.fullPsList : [];
+
+  const filtered = fullList.filter(function(item) {
+    if (!selectedMetre) return true;
+    const parts = String(item.data || '').split(';');
+    const metre = parts[1] || '';
+    return metre === selectedMetre;
+  });
+
+  window.currentPsListForUI = filtered.map(function(item) {
+    return { label: item.label, data: item.data, rawObj: item.rawObj || null };
+  });
+
+  // Sort psalms numerically with version ordering
+  window.currentPsListForUI.sort(function(a, b) {
+    const aMatch = a.label.match(/Psalm\s+(\d+)(?:\s+\(([^)]+)\))?/i);
+    const bMatch = b.label.match(/Psalm\s+(\d+)(?:\s+\(([^)]+)\))?/i);
+    
+    // If both match the psalm pattern
+    if (aMatch && bMatch) {
+      const aNum = parseInt(aMatch[1], 10);
+      const bNum = parseInt(bMatch[1], 10);
+      
+      // Sort by psalm number first
+      if (aNum !== bNum) {
+        return aNum - bNum;
+      }
+      
+      // Same psalm number - sort by version
+      const aVersion = aMatch[2] || '';
+      const bVersion = bMatch[2] || '';
+      
+      // Define version order
+      const versionOrder = ['First', 'Second', 'Third', 'Fourth', 'Fifth', 'Sixth', 'Seventh', 'Eighth', 'Ninth', 'Tenth'];
+      
+      const aVersionMatch = aVersion.match(/(First|Second|Third|Fourth|Fifth|Sixth|Seventh|Eighth|Ninth|Tenth)/i);
+      const bVersionMatch = bVersion.match(/(First|Second|Third|Fourth|Fifth|Sixth|Seventh|Eighth|Ninth|Tenth)/i);
+      
+      if (aVersionMatch && bVersionMatch) {
+        const aIdx = versionOrder.findIndex(v => v.toLowerCase() === aVersionMatch[1].toLowerCase());
+        const bIdx = versionOrder.findIndex(v => v.toLowerCase() === bVersionMatch[1].toLowerCase());
+        return aIdx - bIdx;
+      }
+      
+      // If only one has version, non-version comes first
+      if (aVersionMatch && !bVersionMatch) return 1;
+      if (!aVersionMatch && bVersionMatch) return -1;
+      
+      // Otherwise sort version text alphabetically
+      return aVersion.localeCompare(bVersion);
+    }
+    
+    // If only one matches psalm pattern, psalms come first
+    if (aMatch && !bMatch) return -1;
+    if (!aMatch && bMatch) return 1;
+    
+    // Neither matches - sort alphabetically
+    return a.label.localeCompare(b.label);
+  });
+
+  const container = document.getElementById('psTextList');
+  // ⬇️ NEW: Also get the texts container
+  const textsContainer = document.getElementById('texts');
+  
+  if (!container) {
+    console.warn('#psTextList missing; cannot populate texts');
+    return;
+  }
+
+  // Clear both containers
+  container.innerHTML = '';
+  if (textsContainer) {
+    textsContainer.innerHTML = '';
+    textsContainer.style.display = 'none';  // Start hidden
+  }
+
+  if (filtered.length === 0) {
+    container.textContent = 'No texts match this metre.';
+    // Also clear verses
+    const versesEl = document.getElementById('verses');
+    if (versesEl) {
+      versesEl.innerHTML = '';
+      versesEl.style.display = 'none';
+    }
+    return;
+  }
+
+  // Create selector display
+  const selectPsDiv = document.createElement('div');
+  selectPsDiv.id = 'selectPsalm';
+  selectPsDiv.textContent = 'Select text below...';
+  selectPsDiv.setAttribute('role', 'button');
+  selectPsDiv.setAttribute('tabindex', '0');
+  selectPsDiv.setAttribute('aria-expanded', 'false');
+
+  // Hidden input
+  let hiddenInput = document.getElementById('pstext');
+  if (!hiddenInput) {
+    hiddenInput = document.createElement('input');
+    hiddenInput.type = 'hidden';
+    hiddenInput.id = 'pstext';
+  } else {
+    hiddenInput.value = '';
+    hiddenInput.removeAttribute('data-psdata');
+  }
+
+  // Psalm buttons container
+  const psalmBtnsContainer = document.createElement('div');
+  psalmBtnsContainer.id = 'psalmButtons';
+
+  // Inner wrapper
+  const psalmBtnsInner = document.createElement('div');
+  psalmBtnsInner.className = 'psalm-btn-container';
+
+  // Create buttons (using the now-sorted list)
+  window.currentPsListForUI.forEach(function(item) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'psalm-btn';
+    btn.dataset.label = item.label;
+    btn.dataset.psdata = item.data;
+
+    const match = item.label.match(/Psalm\s+(\d+)(?:\s+\(([^)]+)\))?/i);
+    
+    if (match) {
+      const psalmNum = match[1];
+      const versionText = match[2];
+
+      const labelSpan = document.createElement('span');
+      labelSpan.className = 'psalm-label';
+      labelSpan.textContent = 'PSALM';
+
+      const numberSpan = document.createElement('span');
+      numberSpan.className = 'psalm-number';
+      numberSpan.textContent = psalmNum;
+
+      btn.appendChild(labelSpan);
+      btn.appendChild(numberSpan);
+
+      if (versionText) {
+        const sublineSpan = document.createElement('span');
+        sublineSpan.className = 'psalm-subline';
+        
+        const versionMatch = versionText.match(/(First|Second|Third|Fourth|Fifth|Sixth|Seventh|Eighth|Ninth|Tenth)/i);
+        if (versionMatch) {
+          const versionWords = ['First', 'Second', 'Third', 'Fourth', 'Fifth', 'Sixth', 'Seventh', 'Eighth', 'Ninth', 'Tenth'];
+          const versionIndex = versionWords.findIndex(w => w.toLowerCase() === versionMatch[1].toLowerCase());
+          sublineSpan.textContent = `VER ${versionIndex + 1}`;
+        } else {
+          sublineSpan.textContent = versionText.toUpperCase();
+        }
+        
+        btn.appendChild(sublineSpan);
+      }
+    } else {
+      const labelSpan = document.createElement('span');
+      labelSpan.className = 'psalm-label';
+      labelSpan.textContent = item.label;
+      btn.appendChild(labelSpan);
+    }
+
+    btn.addEventListener('click', function() {
+      psalmBtnsInner.querySelectorAll('.psalm-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      
+      hiddenInput.value = item.label;
+      hiddenInput.dataset.psdata = item.data;
+      selectPsDiv.textContent = item.label;
+      
+      // ⬇️ CHANGED: Hide psalm buttons
+      if (textsContainer) {
+        textsContainer.style.display = 'none';
+      }
+      psalmBtnsContainer.classList.remove('expanded');
+      selectPsDiv.classList.remove('open');
+      selectPsDiv.setAttribute('aria-expanded', 'false');
+      
+      const parts = (item.data || '').split(';');
+      const teiID = parts[0] || '';
+      const metre = parts[1] || '';
+      const suggTune = parts[2] || '';
+      
+      const selMetInput = document.getElementById("selMet");
+      if (selMetInput) {
+        try { selMetInput.value = metre; } catch(_) {}
+      }
+    
+      populateVersesFromSelectedText(item.rawObj || { verses: [], sections: [] });
+    
+      try { getTunes(suggTune); } catch (e) { console.warn('getTunes failed', e); }
+    });
+
+    psalmBtnsInner.appendChild(btn);
+  });
+
+  psalmBtnsContainer.appendChild(psalmBtnsInner);
+
+  // Toggle - ⬇️ MODIFIED: Toggle the texts container visibility
+  const togglePanel = function(e) {
+    if (e) e.preventDefault();
+    
+    if (!textsContainer) return;
+    
+    const isExpanded = textsContainer.style.display === 'block';
+    
+    if (isExpanded) {
+      textsContainer.style.display = 'none';
+      psalmBtnsContainer.classList.remove('expanded');
+      selectPsDiv.classList.remove('open');
+      selectPsDiv.setAttribute('aria-expanded', 'false');
+    } else {
+      textsContainer.style.display = 'block';
+      psalmBtnsContainer.classList.add('expanded');
+      selectPsDiv.classList.add('open');
+      selectPsDiv.setAttribute('aria-expanded', 'true');
+    }
+  };
+
+  selectPsDiv.addEventListener('click', togglePanel);
+  selectPsDiv.addEventListener('keydown', function(e) {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      togglePanel(e);
+    }
+  });
+
+  container.appendChild(selectPsDiv);    
+  container.appendChild(hiddenInput);   
+  
+  if (textsContainer) {
+      textsContainer.appendChild(psalmBtnsContainer);
+      
+      // Show immediately on first load (no transition)
+      textsContainer.style.display = 'block';
+      textsContainer.style.maxHeight = 'none';
+      textsContainer.style.opacity = '1';
+      textsContainer.classList.add('expanded');
+      psalmBtnsContainer.classList.add('expanded');
+      selectPsDiv.classList.add('open');
+      selectPsDiv.setAttribute('aria-expanded', 'true');
+    }
+
+  // Clear verse selector
+  const selectVersesDiv = document.getElementById("selectVerses");
+  if (selectVersesDiv) selectVersesDiv.textContent = "Select Psalm first";
+  
+  const versesList = document.getElementById("verses");
+  if (versesList) {
+    versesList.innerHTML = "";
+    versesList.style.display = "none";
+    versesList.classList.remove("expanded");
+  }
+}
+
+/* ----------------------------- Populate verses ----------------------------- */
+function populateVersesFromSelectedText(rawObj) {
+  const versesEl = document.getElementById('verses');
+  const selectVersesEl = document.getElementById('selectVerses');
+  const verseSection = document.getElementById('VerseSection');
+
+  if (!versesEl) {
+    console.warn('#verses element missing; cannot render verses');
+    return;
+  }
+
+  versesEl.innerHTML = '';
+
+  const sections = (rawObj && Array.isArray(rawObj.sections) && rawObj.sections.length) ? rawObj.sections : null;
+  const flatVerses = (rawObj && Array.isArray(rawObj.verses) && rawObj.verses.length) ? rawObj.verses : [];
+
+  const indContainer = document.createElement('div');
+  indContainer.id = 'indVerses';
+
+  if (sections && sections.length) {
+    // Psalm 119-style with sections
+    sections.forEach(function(sec, idx) {
+      const secDiv = document.createElement('div');
+      secDiv.className = 'verseGroup';
+
+      const secHeader = document.createElement('div');
+      secHeader.className = 'stanza-label';
+      secHeader.textContent = sec.name || `Section ${idx+1}`;
+      secDiv.appendChild(secHeader);
+
+      // "Select All" button for this section
+      const selectAllBtn = document.createElement('button');
+      selectAllBtn.type = 'button';
+      selectAllBtn.className = 'stanza-control-btn active';  // <-- CHANGED: Added 'active' class
+      selectAllBtn.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" style="width: 1em; height: 1em; fill: currentColor;">
+          <path d="M438.6 105.4c12.5 12.5 12.5 32.8 0 45.3l-256 256c-12.5 12.5-32.8 12.5-45.3 0l-128-128c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0L160 338.7 393.4 105.4c12.5-12.5 32.8-12.5 45.3 0z"[...]
+        </svg>
+        <span class="stanza-toggle-label">Select All</span>
+      `;
+      secDiv.appendChild(selectAllBtn);
+
+      const verseList = Array.isArray(sec.verses) ? sec.verses : [];
+      const versesWrap = document.createElement('div');
+      versesWrap.className = 'psalm-btn-container';
+      versesWrap.style.display = 'flex';
+      versesWrap.style.flexWrap = 'wrap';
+      versesWrap.style.gap = '6px';
+      
+      verseList.forEach(function(v) {
+        const verseBtn = document.createElement('button');
+        verseBtn.type = 'button';
+        verseBtn.className = 'verse-btn active';  // <-- CHANGED: Added 'active' class by default
+        verseBtn.dataset.verse = v;
+        verseBtn.dataset.selected = 'true';  // <-- CHANGED: Set to 'true' by default
+        verseBtn.textContent = v;
+        
+        verseBtn.addEventListener('click', function() {
+          const isSelected = verseBtn.dataset.selected === 'true';
+          verseBtn.dataset.selected = isSelected ? 'false' : 'true';
+          if (isSelected) {
+            verseBtn.classList.remove('active');
+          } else {
+            verseBtn.classList.add('active');
+          }
+          verseMenu();
+        });
+        
+        versesWrap.appendChild(verseBtn);
+      });
+      secDiv.appendChild(versesWrap);
+      
+      // Wire "Select All" button
+      selectAllBtn.addEventListener('click', function() {
+        const verseBtns = secDiv.querySelectorAll('.verse-btn');
+        const allSelected = Array.from(verseBtns).every(btn => btn.dataset.selected === 'true');
+        
+        verseBtns.forEach(btn => {
+          btn.dataset.selected = allSelected ? 'false' : 'true';
+          if (allSelected) {
+            btn.classList.remove('active');
+          } else {
+            btn.classList.add('active');
+          }
+        });
+        
+        // Update the select all button appearance
+        if (allSelected) {
+          selectAllBtn.classList.remove('active');
+        } else {
+          selectAllBtn.classList.add('active');
+        }
+        
+        verseMenu();
+      });
+      
+      indContainer.appendChild(secDiv);
+    });
+  } else if (flatVerses && flatVerses.length) {
+    // Regular psalm: flat button list with "Select All" button at the top
+    
+    // Create "Select All" button for the entire psalm
+    const selectAllBtn = document.createElement('button');
+    selectAllBtn.type = 'button';
+    selectAllBtn.className = 'stanza-control-btn active';  // <-- Added: "Select All" button for regular psalms
+    selectAllBtn.innerHTML = `
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" style="width: 1em; height: 1em; fill: currentColor;">
+        <path d="M438.6 105.4c12.5 12.5 12.5 32.8 0 45.3l-256 256c-12.5 12.5-32.8 12.5-45.3 0l-128-128c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0L160 338.7 393.4 105.4c12.5-12.5 32.8-12.5 45.3 0z"/>
+      </svg>
+      <span class="stanza-toggle-label">Select All</span>
+    `;
+    indContainer.appendChild(selectAllBtn);
+    
+    const versesWrap = document.createElement('div');
+    versesWrap.className = 'psalm-btn-container';
+    versesWrap.style.display = 'flex';
+    versesWrap.style.flexWrap = 'wrap';
+    versesWrap.style.gap = '6px';
+    versesWrap.style.marginTop = '8px';
+    
+    flatVerses.forEach(function(v) {
+      const verseBtn = document.createElement('button');
+      verseBtn.type = 'button';
+      verseBtn.className = 'verse-btn active';  // <-- CHANGED: Added 'active' class by default
+      verseBtn.dataset.verse = v;
+      verseBtn.dataset.selected = 'true';  // <-- CHANGED: Set to 'true' by default
+      verseBtn.textContent = v;
+      
+      verseBtn.addEventListener('click', function() {
+        const isSelected = verseBtn.dataset.selected === 'true';
+        verseBtn.dataset.selected = isSelected ? 'false' : 'true';
+        if (isSelected) {
+          verseBtn.classList.remove('active');
+        } else {
+          verseBtn.classList.add('active');
+        }
+        verseMenu();
+      });
+      
+      versesWrap.appendChild(verseBtn);
+    });
+    indContainer.appendChild(versesWrap);
+    
+    // Wire "Select All" button for regular psalms
+    selectAllBtn.addEventListener('click', function() {
+      const verseBtns = indContainer.querySelectorAll('.verse-btn');
+      const allSelected = Array.from(verseBtns).every(btn => btn.dataset.selected === 'true');
+      
+      verseBtns.forEach(btn => {
+        btn.dataset.selected = allSelected ? 'false' : 'true';
+        if (allSelected) {
+          btn.classList.remove('active');
+        } else {
+          btn.classList.add('active');
+        }
+      });
+      
+      // Update the select all button appearance
+      if (allSelected) {
+        selectAllBtn.classList.remove('active');
+      } else {
+        selectAllBtn.classList.add('active');
+      }
+      
+      verseMenu();
+    });
+    
+  } else {
+    const p = document.createElement('div');
+    p.textContent = 'No verse metadata available for this text';
+    indContainer.appendChild(p);
+  }
+
+  versesEl.appendChild(indContainer);
+  versesEl.style.display = 'block';         
+  versesEl.classList.add('expanded'); 
+
+    if (selectVersesEl) {
+      selectVersesEl.innerHTML = 'All';
+      selectVersesEl.classList.add('open');  // ← ADDED: Reset caret
+      selectVersesEl.setAttribute('aria-expanded', 'true');  // ← ADDED: Reset ARIA
+    }
+
+  if (selectVersesEl) {
+    const togglePanel = function(e) {
+      if (e) e.preventDefault();
+      
+      if (!textsContainer) return;
+      
+      const isExpanded = textsContainer.style.display === 'block';
+      
+      if (isExpanded) {
+        textsContainer.style.display = 'none';
+        psalmBtnsContainer.classList.remove('expanded');
+        selectPsDiv.classList.remove('open');
+        selectPsDiv.setAttribute('aria-expanded', 'false');
+      } else {
+        textsContainer.style.display = 'block';
+        psalmBtnsContainer.classList.add('expanded');
+        selectPsDiv.classList.add('open');
+        selectPsDiv.setAttribute('aria-expanded', 'true');
+      }
+    };
+    selectVersesEl.setAttribute('role', 'button');
+    selectVersesEl.setAttribute('tabindex', '0');
+    selectVersesEl.setAttribute('aria-expanded', 'true');
+    selectVersesEl.style.cursor = 'pointer';
+    selectVersesEl.onclick = togglePanel;
+    selectVersesEl.onkeydown = function(e) {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); togglePanel(e); }
+    };
+  }
+
+  try { 
+  ensureNextButton(verseSection || versesEl.parentElement, 'next-btn-text', () => {
+    const selectedVerses = getSelectedVerses();
+    if (selectedVerses. length < 2) {
+      alert('Please select at least 2 verses before proceeding.');
+      return;
+    }
+    switchToTab('tune');
+  }); 
+} catch (_) {}
+  try { updateSelectionSummary(); } catch (_) {}
+}
+
+/* ----------------------------- Tab navigation and sidenav open/close ----------------------------- */
+if (document.readyState === 'loading') {
+  document.addEventListener("DOMContentLoaded", function() {
+    initializeTabNavigation();
+  });
+} else {
+  initializeTabNavigation();
+}
+
+function initializeTabNavigation() {
+  const tabs = document.querySelectorAll('.sidenav-tab, .top-tab');
+  const panels = document.querySelectorAll('.tab-panel');
+  if (tabs.length === 0 || panels.length === 0) {
+    console.warn('Tab navigation elements not found');
+    return;
+  }
+  function activate(tabEl) {
+    const target = tabEl.getAttribute('data-tab');
+    tabs.forEach(t => {
+      t.classList.remove('active');
+      t.setAttribute('aria-selected', 'false');
+      t.setAttribute('tabindex', '-1');
+    });
+    tabEl.classList.add('active');
+    tabEl.setAttribute('aria-selected', 'true');
+    tabEl.setAttribute('tabindex', '0');
+
+    panels.forEach(p => p.classList.remove('active'));
+    const panel = document.getElementById('panel-' + target);
+    if (panel) panel.classList.add('active');
+  }
+  tabs.forEach(tab => {
+    tab.addEventListener('click', function () { activate(this); });
+    tab.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activate(this); }
+    });
+  });
+  const initial = document.querySelector('.top-tab.active, .sidenav-tab.active') || tabs[0];
+  if (initial) activate(initial);
+}
+
+function openNav() {
+  var sidenav = document.getElementById("sidenav");
+  var menutoggle = document.getElementById("menutoggle");
+  
+  // Use responsive width based on orientation and viewport
+  var sidenavWidth = "360px";
+  if (window.matchMedia("(orientation: landscape) and (max-height: 500px)").matches) {
+    sidenavWidth = "min(360px, 90vw)"; // Never exceed 90% of viewport width
+  }
+  
+  sidenav.style.width = sidenavWidth;
+  sidenav.classList.add("open");
+  sidenav.style.height = "100%";
+  menutoggle.classList.add("is-active");
+}
+
+function closeNav() {
+  var sidenav = document.getElementById("sidenav");
+  var menutoggle = document.getElementById("menutoggle");
+  sidenav.style.width = "0";
+  sidenav.classList.remove("open");
+  menutoggle.classList.remove("is-active");
+}
+
+/* ----------------------------- iPhone Chrome fallback CSS injection ----------------------------- */
+function ensureSidenavStyles() {
+  try {
+    const tab = document.querySelector('.sidenav-tab');
+    const icon = document.querySelector('.sidenav-tab svg');
+    if (!tab || !icon) return;
+    const tabStyle = getComputedStyle(tab);
+    const iconStyle = getComputedStyle(icon);
+    const tabLooksUnstyled = tabStyle.display !== 'flex';
+    const iconFill = iconStyle.fill || '';
+    const iconLooksBlack =
+      iconFill === 'rgb(0, 0, 0)' || iconFill.toLowerCase() === '#000' || iconFill.toLowerCase() === 'black';
+    if (tabLooksUnstyled || iconLooksBlack) {
+      console.warn('Sidenav CSS not applied. Injecting fallback styles for tabs.');
+      const style = document.createElement('style');
+      style.setAttribute('data-injected', 'sidenav-fallback');
+      style.textContent = `
+        #sidenav.open { width: min(360px, 90vw); max-width: 90vw; }
+        .sidenav-container { display: flex; flex-direction: row; height: 100%; width: 100%; max-width: 90vw; position: relative; }
+        .sidenav-content { flex: 1; width: 290px; overflow-y: auto; background: #555; order: 1; -webkit-overflow-scrolling: touch; }
+        .sidenav-tabs { width: 60px; min-width: 60px; max-width: 60px; background: #444; display: flex; flex-direction: column; border-left: 2px solid #333; flex-shrink: 0; order: 2; padding-top: 65px[...]
+        .sidenav-tab { flex: 1 1 auto; min-height: 80px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 12px 8px; cursor: pointer; background: #555; bord[...]
+        .sidenav-tab:hover { background: #5f6f4f; }
+        .sidenav-tab.active { background: #6fc252; }
+        .sidenav-tab svg { width: 28px !important; height: 28px !important; display: block !important; fill: #fff !important; }
+        .sidenav-tab-label { writing-mode: vertical-rl; transform: rotate(0deg); color: #fff; font-size: 18px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; white-space: nowrap; op[...]
+        .sidenav-tab.active .sidenav-tab-label { opacity: 1; max-height: 150px; }
+        .tab-panel { display: none; padding: 15px; }
+        .tab-panel.active { display: block; }
+      `;
+      document.head.appendChild(style);
+    }
+  } catch (e) { console.error('Error ensuring sidenav styles:', e); }
+}
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', ensureSidenavStyles);
+} else {
+  ensureSidenavStyles();
+}
+
+/* ----------------------------- Summary display & wiring ----------------------------- */
+function updateSelectionSummary() {
+  var srcEl = document.getElementById("pssource");
+  var txtEl = document.getElementById("pstext");
+  var versesEl = document.getElementById("selectVerses");
+  var tuneEl = document.getElementById("pstune");
+
+  var srcOut = document.getElementById("summary-source");
+  var txtOut = document.getElementById("summary-text");
+  var tuneOut = document.getElementById("summary-tune");
+  if (!srcOut || !txtOut || !tuneOut) return;
+
+  var sourceVal = srcEl && srcEl.value ? srcEl.value.trim() : "";
+  
+  // Single source selection
+  if (sourceVal) {
+    srcOut.textContent = sourceVal;
+  } else {
+    srcOut.textContent = "Select Source";
+  }
+
+  var textTitle = txtEl && txtEl.value ? txtEl.value.trim() : "";
+  var versesText = versesEl && versesEl.textContent ? versesEl.textContent.trim() : "";
+
+  function versesChosen(v) { return v && v.toLowerCase().indexOf("select") === -1; }
+
+  if (textTitle) {
+    if (versesChosen(versesText)) {
+      txtOut.textContent = textTitle + ": " + versesText;
+    } else {
+      txtOut.textContent = textTitle + ":";
+    }
+  } else {
+    txtOut.textContent = "Select Text";
+  }
+
+  // Determine tune title to show in summary:
+  // prefer selected label stored in data-tunelabel; otherwise show visible input value (filter) if it looks like a selection
+  var tuneTitle = "";
+  if (tuneEl) {
+    if (tuneEl.dataset && tuneEl.dataset.tunelabel) {
+      tuneTitle = tuneEl.dataset.tunelabel;
+    } else if (tuneEl.value && tuneEl.value.trim()) {
+      tuneTitle = tuneEl.value.trim();
+    } else {
+      tuneTitle = "";
+    }
+  }
+  tuneOut.textContent = tuneTitle || "Select Tune";
+
+  var ready = !!(sourceVal && textTitle && ( (tuneEl && tuneEl.dataset && tuneEl.dataset.tuneid) || tuneTitle ));
+  ensureSummaryGoButton(ready);
+}
+
+function domContentLoadedHandler1639() {
+  updateSelectionSummary();
+  var srcEl = document.getElementById("pssource");
+  if (srcEl) {
+    srcEl.addEventListener("change", updateSelectionSummary);
+    srcEl.addEventListener("input", updateSelectionSummary);
+  }
+  var txtEl = document.getElementById("pstext");
+  if (txtEl) {
+    txtEl.addEventListener("change", updateSelectionSummary);
+    txtEl.addEventListener("input", updateSelectionSummary);
+  }
+  var tuneEl = document.getElementById("pstune");
+  if (tuneEl) {
+    tuneEl.addEventListener("change", updateSelectionSummary);
+    tuneEl.addEventListener("input", updateSelectionSummary);
+  }
+  document.addEventListener("click", function (e) {
+    if (e.target && (e.target.closest("#indVerses") || e.target.id === "selectAll")) {
+      setTimeout(updateSelectionSummary, 0);
+    }
+  });
+}
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', domContentLoadedHandler1639);
+} else {
+  domContentLoadedHandler1639();
+}
+
+/* ----------------------------- NEXT buttons ----------------------------- */
+function switchToTab(tabKey) {
+  const tabEl = document.querySelector(`.top-tab[data-tab="${tabKey}"], .sidenav-tab[data-tab="${tabKey}"]`);
+  if (tabEl) tabEl.click();
+}
+
+const NEXT_SVG = `
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" aria-hidden="true">
+  <path d="M566.6 342.6C579.1 330.1 579.1 309.8 566.6 297.3L406.6 137.3C394.1 124.8 373.8 124.8 361.3 137.3C348.8 149.8 348.8 170.1 361.3 182.6L466.7 288L96 288C78.3 288 64 302.3 64 320C64 337.7 78.3 352 96 352L466.7 352L361.3 457.4C348.8 469.9 348.8 490.2 361.3 502.6C373.8 515.1 394.1 515.1 406.6 502.6L566.6 342.6z"/>
+</svg>`.trim();
+
+function ensureNextButton(containerEl, id, onClick) {
+  if (!containerEl) return null;
+  let row = containerEl.querySelector('.next-btn-row');
+  if (!row) {
+    row = document.createElement('div');
+    row.className = 'next-btn-row';
+    containerEl.appendChild(row);
+  }
+  let btn = document.getElementById(id);
+  // ← CHANGED: Remove span wrapper, use plain text like original
+  const html = NEXT_SVG + 'Next';
+  if (!btn) {
+    btn = document.createElement('button');
+    btn.id = id;
+    btn.type = 'button';
+    btn.className = 'next-btn';
+    btn.innerHTML = html;
+    row.appendChild(btn);
+  } else {
+    btn.innerHTML = html;
+    btn.style.display = 'inline-flex';
+    if (btn.parentElement !== row) row.appendChild(btn);
+  }
+  btn.onclick = onClick;
+  return btn;
+}
+
+function ensureNextButtonAfter(anchorEl, id, onClick) {
+  if (!anchorEl || !anchorEl.parentElement) return null;
+  let row = anchorEl.nextElementSibling;
+  const desiredClass = 'next-btn-row';
+  if (!row || !row.classList || !row.classList.contains(desiredClass)) {
+    row = document.createElement('div');
+    row.className = desiredClass;
+    anchorEl.parentElement.insertBefore(row, anchorEl.nextSibling);
+  }
+  let btn = document.getElementById(id);
+  // ← CHANGED: Remove span wrapper
+  const html = NEXT_SVG + 'Next';
+  if (!btn) {
+    btn = document.createElement('button');
+    btn.id = id;
+    btn.type = 'button';
+    btn.className = 'next-btn';
+    btn.innerHTML = html;
+    row.appendChild(btn);
+  } else {
+    btn.innerHTML = html;
+    btn.style.display = 'inline-flex';
+    if (btn.parentElement !== row) row.appendChild(btn);
+  }
+  btn.onclick = onClick;
+  return btn;
+}
+
+function ensureClearButton(containerEl, id, onClick) {
+  if (!containerEl) return null;
+  
+  // Look for clear-next-btn-row specifically
+  let row = containerEl. classList && containerEl.classList.contains('clear-next-btn-row') 
+    ? containerEl 
+    : containerEl.querySelector('. clear-next-btn-row');
+  
+  // If no row exists, create one with the NEW class
+  if (!row) {
+    row = document.createElement('div');
+    row.className = 'clear-next-btn-row';  // ← Changed class name
+    containerEl. appendChild(row);
+  }
+  
+  let btn = document. getElementById(id);
+  const clearSVG = `
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" aria-hidden="true">
+  <path d="M431.2 476.5L163.5 208.8C141.1 240.2 128 278.6 128 320C128 426 214 512 320 512C361.5 512 399.9 498.9 431.2 476.5zM476.5 431.2C498.9 399.8 512 361.4 512 320C512 214 426 128 320 128C278.5 128 240.1 141.1 208.8 163.5L476.5 431.2zM64 320C64 178.6 178.6 64 320 64C461.4 64 576 178.6 576 320C576 461.4 461.4 576 320 576C178.6 576 64 461.4 64 320z"/>
+</svg>`.trim();
+  
+  const html = clearSVG + 'Clear<br>Selection';
+  
+  if (! btn) {
+    btn = document.createElement('button');
+    btn.id = id;
+    btn.type = 'button';
+    btn.className = 'clear-btn';
+    btn.innerHTML = html;
+    row.insertBefore(btn, row.firstChild);
+  } else {
+    btn.innerHTML = html;
+    btn.className = 'clear-btn';
+    btn.style.display = 'inline-flex';
+    if (btn.parentElement === row) {
+      row.removeChild(btn);
+    }
+    row.insertBefore(btn, row.firstChild);
+  }
+  
+  btn.onclick = onClick;
+  return btn;
+}
+
+function hideClearButton(id) {
+  const btn = document.getElementById(id);
+  if (btn) btn.style.display = 'none';
+}
+
+function domContentLoadedHandler1734() {
+  const src = document.getElementById('pssource');
+  if (!src) return;
+  const container = src.closest('.menu-item') || document.getElementById('panel-source');
+  function maybeShowNextForSource() {
+    if (src.value && src.value.trim().length) {
+      ensureNextButton(container, 'next-btn-source', () => switchToTab('text'));
+    } else {
+      hideNextButton('next-btn-source');
+    }
+  }
+  src.addEventListener('change', maybeShowNextForSource);
+  src.addEventListener('input', maybeShowNextForSource);
+}
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', domContentLoadedHandler1734);
+} else {
+  domContentLoadedHandler1734();
+}
+
+let versesObserver;
+function watchForVersesAndShowNext() {
+  const verses = document.getElementById('verses');
+  if (!verses) return;
+  if (versesObserver) versesObserver.disconnect();
+  versesObserver = new MutationObserver(function () {
+    if (verses.childElementCount > 0 || verses.textContent.trim().length > 0) {
+      const verseSection = document.getElementById('VerseSection') || verses.parentElement;
+      ensureNextButton(verseSection, 'next-btn-text', () => validateAndSwitchToTune());
+      try { updateSelectionSummary(); } catch (_) {}
+      versesObserver.disconnect();
+    }
+  });
+  versesObserver.observe(verses, { childList: true, subtree: true, characterData: true });
+}
+
+// Validate verse selection before switching to tune tab
+function validateAndSwitchToTune() {
+  const verses = document.getElementById('verses');
+  if (!verses) {
+    switchToTab('tune');
+    return;
+  }
+
+  // Get all verse buttons
+  const verseBtns = verses.querySelectorAll('.verse-btn');
+  const selectedVerseBtns = Array.from(verseBtns).filter(btn => btn.dataset.selected === 'true');
+  
+  if (selectedVerseBtns.length < 2) {
+    // Show error message
+    alert('You must select at least two stanzas. Please select another and try again.');
+    return;
+  }
+
+  // Validation passed, proceed to tune tab
+  switchToTab('tune');
+}
+
+document.addEventListener('awesomplete-selectcomplete', function (e) {
+  if (e.target && e.target.id === 'pstext') watchForVersesAndShowNext();
+}, true);
+
+document.addEventListener('input', function (e) {
+  if (e.target && e.target.id === 'pstext') {
+    if (!e.target.value.trim()) hideNextButton('next-btn-text');
+  }
+});
+
+function maybeShowNextForTune() {
+  console.log('=== maybeShowNextForTune called ===');
+  
+  const tuneInput = document.getElementById('pstune');
+  const anchor = document. getElementById('tunes');
+  
+  console.log('tuneInput:', tuneInput);
+  console.log('anchor:', anchor);
+  
+  if (!tuneInput || !anchor) {
+    console.warn('Missing required elements');
+    return;
+  }
+  
+  const chosen = (tuneInput.dataset && tuneInput. dataset.tuneid) || tuneInput.value.trim();
+  console.log('chosen:', chosen);
+  console.log('tuneInput.dataset.tuneid:', tuneInput.dataset.tuneid);
+  console.log('tuneInput.value:', tuneInput. value);
+  
+  if (chosen) {
+    console.log('✓ Tune is selected - showing buttons');
+    
+    // Create or get the row with the clear-next-btn-row class
+    let btnRow = anchor.nextElementSibling;
+    if (!btnRow || !btnRow.classList.contains('clear-next-btn-row')) {
+      btnRow = document.createElement('div');
+      btnRow.className = 'clear-next-btn-row';
+      anchor.parentElement.insertBefore(btnRow, anchor.nextSibling);
+    }
+    console.log('Button row:', btnRow);
+    
+    // Show Clear button first (goes to left)
+    ensureClearButton(btnRow, 'clear-btn-tune', () => {
+      console.log('Clearing tune selection');
+      
+      // Clear the tune selection
+      if (tuneInput) {
+        tuneInput.value = '';
+        tuneInput.dataset.tuneid = '';
+        tuneInput.dataset.tunelabel = '';
+      }
+      window.globalPsTune = '';
+      
+      // Get the selected text's metre to restore filtered view
+      const psTextInput = document.getElementById('pstext');
+      let currentMetre = '';
+      if (psTextInput && psTextInput.dataset && psTextInput.dataset.psdata) {
+        const psdata = psTextInput.dataset.psdata. split(';');
+        currentMetre = psdata[1] || '';
+      }
+      
+      console.log('Restoring tune list filtered by metre:', currentMetre);
+      
+      // Deactivate all tune buttons
+      const tuneButtonsContainer = document. getElementById('tuneButtons');
+      if (tuneButtonsContainer) {
+        tuneButtonsContainer.querySelectorAll('.tune-btn, .verse-btn').forEach(b => {
+          b. classList.remove('active');
+        });
+      }
+      
+      // Re-run getTunes to restore the original filtered list by metre
+      try {
+        getTunes(currentMetre);  // ← Pass currentMetre to show all tunes for that metre
+      } catch(e) {
+        console.warn('Error calling getTunes:', e);
+      }
+      
+      // Hide both buttons and remove the row
+      hideNextButton('next-btn-tune');
+      hideClearButton('clear-btn-tune');
+      if (btnRow && btnRow.parentElement) {
+        btnRow.parentElement.removeChild(btnRow);
+      }
+      
+      // Update summary
+      try { updateSelectionSummary(); } catch(_) {}
+      
+      // Re-run maybeShowNextForTune to ensure buttons are hidden
+      setTimeout(() => maybeShowNextForTune(), 100);
+    });
+    console.log('Clear button created/shown');
+    
+    // Create Next button directly in the btnRow
+    let nextBtn = document.getElementById('next-btn-tune');
+    if (!nextBtn) {
+      nextBtn = document.createElement('button');
+      nextBtn.id = 'next-btn-tune';
+      nextBtn.type = 'button';
+      nextBtn.className = 'next-btn';
+      nextBtn.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" aria-hidden="true">
+          <path d="M566.6 342.6C579.1 330.1 579.1 309.8 566.6 297.3L406.6 137.3C394.1 124.8 373.8 124.8 361.3 137.3C348.8 149.8 348.8 170.1 361.3 182.6L466.7 288L96 288C78.3 288 64 302.3 64 320C64 337.7 78.3 352 96 352L466.7 352L361.3 457.4C348.8 469.9 348.8 490.2 361.3 502.6C373.8 515.1 394.1 515.1 406.6 502.6L566.6 342.6z"/>
+        </svg>
+        Next
+      `;
+      btnRow.appendChild(nextBtn);
+    } else {
+      nextBtn.style.display = 'inline-flex';
+      if (nextBtn.parentElement !== btnRow) {
+        btnRow.appendChild(nextBtn);
+      }
+    }
+    nextBtn.onclick = () => switchToTab('options');
+    console.log('Next button created/shown');
+    
+  } else {
+    console.log('✗ No tune selected - hiding buttons');
+    hideNextButton('next-btn-tune');
+    hideClearButton('clear-btn-tune');
+    // Clean up the row
+    const btnRow = anchor.nextElementSibling;
+    if (btnRow && btnRow.classList.contains('clear-next-btn-row')) {
+      btnRow.parentElement.removeChild(btnRow);
+    }
+  }
+  
+  console.log('=== maybeShowNextForTune end ===');
+}
+
+document.addEventListener('awesomplete-selectcomplete', function (e) {
+  if (e.target && e.target.id === 'pstune') maybeShowNextForTune();
+}, true);
+
+document.addEventListener('change', function (e) {
+  if (e.target && e.target.id === 'pstune') maybeShowNextForTune();
+}, true);
+
+document.addEventListener('input', function (e) {
+  if (e.target && e.target.id === 'pstune') maybeShowNextForTune();
+}, true);
+
+function domContentLoadedHandler1799() {
+  const tunesContainer = document.getElementById('tunes');
+  if (!tunesContainer) return;
+  const ob = new MutationObserver(() => { maybeShowNextForTune(); });
+  ob.observe(tunesContainer, { childList: true, subtree: true });
+}
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', domContentLoadedHandler1799);
+} else {
+  domContentLoadedHandler1799();
+}
+
+function ensureSummaryGoButton(shouldShow) {
+  const holder = document.getElementById('summaryBtn');
+  if (!holder) return;
+
+  if (!shouldShow) {
+    holder.style.display = 'none';
+    holder.innerHTML = '';
+    return;
+  }
+
+  holder.style.display = 'block';
+  // ← CHANGED: Match original structure exactly - no nested indentation, text directly after SVG
+  holder.innerHTML =
+    "<button type='button' class='submitbtn' id='summaryGoBtn' onclick='loadFile(); closeNav();'>" +
+      "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'>" +
+        "<path d='M21,4 C21.5128358,4 21.9355072,4.38604019 21.9932723,4.88337887 L22,5 L22,11.5 C22,13.3685634 20.5357224,14.8951264 18.6920352,14.9948211 L18.5,15 L5.415,15 L8.70710678,18.2928932 C9.06759074,18.6533772 9.09532028,19.2206082 8.79029539,19.6128994 L8.70710678,19.7071068 C8.34662282,20.0675907 7.77939176,20.0953203 7.38710056,19.7902954 L7.29289322,19.7071068 L2.29289322,14.7071068 C2.25749917,14.6717127 2.22531295,14.6343256 2.19633458,14.5953066 L2.12467117,14.4840621 L2.12467117,14.4840621 L2.07122549,14.371336 L2.07122549,14.371336 L2.03584514,14.265993 L2.03584514,14.265993 L2.0110178,14.1484669 L2.0110178,14.1484669 L2.00397748,14.0898018 L2.00397748,14.0898018 L2,14 L2.00278786,13.9247615 L2.00278786,13.9247615 L2.02024007,13.7992742 L2.02024007,13.7992742 L2.04973809,13.6878575 L2.04973809,13.6878575 L2.09367336,13.5767785 L2.09367336,13.5767785 L2.14599545,13.4792912 L2.14599545,13.4792912 L2.20970461,13.3871006 L2.20970461,13.3871006 L2.29289322,13.2928932 L2.29289322,13.2928932 L7.29289322,8.29289322 C7.68341751,7.90236893 8.31658249,7.90236893 8.70710678,8.29289322 C9.06759074,8.65337718 9.09532028,9.22060824 8.79029539,9.61289944 L8.70710678,9.70710678 L5.415,13 L18.5,13 C19.2796961,13 19.9204487,12.4051119 19.9931334,11.64446 L20,11.5 L20,5 C20,4.44771525 20.4477153,4 21,4 Z'></path>" +
+      "</svg>" +
+      "Go" +
+    "</button>";
+  
+  // Note: onclick in HTML above handles the click, but keeping this for compatibility
+  const btn = document.getElementById('summaryGoBtn');
+  if (btn && !btn.onclick) {
+    btn.onclick = function () {
+      try { loadFile(); } catch(_) {}
+      try { closeNav(); } catch(_) {}
+    };
+  }
+}
+
+/* ----------------------------- Tab tooltip helpers ----------------------------- */
+function addTopTabTooltips() {
+  const labelMap = {
+    source: "Source",
+    text: "Text",
+    tune: "Tune",
+    options: "Options"
+  };
+  const tabs = document.querySelectorAll('.sidenav-top-tabs .top-tab');
+  tabs.forEach(tab => {
+    const key = tab.getAttribute('data-tab');
+    const label = labelMap[key] || (key ? key.charAt(0).toUpperCase() + key.slice(1) : "Tab");
+    tab.setAttribute('data-tooltip', label);
+    tab.setAttribute('title', label);
+    tab.setAttribute('aria-label', label);
+  });
+}
+function domContentLoadedHandler1853() {
+  try { addTopTabTooltips(); } catch(e) {}
+}
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', domContentLoadedHandler1853);
+} else {
+  domContentLoadedHandler1853();
+}
+
+function wireTopTabTooltipDismissal() {
+  const tabs = document.querySelectorAll('.sidenav-top-tabs .top-tab');
+  tabs.forEach(tab => {
+    tab.addEventListener('click', function (e) {
+      if (e && e.detail > 0) {
+        tab.classList.add('no-tooltip');
+        setTimeout(() => tab.blur(), 0);
+        setTimeout(() => tab.classList.remove('no-tooltip'), 300);
+      }
+    });
+    tab.addEventListener('mouseleave', function () {
+      tab.classList.add('no-tooltip');
+    });
+    tab.addEventListener('mouseenter', function () {
+      tab.classList.remove('no-tooltip');
+    });
+    tab.addEventListener('focus', function () {
+      tab.classList.remove('no-tooltip');
+    });
+    tab.addEventListener('blur', function () {
+      tab.classList.add('no-tooltip');
+    });
+  });
+}
+function domContentLoadedHandler1881() {
+  try { wireTopTabTooltipDismissal(); } catch(e) {}
+}
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', domContentLoadedHandler1881);
+} else {
+  domContentLoadedHandler1881();
+}
+
+/* ----------------------------- Startup: fetch consolidated data ----------------------------- */
+function domContentLoadedHandler1886() {
+  try { fetchConsolidatedData(); } catch (e) { console.warn('fetchConsolidatedData failed', e); }
+}
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', domContentLoadedHandler1886);
+} else {
+  domContentLoadedHandler1886();
+}
+
+function initializeTextAccordion() {
+  const selectPsalm = document.getElementById('selectPsalm');
+  const psalmButtons = document.getElementById('psalmButtons');
+  
+  if (!selectPsalm || !psalmButtons) {
+    return;
+  }
+  
+  // Add caret indicator if not already present
+  if (!selectPsalm.querySelector('.accordion-caret')) {
+    const caret = document.createElement('span');
+    caret.className = 'accordion-caret';
+    selectPsalm.insertBefore(caret, selectPsalm.firstChild);
+  }
+  
+  // Toggle function
+  const toggleTextAccordion = function(e) {
+    if (e) e.preventDefault();
+    const isExpanded = psalmButtons.classList.contains('expanded');
+    
+    if (isExpanded) {
+      psalmButtons.classList.remove('expanded');
+      selectPsalm.classList.remove('open');
+      selectPsalm.setAttribute('aria-expanded', 'false');
+    } else {
+      psalmButtons.classList.add('expanded');
+      selectPsalm.classList.add('open');
+      selectPsalm.setAttribute('aria-expanded', 'true');
+    }
+  };
+  
+  // Wire up click handlers
+  selectPsalm.addEventListener('click', toggleTextAccordion);
+  selectPsalm.addEventListener('keydown', function(e) {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      toggleTextAccordion(e);
+    }
+  });
+  
+  console.log('Text accordion initialized');
+}
+
+function initializeVerseAccordion() {
+  const selectVerses = document.getElementById('selectVerses');
+  const versesContainer = document.getElementById('verses');
+ 
+  
+  // Add caret indicator if not already present
+  if (!selectVerses.querySelector('.accordion-caret')) {
+    const caret = document.createElement('span');
+    caret.className = 'accordion-caret';
+    selectVerses.insertBefore(caret, selectVerses.firstChild);
+  }
+  
+  // Toggle function
+  const toggleVerseAccordion = function(e) {
+    if (e) e.preventDefault();
+    const isExpanded = versesContainer.classList.contains('expanded');
+    
+    if (isExpanded) {
+      versesContainer.classList.remove('expanded');
+      selectVerses.classList.remove('open');
+      selectVerses.setAttribute('aria-expanded', 'false');
+    } else {
+      versesContainer.classList.add('expanded');
+      selectVerses.classList.add('open');
+      selectVerses.setAttribute('aria-expanded', 'true');
+    }
+  };
+  
+  // Wire up click handlers
+  selectVerses.addEventListener('click', toggleVerseAccordion);
+  selectVerses.addEventListener('keydown', function(e) {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      toggleVerseAccordion(e);
+    }
+  });
+}
+
+function domContentLoadedHandler1971() {
+  // Use a slight delay to ensure all dynamic content is loaded first
+  setTimeout(function() {
+    initializeTextAccordion();
+    initializeVerseAccordion();
+  }, 100);
+}
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', domContentLoadedHandler1971);
+} else {
+  domContentLoadedHandler1971();
+}
+
+/* ----------------------------- Text Search Modal ----------------------------- */
+function domContentLoadedHandler1980() {
+  // Helper function to normalize strings (for accent-insensitive search)
+  // Reusing the same pattern as the tune search normalizeString function
+  function normalizeStringForSearch(str) {
+    return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  }
+  const searchLink = document.getElementById("searchPhraseLink");
+  const searchModal = document.getElementById("searchModal");
+  const searchInput = document.getElementById("searchInput");
+  const searchResults = document.getElementById("searchResults");
+  const closeSearchBtn = document.getElementById("closeSearchModalBtn");
+
+  // Setup modal close on outside click
+  function setupSearchModalCloseOnOutsideClick() {
+    if (!searchModal) return;
+    searchModal.addEventListener("click", function(e) {
+      if (e.target === searchModal) {
+        searchModal.style.display = "none";
+        searchInput.value = "";
+        searchResults.innerHTML = "";
+      }
+    });
+  }
+  setupSearchModalCloseOnOutsideClick();
+
+  // Open modal
+  if (searchLink) {
+    searchLink.addEventListener("click", function(e) {
+      e.preventDefault();
+      if (searchModal) {
+        populateSearchModalSourceList();
+        searchModal.style.display = "flex";
+        searchInput.focus();
+        showSearchInstructions();
+      }
+    });
+  }
+
+  // Close button
+  if (closeSearchBtn) {
+    closeSearchBtn.addEventListener("click", function() {
+      if (searchModal) {
+        searchModal.style.display = "none";
+        searchInput.value = "";
+        searchResults.innerHTML = "";
+      }
+    });
+  }
+
+  // ESC key to close
+  document.addEventListener("keydown", function(e) {
+    if (e.key === "Escape" && searchModal && searchModal.style.display === "flex") {
+      searchModal.style.display = "none";
+      searchInput.value = "";
+      searchResults.innerHTML = "";
+    }
+  });
+
+  // Show initial instructions
+  function showSearchInstructions() {
+    if (!searchResults) return;
+    searchResults.innerHTML = '<div style="padding:20px;text-align:center;color:#555;">Type a word or phrase to search through all psalm texts in the selected source.</div>';
+  }
+  
+  // Populate search modal source list with checkboxes
+  function populateSearchModalSourceList() {
+    const searchSourcesList = document.getElementById('searchSourcesList');
+    if (!searchSourcesList) {
+      console.warn('populateSearchModalSourceList: searchSourcesList element not found');
+      return;
+    }
+    
+    searchSourcesList.innerHTML = '';
+    
+    const availableSources = Object.keys(window.sourceMap || {});
+    console.log('populateSearchModalSourceList: availableSources =', availableSources);
+    
+    if (availableSources.length === 0) {
+      // Show message if no sources available yet
+      const msgDiv = document.createElement('div');
+      msgDiv.style.cssText = 'color:#888;font-style:italic;padding:5px 0;';
+      msgDiv.textContent = 'No sources available. Please select a source from the EDITION tab first.';
+      searchSourcesList.appendChild(msgDiv);
+      console.warn('populateSearchModalSourceList: No sources in sourceMap');
+      return;
+    }
+    
+    // Get currently selected sources from hidden input
+    const psSourceInput = document.getElementById('pssource');
+    const selectedSources = psSourceInput && psSourceInput.value ? 
+      psSourceInput.value.split(',').map(s => s.trim()).filter(Boolean) : [];
+    
+    // Container for "All sources" button (on its own line)
+    const allButtonContainer = document.createElement('div');
+    allButtonContainer.style.cssText = 'margin-top: 8px; margin-bottom: 8px; text-align: center;';
+    
+    // Add "All sources" button
+    const allButton = document.createElement('button');
+    allButton.type = 'button';
+    allButton.id = 'search-source-all';
+    allButton.className = 'search-source-button search-source-all';
+    allButton.textContent = 'All sources';
+    allButton.style.cssText = 'padding: 8px 16px; border: 1px solid #ccc; border-radius: 4px; background: #d8e5d3; cursor: pointer; font-size: 0.95em;';
+    
+    // Set initial active state
+    if (selectedSources.length === 0 || selectedSources.length === availableSources.length) {
+      allButton.classList.add('active');
+      allButton.style.background = '#6fc252';
+      allButton.style.color = 'white';
+    }
+    
+    allButtonContainer.appendChild(allButton);
+    searchSourcesList.appendChild(allButtonContainer);
+    
+    // Container for individual source buttons (on separate line)
+    const sourcesButtonContainer = document.createElement('div');
+    sourcesButtonContainer.style.cssText = 'display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;';
+    
+    // Add individual source buttons
+    availableSources.forEach(function(source) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'search-source-button search-source-item';
+      button.setAttribute('data-source', source);
+      
+      // Split source title into year and remainder
+      // Typical format: "1564 Psalm Buik" or "1650 Scottish Metrical"
+      const yearMatch = source.match(/^(\d{4})\s+(.+)$/);
+      if (yearMatch) {
+        // Create two-line structure: year on first line, rest on second
+        const yearSpan = document.createElement('div');
+        yearSpan.textContent = yearMatch[1];
+        yearSpan.style.cssText = 'font-weight: bold; font-size: 1.1em;';
+        
+        const titleSpan = document.createElement('div');
+        titleSpan.textContent = yearMatch[2];
+        titleSpan.style.cssText = 'font-size: 0.85em; margin-top: 2px;';
+        
+        button.appendChild(yearSpan);
+        button.appendChild(titleSpan);
+      } else {
+        // Fallback if format doesn't match
+        button.textContent = source;
+      }
+      
+      button.style.cssText = 'padding: 8px 16px; border: 1px solid #ccc; border-radius: 4px; background: #d8e5d3; cursor: pointer; font-size: 0.95em; text-align: center; min-width: 120px;';
+      
+      // Set initial active state
+      if (selectedSources.length === 0 || selectedSources.includes(source)) {
+        button.classList.add('active');
+        button.style.background = '#6fc252';
+        button.style.color = 'white';
+      }
+      
+      sourcesButtonContainer.appendChild(button);
+    });
+    
+    searchSourcesList.appendChild(sourcesButtonContainer);
+    
+    // Wire up "All sources" toggle
+    allButton.addEventListener('click', function() {
+      const isActive = allButton.classList.contains('active');
+      
+      if (isActive) {
+        // Deactivate all
+        allButton.classList.remove('active');
+        allButton.style.background = '#d8e5d3';
+        allButton.style.color = '';
+        
+        searchSourcesList.querySelectorAll('.search-source-item').forEach(function(btn) {
+          btn.classList.remove('active');
+          btn.style.background = '#d8e5d3';
+          btn.style.color = '';
+        });
+      } else {
+        // Activate all
+        allButton.classList.add('active');
+        allButton.style.background = '#6fc252';
+        allButton.style.color = 'white';
+        
+        searchSourcesList.querySelectorAll('.search-source-item').forEach(function(btn) {
+          btn.classList.add('active');
+          btn.style.background = '#6fc252';
+          btn.style.color = 'white';
+        });
+      }
+    });
+    
+    // Wire up individual buttons
+    searchSourcesList.querySelectorAll('.search-source-item').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        // Toggle this button
+        const isActive = btn.classList.contains('active');
+        
+        if (isActive) {
+          btn.classList.remove('active');
+          btn.style.background = '#d8e5d3';
+          btn.style.color = '';
+        } else {
+          btn.classList.add('active');
+          btn.style.background = '#6fc252';
+          btn.style.color = 'white';
+        }
+        
+        // Update "All sources" button state
+        const allItemButtons = Array.from(searchSourcesList.querySelectorAll('.search-source-item'));
+        const allActive = allItemButtons.every(function(b) { return b.classList.contains('active'); });
+        const noneActive = allItemButtons.every(function(b) { return !b.classList.contains('active'); });
+        
+        if (allActive) {
+          allButton.classList.add('active');
+          allButton.style.background = '#6fc252';
+          allButton.style.color = 'white';
+        } else {
+          allButton.classList.remove('active');
+          allButton.style.background = '#d8e5d3';
+          allButton.style.color = '';
+        }
+      });
+    });
+  }
+
+  // Search through psalms using server-side XQuery
+  async function searchPsalms(query) {
+    if (!query || query.trim().length === 0) {
+      showSearchInstructions();
+      return;
+    }
+
+    // Show loading state
+    searchResults.innerHTML = '<div style="padding:20px;text-align:center;color:#555;">Searching...</div>';
+
+    try {
+      // Collect selected sources from buttons in search modal
+      const sourceAllBtn = document.getElementById('search-source-all');
+      let selectedSources = [];
+      
+      if (sourceAllBtn && sourceAllBtn.classList.contains('active')) {
+        // "All sources" is active - search all sources (pass empty array)
+        selectedSources = [];
+      } else {
+        // Collect individually active sources
+        const activeButtons = Array.from(document.querySelectorAll('#searchSourcesList button.search-source-item.active'))
+          .map(btn => btn.getAttribute('data-source'))
+          .filter(Boolean);
+        selectedSources = activeButtons;
+      }
+      
+      // Build the query URL with optional source filter
+      let url = `searchTexts.xq?query=${encodeURIComponent(query.trim())}`;
+      if (selectedSources && selectedSources.length > 0) {
+        url += `&source=${encodeURIComponent(selectedSources.join(','))}`;
+      }
+      
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`Search failed: ${response.status} ${response.statusText}`);
+      }
+      
+      const results = await response.json();
+      displaySearchResults(results, query);
+      
+    } catch (error) {
+      console.error('Search error:', error);
+      searchResults.innerHTML = '<div style="padding:20px;text-align:center;color:#555;">Search failed. Please try again.</div>';
+    }
+  }
+
+  // Display search results
+  function displaySearchResults(results, query) {
+    if (!searchResults) return;
+
+    if (!results || results.length === 0) {
+      searchResults.innerHTML = '<div style="padding:20px;text-align:center;color:#555;">No results found for "' + query + '"</div>';
+      return;
+    }
+
+    let html = '<div style="margin-bottom:10px;color:#555;font-size:0.9em;">Found ' + results.length + ' result' + (results.length > 1 ? 's' : '') + '</div>';
+    
+    results.forEach(result => {
+      // Highlight the match in the snippet
+      const snippet = highlightMatchInSnippet(result.snippet, query);
+      
+      html += '<div class="search-result-item" data-label="' + result.label + '" data-psdata="' + result.data + '" data-source="' + (result.source || '') + '" data-source-short="' + (result.sourceShort || '') + '" data-verse-num="' + (result.verseNum || '') + '" style="padding:12px;margin:8px 0;background:#f5f5f5;border-radius:6px;cursor:pointer;border:1px solid #ddd;">';
+      html += '<div style="font-weight:700;margin-bottom:6px;color:#333;">' + result.label + '</div>';
+      html += '<div style="color:#555;font-size:0.9em;">' + snippet + '</div>';
+      if (result.source) {
+        html += '<div style="color:#888;font-size:0.8em;margin-top:4px;">' + result.source + '</div>';
+      }
+      html += '</div>';
+    });
+
+    searchResults.innerHTML = html;
+
+    // Add click handlers to results
+    const resultItems = searchResults.querySelectorAll('.search-result-item');
+    resultItems.forEach(item => {
+      item.addEventListener('click', function() {
+        const label = this.getAttribute('data-label');
+        const psdata = this.getAttribute('data-psdata');
+        const source = this.getAttribute('data-source');
+        const sourceShort = this.getAttribute('data-source-short');
+        const verseNum = this.getAttribute('data-verse-num');
+        selectPsalmFromSearch(label, psdata, source, sourceShort, verseNum);
+      });
+      
+      // Hover effect
+      item.addEventListener('mouseenter', function() {
+        this.style.background = '#e8e8e8';
+      });
+      item.addEventListener('mouseleave', function() {
+        this.style.background = '#f5f5f5';
+      });
+    });
+  }
+
+  // Helper function to highlight match in snippet
+  function highlightMatchInSnippet(snippet, query) {
+    if (!snippet || !query) return snippet;
+    
+    const normalizedSnippet = normalizeStringForSearch(snippet);
+    const normalizedQuery = normalizeStringForSearch(query.trim());
+    const matchStartInSnippet = normalizedSnippet.indexOf(normalizedQuery);
+    
+    if (matchStartInSnippet === -1) return snippet;
+    
+    // Find the match length in the original text
+    let matchEnd = matchStartInSnippet;
+    let normalizedCharsMatched = 0;
+    
+    while (normalizedCharsMatched < normalizedQuery.length && matchEnd < snippet.length) {
+      const char = snippet[matchEnd];
+      const normalizedChar = normalizeStringForSearch(char);
+      if (normalizedChar.length > 0) {
+        normalizedCharsMatched += normalizedChar.length;
+      }
+      matchEnd++;
+    }
+    
+    const beforeMatch = snippet.substring(0, matchStartInSnippet);
+    const match = snippet.substring(matchStartInSnippet, matchEnd);
+    const afterMatch = snippet.substring(matchEnd);
+    return beforeMatch + '<mark style="background:#ffd966;">' + match + '</mark>' + afterMatch;
+  }
+
+  // Select psalm from search results
+  function selectPsalmFromSearch(label, psdata, source, sourceShort, verseNum) {
+    console.log('selectPsalmFromSearch called:', { label, psdata, source, sourceShort, verseNum });
+    
+    // Close modal
+    if (searchModal) {
+      searchModal.style.display = "none";
+      searchInput.value = "";
+      searchResults.innerHTML = "";
+    }
+
+    // First, select the source if provided
+    // Use sourceShort to match the button's data-source-label (which is the short title)
+    if (sourceShort) {
+      console.log('Selecting source by short title:', sourceShort);
+      const sourceContainer = document.getElementById('sourceButtonContainer');
+      if (sourceContainer) {
+        const sourceButtons = sourceContainer.querySelectorAll('.source-button');
+        let sourceFound = false;
+        sourceButtons.forEach(btn => {
+          const btnLabel = btn.getAttribute('data-source-label');
+          console.log('Checking button with label:', btnLabel, 'against:', sourceShort);
+          if (btnLabel === sourceShort) {
+            console.log('Found source button, clicking it');
+            sourceFound = true;
+            // Always click to ensure it's selected (single-select now)
+            btn.click();
+          }
+        });
+        if (!sourceFound) {
+          console.warn('Source button not found with short title:', sourceShort);
+        }
+      } else {
+        console.warn('sourceButtonContainer not found');
+      }
+    }
+
+    // Wait a moment for the source selection to populate texts, then find and click the psalm
+    setTimeout(function() {
+      console.log('Looking for psalm button with label:', label);
+      const textsContainer = document.getElementById('texts');
+      if (textsContainer) {
+        const psalms = textsContainer.querySelectorAll('.psalm-btn');
+        console.log('Found', psalms.length, 'psalm buttons');
+        let psalmFound = false;
+        psalms.forEach(btn => {
+          if (btn.dataset.label === label) {
+            console.log('Found matching psalm button, clicking it');
+            psalmFound = true;
+            btn.click();
+            
+            // After selecting the psalm, switch to TEXT tab and select only the matching verse
+            setTimeout(function() {
+              console.log('Switching to TEXT tab');
+              // Switch to TEXT tab
+              switchToTab('text');
+              
+              // Find and select only the verse with the matching verse number
+              if (verseNum) {
+                selectVerseByNumber(verseNum);
+              } else {
+                // Fallback to selecting first verse if no verse number
+                selectVerseByNumber('1');
               }
-            });
-          });
+            }, 200);
+            
+            return;
+          }
         });
-        
-        document.querySelectorAll('#controls a, #controls button').forEach(el =&gt; {
-          el.addEventListener('touchend', () =&gt; el.blur());
-        });
-        
-        document.querySelectorAll('#controls a, #controls button').forEach(el =&gt; {
-          el.addEventListener('touchend', () =&gt; {
-            el.classList.remove('highlighted'); // If your hover uses a class
-            el.blur();
-          });
-        });
-        
-        /*slider.addEventListener('input', function(e) {
-            const ch = Number(this.getAttribute('data-channel'));
-            player.setInstrumentVolume(ch, Number(this.value));
-        });*/
-    </script>
+        if (!psalmFound) {
+          console.warn('Psalm button not found with label:', label);
+        }
+      } else {
+        console.warn('texts container not found');
+      }
+    }, 200);
+  }
 
-    <footer>
-        <div class="footbar">
-            <div>
-                <a href="index.html?tab=tab-about">About</a>
-            </div>
-            <div>
-                <a href="index.html?tab=tab-sources">Sources</a>
-            </div>
-            <div>
-                <a href="index.html?tab=tab-contact">Contact</a>
-            </div>
-        </div>
-        <div id="textLicense" class="footbar-sm"/>
-        <div id="tuneLicense" class="footbar-sm"/>
-        <div class="footbar-sm">
-            Edition by Timothy Duguid, <a href="https://creativecommons.org/licenses/by-nc/4.0/" target="_blank">CC BY-NC</a> 2021
-        </div>
-        <div class="footbar-sm">
-            Music engraving by <a href="http://verovio.org" target="_blank">Verovio</a>.
-        </div>
-    </footer>
-</body>
-</html>
+  // Select only the verse with the given verse number
+  function selectVerseByNumber(verseNum) {
+    console.log('Selecting verse by number:', verseNum);
+    const verses = document.getElementById('verses');
+    if (!verses) {
+      console.warn('verses element not found');
+      return;
+    }
+
+    // Get all verse buttons
+    const verseBtns = verses.querySelectorAll('.verse-btn');
+    if (verseBtns.length === 0) {
+      console.warn('No verse buttons found');
+      return;
+    }
+
+    // First, deselect all verses (don't set inline styles - let CSS handle appearance)
+    verseBtns.forEach(btn => {
+      btn.dataset.selected = 'false';
+      btn.classList.remove('active');
+      // Remove any inline styles that may have been set
+      btn.style.background = '';
+      btn.style.color = '';
+    });
+
+    // Deselect any "Select All" button(s)
+    const selectAllBtns = verses.querySelectorAll('.stanza-control-btn');
+    selectAllBtns.forEach(btn => {
+      btn.classList.remove('active');
+    });
+
+    // Find the verse button with matching verse number
+    // The verse button text should contain the verse number
+    let foundVerse = false;
+    for (let btn of verseBtns) {
+      const verseText = btn.textContent || '';
+      // Try to extract the verse number/designation from the button text
+      // Common patterns: "1", "1.", "Verse 1", "20-21", "16a", etc.
+      // Look for patterns like: digit(s), optionally followed by letter or hyphen+digit(s)
+      const match = verseText.match(/\b(\d+(?:[a-z]|-\d+)?)\b/i);
+      if (match && match[1] === verseNum) {
+        console.log('Found matching verse button for verse', verseNum, ':', verseText);
+        // Select this verse (let CSS handle the styling via .active class)
+        btn.dataset.selected = 'true';
+        btn.classList.add('active');
+        foundVerse = true;
+        break;
+      }
+    }
+
+    if (!foundVerse) {
+      console.warn('No verse found with number:', verseNum, 'selecting first verse as fallback');
+      // Fallback: select the first verse
+      if (verseBtns.length > 0) {
+        verseBtns[0].dataset.selected = 'true';
+        verseBtns[0].classList.add('active');
+      }
+    }
+
+    // Update the summary display
+    const selectVersesEl = document.getElementById('selectVerses');
+    if (selectVersesEl) {
+      const selectedCount = Array.from(verseBtns).filter(btn => btn.dataset.selected === 'true').length;
+      selectVersesEl.innerHTML = selectedCount === verseBtns.length ? 'All' : `${selectedCount} selected`;
+    }
+  }
+
+  // Search button click handler
+  const executeSearchBtn = document.getElementById('executeSearchBtn');
+  if (executeSearchBtn && searchInput) {
+    executeSearchBtn.addEventListener('click', function() {
+      searchPsalms(searchInput.value);
+    });
+  }
+  
+  // Also allow Enter key in search input to trigger search
+  if (searchInput) {
+    searchInput.addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') {
+        searchPsalms(this.value);
+      }
+    });
+  }
+}
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', domContentLoadedHandler1980);
+} else {
+  domContentLoadedHandler1980();
+}
+
+/* ----------------------------- Melody Search Modal ----------------------------- */
+function domContentLoadedHandlerMelodySearch() {
+  // Translate pitch classes to signed intervals
+  function translatePitchClassesToSignedIntervals(pitchClasses) {
+    if (!Array.isArray(pitchClasses) || pitchClasses.length < 2) {
+      return [];
+    }
+    
+    const intervals = [];
+    for (let i = 1; i < pitchClasses.length; i++) {
+      const prev = pitchClasses[i - 1];
+      const curr = pitchClasses[i];
+      
+      // Calculate difference with octave wrapping
+      let diff = curr - prev;
+      
+      // Normalize to range [-6, +6] to handle octave wrapping
+      // If the interval is greater than 6 semitones, it's more likely the shorter way around
+      if (diff > 6) {
+        diff = diff - 12;
+      } else if (diff < -6) {
+        diff = diff + 12;
+      }
+      
+      intervals.push(diff);
+    }
+    
+    return intervals;
+  }
+  
+  // Format intervals with + prefix for positive numbers
+  function formatSignedInterval(interval) {
+    return interval >= 0 ? `+${interval}` : `${interval}`;
+  }
+  
+  const melodySearchLink = document.getElementById("searchMelodyLink");
+  const melodySearchModal = document.getElementById("melodySearchModal");
+  const melodySearchInput = document.getElementById("melodySearchInput");
+  const melodySearchResults = document.getElementById("melodySearchResults");
+  const closeMelodySearchBtn = document.getElementById("closeMelodySearchModalBtn");
+  const executeMelodySearchBtn = document.getElementById("executeMelodySearchBtn");
+
+  // Setup modal close on outside click
+  function setupMelodySearchModalCloseOnOutsideClick() {
+    const modal = document.getElementById('melodySearchModal');
+    if (!modal) return;
+    
+    modal.addEventListener('click', function(e) {
+        // Check if click is on the modal backdrop (not the content div inside)
+        if (e.target === modal) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // Stop any playing melody FIRST
+            console.log('Clicking outside modal - stopping playback');
+            if (window.melodyPlayer && window.melodyPlayer.isPlaying) {
+                console.log('Stopping melody player');
+                window.melodyPlayer.stop();
+            }
+            
+            // Small delay to ensure stop completes before closing
+            setTimeout(() => {
+                modal.style.display = 'none';
+            }, 50);
+        }
+    });
+}
+  setupMelodySearchModalCloseOnOutsideClick();
+
+  // Open modal
+  if (melodySearchLink) {
+    melodySearchLink.addEventListener("click", function(e) {
+      e.preventDefault();
+      if (melodySearchModal) {
+        melodySearchModal.style.display = "flex";
+        melodySearchInput.focus();
+        showMelodySearchInstructions();
+      }
+    });
+  }
+
+  // Close button
+  if (closeMelodySearchBtn) {
+        closeMelodySearchBtn.addEventListener('click', function() {
+            // Stop any playing melody
+            if (window.melodyPlayer && window. melodyPlayer.isPlaying) {
+                window.melodyPlayer.stop();
+            }
+            
+            const modal = document.getElementById('melodySearchModal');
+            if (modal) {
+                modal.style. display = 'none';
+            }
+        });
+    }
+
+  // ESC key to close
+  document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            const modal = document.getElementById('melodySearchModal');
+            if (modal && modal. style.display !== 'none') {
+                e.preventDefault();
+                
+                // Stop any playing melody
+                console.log('Escape pressed - stopping playback');
+                if (window.melodyPlayer && window.melodyPlayer.isPlaying) {
+                    console.log('Stopping melody player');
+                    window.melodyPlayer. stop();
+                }
+                
+                setTimeout(() => {
+                    modal.style.display = 'none';
+                }, 50);
+            }
+        }
+    });
+
+  // Show initial instructions
+  function showMelodySearchInstructions() {
+    if (!melodySearchResults) return;
+    melodySearchResults.innerHTML = '<div style="padding:20px;text-align:center;color:#555;">Enter pitch classes (0-11) separated by spaces to search for matching melodies.</div>';
+  }
+
+  // Search melodies using server-side XQuery
+  async function searchMelodies(pitchClassInput) {
+    if (!pitchClassInput || pitchClassInput.trim().length === 0) {
+      showMelodySearchInstructions();
+      return;
+    }
+
+    // Parse pitch classes
+    const pitchClassStrings = pitchClassInput.trim().split(/\s+/);
+    const pitchClasses = pitchClassStrings.map(s => parseInt(s, 10));
+    
+    // Validate pitch classes
+    const invalidClasses = pitchClasses.filter(pc => isNaN(pc) || pc < 0 || pc > 11);
+    if (invalidClasses.length > 0) {
+      melodySearchResults.innerHTML = '<div style="padding:20px;text-align:center;color:#d32f2f;">Invalid pitch classes. Please enter numbers between 0 and 11.</div>';
+      return;
+    }
+    
+    if (pitchClasses.length < 2) {
+      melodySearchResults.innerHTML = '<div style="padding:20px;text-align:center;color:#d32f2f;">Please enter at least 2 pitch classes.</div>';
+      return;
+    }
+
+    // Translate to signed intervals
+    const intervals = translatePitchClassesToSignedIntervals(pitchClasses);
+    const intervalString = intervals.join(' ');
+
+    // Show loading state with the translated intervals
+    melodySearchResults.innerHTML = '<div style="padding:20px;text-align:center;color:#555;">Searching for intervals: ' + intervals.map(formatSignedInterval).join(' ') + '...</div>';
+
+    try {
+      // Call server-side search
+      const url = `searchMelodies.xq?signedinterval=${encodeURIComponent(intervalString)}`;
+      const response = await fetch(url);
+      
+      if (!response.ok) {
+        throw new Error(`Search failed: ${response.status} ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      displayMelodySearchResults(data.results || [], intervals, pitchClasses);
+      
+    } catch (error) {
+      console.error('Melody search error:', error);
+      melodySearchResults.innerHTML = '<div style="padding:20px;text-align:center;color:#d32f2f;">Search failed. Please try again.</div>';
+    }
+  }
+
+  // Display melody search results
+function displayMelodySearchResults(results) {
+    if (! melodySearchResults) return;
+    
+    if (results.length === 0) {
+        melodySearchResults.innerHTML = '<div style="padding: 20px;text-align:center;color:#888;">No matching tunes found.  Try a different pattern.</div>';
+        return;
+    }
+    
+    // Get the currently selected text's metre
+    const psTextInput = document.getElementById('pstext');
+    let currentMetre = '';
+    if (psTextInput && psTextInput.dataset && psTextInput.dataset.psdata) {
+        const psdata = psTextInput.dataset.psdata. split(';');
+        currentMetre = psdata[1] || ''; // metre is the second element
+    }
+    console.log('Current text metre:', currentMetre);
+    
+    // Helper function to normalize metres for comparison
+    // Helper function to normalize metres for comparison
+function normalizeMetreForComparison(metre) {
+    if (!metre) return '';
+    
+    // Trim whitespace
+    let normalized = metre.trim();
+    
+    // Remove anything in parentheses (and the parentheses themselves)
+    // This handles cases like "8.6.8.6. (6.)"
+    normalized = normalized.replace(/\s*\([^)]*\)/g, '').trim();
+    
+    // Check if it ends with a period
+    if (! normalized.endsWith('.')) {
+        return normalized;
+    }
+    
+    // Remove the final period temporarily
+    normalized = normalized.slice(0, -1);
+    
+    // Check if the last character (before the period) is a letter
+    // This handles cases like "8.6.8.6. D" or "8.6.8.6. T"
+    while (normalized.length > 0 && /[a-zA-Z]/.test(normalized[normalized.length - 1])) {
+        // Remove the letter
+        normalized = normalized.slice(0, -1).trim();
+        
+        // Remove trailing period if it exists after removing the letter
+        if (normalized.endsWith('.')) {
+            normalized = normalized.slice(0, -1);
+        }
+    }
+    
+    // Add back the final period if normalized string doesn't end with one
+    if (normalized.length > 0 && !normalized.endsWith('.')) {
+        normalized += '.';
+    }
+    
+    return normalized;
+}
+    
+    melodySearchResults.innerHTML = '';
+    
+    results.forEach(result => {
+        const resultItem = document.createElement('div');
+        resultItem.style.cssText = 'padding:12px;margin:8px 0;background:#f5f5f5;border-radius:6px;cursor:pointer;display:flex;align-items:center;gap:12px;transition:background 0.2s;';
+        resultItem.addEventListener('mouseenter', () => resultItem.style.background = '#e8e8e8');
+        resultItem.addEventListener('mouseleave', () => resultItem.style.background = '#f5f5f5');
+        
+        // Check if metres match using normalized comparison
+        const normalizedCurrentMetre = normalizeMetreForComparison(currentMetre);
+        const normalizedResultMetre = normalizeMetreForComparison(result.metre);
+        const metreMatches = normalizedCurrentMetre && normalizedResultMetre && 
+                            normalizedCurrentMetre === normalizedResultMetre;
+        
+        // Create full label with date (to match button labels)
+        const fullLabel = result.date ? `${result.title} (${result.date})` : result.title;
+        
+        console.log('Metre comparison:', {
+            current: currentMetre,
+            currentNormalized: normalizedCurrentMetre,
+            result: result. metre,
+            resultNormalized: normalizedResultMetre,
+            matches: metreMatches,
+            fullLabel: fullLabel
+        });
+        
+        // Create play button
+        const playBtn = window.melodyPlayer.createPlayButton();
+        playBtn.style.flexShrink = '0';
+        
+        // Create main content container (fixed width to maintain alignment)
+        const contentContainer = document.createElement('div');
+        contentContainer.style.cssText = 'flex: 1;display:flex;align-items:center;gap:12px;min-width:0;';
+        
+        // Left side:  title, date, and metre (takes up available space)
+        const textInfo = document.createElement('div');
+        textInfo.style.cssText = 'flex:1;min-width:0;';
+        
+        // Tune title
+        const titleDiv = document.createElement('div');
+        titleDiv.textContent = result.title;
+        titleDiv.style.cssText = 'font-weight:bold;font-size:1em;color:#333;margin-bottom:2px;';
+        
+        // Date (NEW)
+        const dateDiv = document. createElement('div');
+        dateDiv.textContent = result.date || 'Date unknown';
+        dateDiv.style. cssText = 'font-size:0.85em;color:#888;margin-bottom:2px;';
+        
+        // Metre label
+        const metreDiv = document.createElement('div');
+        metreDiv.textContent = result.metre || 'Unknown metre';
+        metreDiv.style.cssText = 'font-size:0.85em;color:#666;font-weight:normal;';
+        
+        textInfo.appendChild(titleDiv);
+        textInfo.appendChild(dateDiv);
+        textInfo.appendChild(metreDiv);
+        
+        contentContainer.appendChild(textInfo);
+        
+        // Right side: warning if metre doesn't match (fixed width to maintain alignment)
+        const warningContainer = document.createElement('div');
+        warningContainer.style.cssText = 'width:80px;flex-shrink:30px;text-align:right;';
+        
+        if (!metreMatches && currentMetre) {
+            const warningDiv = document.createElement('div');
+            warningDiv. textContent = 'Tune\'s metre is different from text\'s';
+            warningDiv.style.cssText = 'color:#d32f2f;font-size:0.85em;line-height:1.3;';
+            warningContainer. appendChild(warningDiv);
+        }
+        
+        contentContainer.appendChild(warningContainer);
+        
+        resultItem.appendChild(playBtn);
+        resultItem.appendChild(contentContainer);
+        
+        // Play button click handler
+        playBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            
+            window.melodyPlayer.play(
+                result.meiFilePath,
+                result.title,
+                playBtn
+            );
+        });
+        
+        // Click on result item to select the tune
+        resultItem.addEventListener('click', function() {
+            // Stop any playing melody
+            if (window.melodyPlayer) {
+                window.melodyPlayer. stop();
+            }
+            
+            // If metre matches, auto-select the tune and close modal
+            if (metreMatches) {
+                console.log('Metre matches - auto-selecting tune with full label:', fullLabel);
+                selectTuneFromMelodySearch(fullLabel, result.meiFilePath);  // Use fullLabel here
+                
+                // Close the search modal
+                const modal = document.getElementById('melodySearchModal');
+                if (modal) {
+                    modal. style.display = 'none';
+                }
+            } else {
+                // Metre doesn't match - just show a warning, don't auto-select
+                console.log('Metre mismatch - not auto-selecting');
+                alert(`This tune (${result.metre || 'unknown metre'}) does not match your text's metre (${currentMetre}). Please select a matching tune or change your text selection.`);
+            }
+        });
+        
+        melodySearchResults.appendChild(resultItem);
+    });
+}
+
+  // Highlight the matching portion of the interval sequence
+  function highlightMelodyMatch(fullIntervals, searchIntervals) {
+    // fullIntervals is a string like "2 0 2 1 2 -2 5" (raw format from MEI)
+    // searchIntervals is an array like [2, 0, 2] (raw numbers)
+    // We need to match using raw format (without + prefix)
+    const searchString = searchIntervals.join(' ');
+    const fullString = fullIntervals;
+    
+    // Find the match and highlight it
+    // Use word boundary checking to avoid false positives like "12 0" matching "2 0"
+    let matchIndex = -1;
+    let searchIndex = 0;
+    
+    while (searchIndex <= fullString.length - searchString.length) {
+      const testIndex = fullString.indexOf(searchString, searchIndex);
+      if (testIndex === -1) break;
+      
+      // Check if this is a word boundary match (start of string or preceded by space)
+      const isStartBoundary = testIndex === 0 || fullString[testIndex - 1] === ' ';
+      // Check if followed by space or end of string
+      const endPos = testIndex + searchString.length;
+      const isEndBoundary = endPos === fullString.length || fullString[endPos] === ' ';
+      
+      if (isStartBoundary && isEndBoundary) {
+        matchIndex = testIndex;
+        break;
+      }
+      
+      searchIndex = testIndex + 1;
+    }
+    
+    if (matchIndex === -1) {
+      return fullString;
+    }
+    
+    const beforeMatch = fullString.substring(0, matchIndex);
+    const match = fullString.substring(matchIndex, matchIndex + searchString.length);
+    const afterMatch = fullString.substring(matchIndex + searchString.length);
+    
+    return beforeMatch + '<mark style="background:#ffd966;">' + match + '</mark>' + afterMatch;
+  }
+
+  // Select tune from melody search results
+  function selectTuneFromMelodySearch(tuneTitle, meiFilePath) {
+    console.log('=== selectTuneFromMelodySearch START ===');
+    console.log('tuneTitle:', tuneTitle);
+    console.log('meiFilePath:', meiFilePath);
+    
+    // Switch to TUNE tab
+    switchToTab('tune');
+    
+    // Wait for tune UI to be ready
+    setTimeout(function() {
+        console.log('Step 1: Looking for tune input and buttons container');
+        
+        const tuneInput = document. getElementById('pstune');
+        const tuneButtonsContainer = document. getElementById('tuneButtons');
+        
+        console.log('tuneInput found:', !!tuneInput);
+        console.log('tuneButtonsContainer found:', !!tuneButtonsContainer);
+        
+        if (! tuneInput || !tuneButtonsContainer) {
+            console.error('Required elements not found');
+            return;
+        }
+        
+        // Extract tune ID from file path
+        const fileName = meiFilePath. split('/').pop();
+        const tuneId = fileName.replace('. xml', '');
+        console.log('Extracted tuneId from path:', tuneId);
+        
+        // Check if renderTuneButtons function exists
+        console.log('renderTuneButtons function exists:', typeof renderTuneButtons);
+        console.log('window._pstuneMap exists:', typeof window._pstuneMap);
+        console.log('window._pstuneMap contents:', window._pstuneMap);
+        
+        // First, ensure all tune buttons are visible
+        console.log('Step 2: Rendering all tune buttons');
+        if (typeof renderTuneButtons === 'function') {
+            renderTuneButtons('');
+        }
+        
+        // Wait a moment for buttons to render
+        setTimeout(function() {
+            console. log('Step 3: Searching for tune button');
+            
+            // Find all tune buttons
+            const allButtons = tuneButtonsContainer.querySelectorAll('button');
+            console.log('Total buttons in container:', allButtons.length);
+            
+            // Log details about each button
+            allButtons. forEach((btn, index) => {
+                console.log(`Button ${index}:`, {
+                    className: btn.className,
+                    label: btn.dataset.label,
+                    tuneid: btn.dataset.tuneid,
+                    textContent: btn.textContent. substring(0, 50)
+                });
+            });
+            
+            // Try to find the matching button
+            let foundButton = null;
+            
+            allButtons.forEach(btn => {
+                if (btn.dataset.label === tuneTitle) {
+                    foundButton = btn;
+                    console.log('✓ FOUND MATCH by label:', tuneTitle);
+                }
+            });
+            
+            if (!foundButton) {
+                console.error('✗ NO MATCH FOUND for:', tuneTitle);
+                console.error('Searched among labels:', Array.from(allButtons).map(b => b.dataset.label));
+                return;
+            }
+            
+            console.log('Step 4: Applying selection');
+            const mappingId = foundButton.dataset.tuneid || '';
+            console.log('Using tuneid:', mappingId);
+            
+            // Apply the selection
+            tuneInput.dataset. tuneid = mappingId;
+            tuneInput.dataset.tunelabel = tuneTitle;
+            tuneInput.value = tuneTitle;
+            window.globalPsTune = mappingId;
+            
+            console. log('tuneInput.dataset after update:', tuneInput.dataset);
+            console.log('tuneInput.value after update:', tuneInput.value);
+            console.log('window.globalPsTune after update:', window.globalPsTune);
+            
+            // Mark button as active
+            console.log('Step 5: Marking button as active');
+            allButtons.forEach(b => {
+                if (b.classList.contains('active')) {
+                    console.log('Removing active from:', b.dataset.label);
+                }
+                b.classList.remove('active');
+            });
+            foundButton.classList.add('active');
+            console.log('Added active class to:', foundButton.dataset.label);
+            
+            // Filter to show only this tune
+            console.log('Step 6: Filtering to show only selected tune');
+            if (typeof renderTuneButtons === 'function') {
+                renderTuneButtons(tuneTitle);
+                console.log('Called renderTuneButtons with:', tuneTitle);
+            }
+            
+            // Scroll into view
+            foundButton. scrollIntoView({ behavior: 'smooth', block: 'center' });
+            
+            // Update UI
+            try { updateSelectionSummary(); } catch(e) { console.warn('updateSelectionSummary error:', e); }
+            try { maybeShowNextForTune(); } catch(e) { console.warn('maybeShowNextForTune error:', e); }
+            
+            console.log('=== selectTuneFromMelodySearch END ===');
+            
+        }, 300);
+    }, 200);
+    
+    try { maybeShowNextForTune(); } catch(e) { console.warn('maybeShowNextForTune error:', e); }
+}
+
+  // Search button click handler
+  if (executeMelodySearchBtn && melodySearchInput) {
+    executeMelodySearchBtn.addEventListener('click', function() {
+      searchMelodies(melodySearchInput.value);
+    });
+  }
+  
+  // Also allow Enter key in search input to trigger search
+  if (melodySearchInput) {
+    melodySearchInput.addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') {
+        searchMelodies(this.value);
+      }
+    });
+  }
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', domContentLoadedHandlerMelodySearch);
+} else {
+  domContentLoadedHandlerMelodySearch();
+}
