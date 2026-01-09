@@ -510,111 +510,158 @@
             }
             
             /* Piano Keyboard Styles */
-#pianoKeyboard {
-  position: relative;
-  height: 140px;
-  background: #2a2a2a;
-  border-radius: 8px;
-  padding: 15px 10px;
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  box-shadow: inset 0 2px 6px rgba(0,0,0,0.3);
-}
-
-.piano-keys-container {
-  position: relative;
-  display: flex;
-  gap: 2px;
-}
-
-.piano-key {
-  position: relative;
-  cursor: pointer;
-  border: 1px solid #000;
-  border-radius: 0 0 3px 3px;
-  transition: all 0.1s ease;
-  user-select: none;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  font-size: 10px;
-  font-weight: bold;
-  padding-bottom: 5px;
-}
-
-.piano-key.white {
-  width: 36px;
-  height: 110px;
-  background: linear-gradient(to bottom, #fff 0%, #f5f5f5 100%);
-  z-index: 1;
-  color: #666;
-}
-
-.piano-key.white:hover {
-  background: linear-gradient(to bottom, #f0f0f0 0%, #e0e0e0 100%);
-}
-
-.piano-key.white:active,
-.piano-key.white. active {
-  background: linear-gradient(to bottom, #89cb72 0%, #6fc252 100%);
-  color: white;
-  transform: translateY(2px);
-  box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
-}
-
-.piano-key.black {
-  width: 24px;
-  height: 70px;
-  background: linear-gradient(to bottom, #333 0%, #000 100%);
-  position: absolute;
-  z-index: 2;
-  color: #ccc;
-  border:  1px solid #000;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.5);
-}
-
-.piano-key.black:hover {
-  background: linear-gradient(to bottom, #444 0%, #111 100%);
-}
-
-.piano-key.black:active,
-.piano-key.black. active {
-  background: linear-gradient(to bottom, #6fc252 0%, #5ab03d 100%);
-  color: white;
-  transform: translateY(2px);
-  box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
-}
-
-/* Position black keys - using data-index */
-.piano-key.black[data-index="1"] { left: 26px; }
-. piano-key.black[data-index="3"] { left: 64px; }
-.piano-key.black[data-index="6"] { left: 140px; }
-. piano-key.black[data-index="8"] { left: 178px; }
-.piano-key.black[data-index="10"] { left: 216px; }
-.piano-key.black[data-index="13"] { left: 292px; }
-.piano-key.black[data-index="15"] { left: 330px; }
-.piano-key.black[data-index="18"] { left: 406px; }
-.piano-key.black[data-index="20"] { left: 444px; }
-.piano-key.black[data-index="22"] { left: 482px; }
-
-#deletePitchBtn: hover {
-  background-color:  #da190b;
-}
-
-#clearPitchesBtn:hover {
-  background-color: #f57c00;
-}
-
-/* Pitch display styling */
-#melodySearchInput {
-  font-family: 'Courier New', monospace;
-  font-size:  1.1em;
-  letter-spacing: 2px;
-  text-align: center;
-  color: #333 !important;
-  background: #fff ! important;
-}
+            #pianoContainer {
+              margin: 20px auto;
+              width: 90%;
+              max-width:  480px;
+            }
+            
+            #pianoKeyboard {
+              position: relative;
+              height: 140px;
+              background: #2a2a2a;
+              border-radius: 8px;
+              padding: 5px;
+              display: flex;
+              justify-content: center;
+              align-items: flex-start;
+              box-shadow: inset 0 2px 6px rgba(0,0,0,0.3);
+            }
+            
+            .piano-keys-container {
+              position: relative;
+              display: flex;
+              gap: 1px;
+              width: 100%;
+              height: 100%;
+            }
+            
+            .piano-key {
+              position: relative;
+              cursor: pointer;
+              border: 1px solid #000;
+              border-radius: 0 0 3px 3px;
+              transition: all 0.1s ease;
+              user-select: none;
+              display: flex;
+              align-items: flex-end;
+              justify-content: center;
+              font-size: 11px;
+              font-weight: bold;
+              padding-bottom: 5px;
+            }
+            
+            .piano-key.white {
+              flex: 1;
+              height: 100%;
+              min-width: 30px;
+              background: linear-gradient(to bottom, #fff 0%, #f5f5f5 100%);
+              z-index: 1;
+              color: #666;
+            }
+            
+            .piano-key.white.half-key {
+              flex:  0.5;
+              background: linear-gradient(to bottom, #f9f9f9 0%, #e8e8e8 100%);
+              border-left: 2px solid #ccc;
+            }
+            
+            .piano-key.white:not(.half-key):hover {
+              background: linear-gradient(to bottom, #f0f0f0 0%, #e0e0e0 100%);
+            }
+            
+            .piano-key.white:not(.half-key):active,
+            .piano-key.white:not(.half-key).active {
+              background: linear-gradient(to bottom, #89cb72 0%, #6fc252 100%);
+              color: white;
+              transform: translateY(2px);
+              box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
+            }
+            
+            .piano-key.black {
+              width: 28px; /* Must match value in JavaScript */
+              height: 65%;
+              background: linear-gradient(to bottom, #333 0%, #000 100%);
+              position: absolute;
+              z-index: 2;
+              color: #ccc;
+              border: 1px solid #000;
+              box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+              /* Position will be set dynamically by JavaScript */
+            }
+            
+            .piano-key.black:hover {
+              background: linear-gradient(to bottom, #444 0%, #111 100%);
+            }
+            
+            .piano-key.black:active,
+            .piano-key.black.active {
+              background: linear-gradient(to bottom, #6fc252 0%, #5ab03d 100%);
+              color: white;
+              transform: translateY(2px);
+              box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
+            }
+            
+            #deletePitchBtn: hover {
+              background-color:  #da190b;
+            }
+            
+            #clearPitchesBtn: hover {
+              background-color:  #f57c00;
+            }
+            
+            #melodySearchInput {
+              font-family: 'Courier New', monospace;
+              font-size: 1.1em;
+              text-align: center;
+              color:  #333 !important;
+              background: #fff !important;
+            }
+            #pianoKeyboard {
+              position: relative;
+              height: 140px;
+              background: #2a2a2a;
+              border-radius: 8px;
+              padding: 15px 10px;
+              display: flex;
+              justify-content: center;
+              align-items: flex-start;
+              box-shadow: inset 0 2px 6px rgba(0,0,0,0.3);
+            }
+            
+            .piano-header {
+              position: absolute;
+              top: 8px;
+              right: 12px;
+              display: flex;
+              align-items: center;
+              gap: 8px;
+              font-size:  0.85em;
+              color: #ccc;
+              z-index: 10;
+            }
+            
+            .notation-toggle {
+              background:  #444;
+              border: 1px solid #666;
+              color: #fff;
+              padding: 6px 14px;
+              border-radius:  4px;
+              cursor:  pointer;
+              font-size:  0.9em;
+              transition: all 0.2s ease;
+            }
+            
+            .notation-toggle:hover {
+              background:  #555;
+              border-color: #777;
+            }
+            
+            . notation-toggle.active {
+              background: #6fc252;
+              border-color: #6fc252;
+              color: white;
+            }
         </style>
     </head>
     <body>
@@ -1007,6 +1054,9 @@
         
         <!-- Piano Keyboard Container -->
         <div id="pianoContainer" style="margin: 20px auto; width: 90%; max-width: 600px;">
+          <div style="display: flex; justify-content: flex-end; margin-bottom: 3px;">
+              <button class="notation-toggle" id="notationToggle">Sol-fa</button>
+          </div>
           <div id="pianoKeyboard" style="position: relative; height: 140px; background: #333; border-radius: 8px; padding: 10px; display: flex; justify-content: center;">
             <!-- Piano keys will be generated by JavaScript -->
           </div>
@@ -1014,9 +1064,8 @@
         
         <!-- Display entered pitches -->
         <div style="margin: 15px auto; width: 90%; display: flex; gap: 10px; align-items: center;">
-          <input type="text" id="melodySearchInput" placeholder="Enter pitches using the piano above..." 
-                 style="flex: 1; font-size: 1em; padding:8px; border-radius:6px; border: 1px solid #888; background:  #fff;" 
-                 readonly="readonly" />
+          <input type="text" id="melodySearchInput" placeholder="Enter pitches using the piano" style="flex: 1; font-size: 1em; padding:8px; border-radius:6px; border: 1px solid #888; background:  #fff;" readonly="readonly"/>
+          <input type="hidden" id="melodySearchPitchClasses" />
           <button id="deletePitchBtn" style="padding:  8px 15px; background-color: #f44336; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 1em;">
             ← Delete
           </button>
