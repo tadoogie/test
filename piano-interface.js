@@ -1,14 +1,25 @@
 // Piano interface for melody search
+console.log('Piano interface script file loaded!    ');
+
 (function() {
+  console.log('Piano interface IIFE executing');
+  
   // Pitch class mapping (C=1)
   const pitchClassMap = {
-    'C':  '1', 'C#': '2', 'D': '3', 'D#': '4', 'E': '5', 'F': '6',
+    'C': '1', 'C#': '2', 'D': '3', 'D#': '4', 'E': '5', 'F': '6',
     'F#': '7', 'G': '8', 'G#': '9', 'A': '10', 'A#': '11', 'B': '12'
   };
   
-  // Two octaves starting from C
+  // Sol-fa mapping (fixed Do = C)
+  const solfaMap = {
+    'C': 'Do', 'C#': 'Di', 'D': 'Re', 'D#': 'Ri',
+    'E': 'Mi', 'F': 'Fa', 'F#': 'Fi', 'G': 'Sol',
+    'G#': 'Si', 'A': 'La', 'A#': 'Li', 'B': 'Ti'
+  };
+  
+  // One and a half octaves starting from C (C to F#)
   const pianoKeys = [
-    { note: 'C', octave:  4, type: 'white' },
+    { note: 'C', octave: 4, type: 'white' },
     { note: 'C#', octave: 4, type: 'black' },
     { note: 'D', octave: 4, type: 'white' },
     { note: 'D#', octave: 4, type: 'black' },
@@ -20,53 +31,237 @@
     { note: 'A', octave: 4, type:  'white' },
     { note: 'A#', octave: 4, type: 'black' },
     { note: 'B', octave:  4, type: 'white' },
-    { note: 'C', octave: 5, type:  'white' },
-    { note: 'C#', octave: 5, type: 'black' },
-    { note: 'D', octave:  5, type: 'white' },
-    { note: 'D#', octave: 5, type: 'black' },
+    { note: 'C', octave: 5, type: 'white' },
+    { note: 'C#', octave: 5, type:  'black' },
+    { note: 'D', octave: 5, type: 'white' },
+    { note:  'D#', octave:  5, type: 'black' },
     { note: 'E', octave: 5, type: 'white' },
-    { note: 'F', octave: 5, type:  'white' },
-    { note: 'F#', octave: 5, type: 'black' },
-    { note: 'G', octave:  5, type: 'white' },
-    { note: 'G#', octave: 5, type: 'black' },
-    { note: 'A', octave: 5, type: 'white' },
-    { note: 'A#', octave: 5, type: 'black' },
-    { note: 'B', octave: 5, type:  'white' },
-    { note: 'C', octave: 6, type: 'white' }
+    { note: 'F', octave: 5, type: 'white' },
+    { note: 'F#', octave: 5, type:  'black' }
   ];
   
-  let enteredPitches = [];
+  console.log('Piano keys array created, length:', pianoKeys.length);
+  
+  let enteredPitches = []; // For search (pitch classes 1-12)
+  let enteredNotes = [];   // For display (note names)
+  let isInitialized = false;
+  let pianoSynth = null;
+  let samplerReady = false;
+  let useSolfa = false;    // Toggle state
+  
+  // Initialize with a realistic piano synthesizer
+  async function initializePianoSampler() {
+    if (samplerReady && pianoSynth) {
+      console.log('✓ Piano already ready');
+      return true;
+    }
+    
+    if (typeof Tone === 'undefined') {
+      console.error('❌ Tone.js not loaded');
+      return false;
+    }
+    
+    try {
+      console.log('Starting Tone.js...');
+      await Tone.start();
+      console.log('✓ Tone.js started');
+      
+      console.log('Creating realistic piano synth...');
+      
+      // Use MembraneSynth for a more percussive, piano-like sound
+      pianoSynth = new Tone.PolySynth(Tone.MembraneSynth, {
+        pitchDecay: 0.008,
+        octaves: 2,
+        envelope: {
+          attack: 0.001,
+          decay: 0.3,
+          sustain: 0.05,
+          release: 1.4,
+          attackCurve: 'exponential'
+        }
+      }).toDestination();
+      
+      // Set volume
+      pianoSynth.volume.value = -10;
+      
+      samplerReady = true;
+      console.log('✓✓✓ Piano synth ready');
+      
+      // Enable all piano keys
+      const keys = document.querySelectorAll('.piano-key:not(.half-key)');
+      keys.forEach(key => {
+        key.style.opacity = '1';
+        key.style.cursor = 'pointer';
+      });
+      
+      return true;
+      
+    } catch (error) {
+      console.error('❌ Error initializing:', error);
+      samplerReady = false;
+      
+      // Enable keys anyway
+      const keys = document.querySelectorAll('.piano-key:not(.half-key)');
+      keys.forEach(key => {
+        key.style.opacity = '1';
+        key.style.cursor = 'pointer';
+      });
+      
+      return false;
+    }
+  }
+  
+  // Play note with the synth
+  function playNote(note, octave) {
+    if (!samplerReady || !pianoSynth) {
+      console.warn('⚠ Piano not ready yet');
+      return;
+    }
+    
+    try {
+      const toneNote = `${note}${octave}`;
+      console.log(`♪ Playing:  ${toneNote}`);
+      
+      // Play with moderate duration
+      pianoSynth.triggerAttackRelease(toneNote, '4n');
+      
+    } catch (error) {
+      console.error('Error playing note:', error);
+    }
+  }
+  
+  // Update all key labels based on current notation mode
+  function updateKeyLabels() {
+    const keys = document.querySelectorAll('.piano-key:not(.half-key)');
+    console.log(`Updating ${keys.length} key labels to ${useSolfa ? 'sol-fa' : 'pitches'}`);
+    
+    keys.forEach(key => {
+      const note = key.dataset.note;
+      const label = key.querySelector('span');
+      if (label && note) {
+        const newLabel = useSolfa ?  solfaMap[note] :  note;
+        label.textContent = newLabel;
+        console.log(`Updated key ${note} label to:  ${newLabel}`);
+      }
+    });
+  }
+  
+  // Update display with current notation
+  function updateDisplay() {
+    // Update visible input with note names or sol-fa
+    const visibleInput = document.getElementById('melodySearchInput');
+    if (visibleInput) {
+      const displayValues = enteredNotes.map(note => 
+        useSolfa ? solfaMap[note] : note
+      );
+      visibleInput.value = displayValues.join(' ');
+      console.log(`Updated display to: ${displayValues.join(' ')}`);
+    }
+    
+    // Update hidden input with pitch class numbers for search
+    const hiddenInput = document.getElementById('melodySearchPitchClasses');
+    if (hiddenInput) {
+      hiddenInput.value = enteredPitches.join(' ');
+    }
+  }
   
   // Initialize piano when modal opens
   function initializePiano() {
+    console.log('initializePiano() called');
     const keyboard = document.getElementById('pianoKeyboard');
-    if (!keyboard) return;
     
-    // Clear existing keys
+    if (!keyboard) {
+      console.error('Piano keyboard element not found! ');
+      return;
+    }
+    
+    if (isInitialized) {
+      console.log('Piano already initialized');
+      return;
+    }
+    
     keyboard.innerHTML = '';
+    
+    // Set up the toggle button (it's already in the HTML above the keyboard)
+    const toggleBtn = document.getElementById('notationToggle');
+    if (toggleBtn && ! toggleBtn.dataset.initialized) {
+      toggleBtn.dataset.initialized = 'true';
+      toggleBtn.addEventListener('click', function() {
+        useSolfa = !useSolfa;
+        toggleBtn.textContent = useSolfa ? 'Pitches' : 'Sol-fa';
+        toggleBtn.title = useSolfa ? 'Switch to pitch names' : 'Switch to Sol-fa notation';
+        toggleBtn.classList.toggle('active', useSolfa);
+        console.log(`Toggle clicked - useSolfa is now: ${useSolfa}`);
+        updateKeyLabels();
+        updateDisplay();
+      });
+      console.log('Toggle button initialized');
+    }
     
     // Create container for keys
     const container = document.createElement('div');
     container.className = 'piano-keys-container';
+    container.id = 'pianoKeysContainer';
     container.style.position = 'relative';
     
-    // Create white keys first
+    console.log('Creating piano keys...');
+    
+    const whiteKeyElements = [];
+    const blackKeyData = [];
+    
+    // Create white keys
     pianoKeys.forEach((key, index) => {
       if (key.type === 'white') {
         const keyElement = createPianoKey(key, index);
         container.appendChild(keyElement);
+        whiteKeyElements.push(keyElement);
+      } else {
+        blackKeyData.push({ key, index });
       }
     });
     
-    // Create black keys on top
-    pianoKeys.forEach((key, index) => {
-      if (key.type === 'black') {
-        const keyElement = createPianoKey(key, index);
-        container. appendChild(keyElement);
-      }
-    });
+    // Add decorative half white key
+    const halfKey = document.createElement('div');
+    halfKey.className = 'piano-key white half-key';
+    halfKey.style.opacity = '0.7';
+    halfKey.style.cursor = 'default';
+    halfKey.style.pointerEvents = 'none';
+    container.appendChild(halfKey);
     
     keyboard.appendChild(container);
+    
+    // Position black keys
+    requestAnimationFrame(() => {
+      const blackKeyPositions = {
+        1: [0, 1], 3: [1, 2], 6: [3, 4], 8: [4, 5], 10: [5, 6],
+        13: [7, 8], 15: [8, 9], 18: [10, 11]
+      };
+      
+      blackKeyData.forEach(({ key, index }) => {
+        const keyElement = createPianoKey(key, index);
+        container.appendChild(keyElement);
+        
+        const whiteKeyIndices = blackKeyPositions[index];
+        if (whiteKeyIndices) {
+          const [leftIdx, rightIdx] = whiteKeyIndices;
+          const leftKey = whiteKeyElements[leftIdx];
+          const rightKey = rightIdx < whiteKeyElements.length ? 
+                          whiteKeyElements[rightIdx] : halfKey;
+          
+          if (leftKey && rightKey) {
+            const leftRect = leftKey.getBoundingClientRect();
+            const containerRect = container.getBoundingClientRect();
+            const leftEdge = leftRect.right - containerRect.left;
+            const centerPosition = leftEdge - 14;
+            
+            keyElement.style.left = `${centerPosition}px`;
+          }
+        }
+      });
+    });
+    
+    isInitialized = true;
+    console.log('✓ Piano UI initialized');
   }
   
   function createPianoKey(key, index) {
@@ -76,21 +271,19 @@
     keyElement.dataset.octave = key.octave;
     keyElement.dataset.index = index;
     
-    // Add note label
     const label = document.createElement('span');
     label.textContent = key.note;
-    label.style.fontSize = key.type === 'black' ? '8px' : '10px';
+    label.style.fontSize = key.type === 'black' ? '14px' : '14px';
     keyElement.appendChild(label);
     
-    // Add click handler
+    // Click handler
     keyElement.addEventListener('click', function() {
       handleKeyClick(key);
+      playNote(key.note, key.octave);
       
       // Visual feedback
       keyElement.classList.add('active');
-      setTimeout(() => {
-        keyElement.classList.remove('active');
-      }, 200);
+      setTimeout(() => keyElement.classList.remove('active'), 200);
     });
     
     return keyElement;
@@ -98,112 +291,120 @@
   
   function handleKeyClick(key) {
     const pitchClass = pitchClassMap[key.note];
-    enteredPitches.push(pitchClass);
+    enteredPitches.push(pitchClass);  // Store pitch class number
+    enteredNotes.push(key.note);      // Store note name
     updateDisplay();
-  }
-  
-  function updateDisplay() {
-    const input = document.getElementById('melodySearchInput');
-    if (input) {
-      input.value = enteredPitches.join(' ');
-    }
   }
   
   function deleteLast() {
     if (enteredPitches.length > 0) {
       enteredPitches.pop();
+      enteredNotes.pop();
       updateDisplay();
     }
   }
   
   function clearAll() {
     enteredPitches = [];
+    enteredNotes = [];
     updateDisplay();
   }
   
-  // Event listeners
-  document.addEventListener('DOMContentLoaded', function() {
-    // Initialize piano when melody search link is clicked
-    const melodySearchBtn = document.getElementById('searchMelodyLink'); // Adjust ID as needed
-    if (melodySearchBtn) {
-      melodySearchBtn.addEventListener('click', initializePiano);
-    }
+  // Setup event listeners
+  function setupEventListeners() {
+    console.log('*** Setting up event listeners ***');
     
-    // Delete button
     const deleteBtn = document.getElementById('deletePitchBtn');
-    if (deleteBtn) {
-      deleteBtn.addEventListener('click', deleteLast);
-    }
+    if (deleteBtn) deleteBtn.addEventListener('click', deleteLast);
     
-    // Clear button
     const clearBtn = document.getElementById('clearPitchesBtn');
-    if (clearBtn) {
-      clearBtn.addEventListener('click', clearAll);
-    }
+    if (clearBtn) clearBtn.addEventListener('click', clearAll);
     
-    // Close button - reset when closing
     const closeBtn = document.getElementById('closeMelodySearchModalBtn');
     if (closeBtn) {
       closeBtn.addEventListener('click', function() {
         clearAll();
-        document.getElementById('melodySearchModal').style.display = 'none';
+        const modal = document.getElementById('melodySearchModal');
+        if (modal) modal.style.display = 'none';
       });
     }
     
-    // Search button - use the entered pitches
-    const searchBtn = document.getElementById('executeMelodySearchBtn');
-    if (searchBtn) {
-      searchBtn.addEventListener('click', function() {
-        const searchValue = enteredPitches.join(' ');
-        if (searchValue. length > 0) {
-          // Your existing search functionality here
-          console.log('Searching for:', searchValue);
-          // Call your existing melody search function
-        }
-      });
-    }
-  });
-  
-  // Keyboard support for piano
-  document.addEventListener('keydown', function(e) {
-    // Only work when melody search modal is open
+    // Watch for modal opening
     const modal = document.getElementById('melodySearchModal');
-    if (!modal || modal.style.display === 'none') return;
+    if (modal) {
+      const observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+          if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
+            const display = window.getComputedStyle(modal).display;
+            if (display !== 'none' && ! samplerReady) {
+              console.log('🎹 Modal opened - initializing piano...');
+              initializePiano();
+              initializePianoSampler();
+            }
+          }
+        });
+      });
+      
+      observer.observe(modal, {
+        attributes: true,
+        attributeFilter: ['style']
+      });
+    }
+  }
+  
+  // Keyboard support
+  document.addEventListener('keydown', function(e) {
+    const modal = document.getElementById('melodySearchModal');
+    if (!modal || window.getComputedStyle(modal).display === 'none') return;
     
-    // Backspace to delete
     if (e.key === 'Backspace') {
       e.preventDefault();
       deleteLast();
+      return;
     }
     
-    // Escape to clear
-    if (e.key === 'Escape') {
-      clearAll();
-    }
-    
-    // Computer keyboard to piano mapping (optional)
     const keyMap = {
-      'a': 'C', 'w': 'C#', 's': 'D', 'e': 'D#', 'd': 'E', 'f': 'F',
-      't': 'F#', 'g': 'G', 'y': 'G#', 'h': 'A', 'u': 'A#', 'j': 'B',
-      'k': 'C', 'o': 'C#', 'l': 'D', 'p': 'D#', ';': 'E'
+      'a': { note: 'C', octave: 4 }, 'w': { note: 'C#', octave: 4 },
+      's': { note: 'D', octave: 4 }, 'e': { note: 'D#', octave: 4 },
+      'd': { note:  'E', octave: 4 }, 'f': { note: 'F', octave: 4 },
+      't': { note: 'F#', octave: 4 }, 'g': { note: 'G', octave: 4 },
+      'y': { note: 'G#', octave: 4 }, 'h': { note: 'A', octave: 4 },
+      'u': { note: 'A#', octave: 4 }, 'j': { note: 'B', octave: 4 },
+      'k': { note:  'C', octave: 5 }, 'o': { note: 'C#', octave: 5 },
+      'l': { note:  'D', octave: 5 }, 'p': { note: 'D#', octave: 5 },
+      ';': { note: 'E', octave: 5 }, "'": { note: 'F', octave: 5 }
     };
     
-    if (keyMap[e.key. toLowerCase()]) {
+    const keyData = keyMap[e.key.toLowerCase()];
+    if (keyData) {
       e.preventDefault();
-      const note = keyMap[e.key. toLowerCase()];
-      const pitchClass = pitchClassMap[note];
+      const pitchClass = pitchClassMap[keyData.note];
       enteredPitches.push(pitchClass);
+      enteredNotes.push(keyData.note);
       updateDisplay();
+      playNote(keyData.note, keyData.octave);
       
-      // Visual feedback on piano key
-      const keys = document.querySelectorAll('. piano-key');
+      // Visual feedback
+      const keys = document.querySelectorAll('.piano-key');
       keys.forEach(key => {
-        if (key.dataset.note === note) {
-          key.classList. add('active');
+        if (key.dataset.note === keyData.note && 
+            key.dataset.octave == keyData.octave) {
+          key.classList.add('active');
           setTimeout(() => key.classList.remove('active'), 200);
         }
       });
     }
   });
   
+  // Initialize
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setupEventListeners);
+  } else {
+    setupEventListeners();
+  }
+  
+  window.initMelodyPiano = initializePiano;
+  
 })();
+
+console.log('Piano interface loaded');
