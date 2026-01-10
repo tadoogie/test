@@ -3449,27 +3449,27 @@ function normalizeMetreForComparison(metre) {
   const pitchSearchInterface = document.getElementById('pitchSearchInterface');
   const contourSearchInterface = document.getElementById('contourSearchInterface');
   
+  // Helper function to update button styles
+  function updateSearchModeButtons(activeBtn, inactiveBtn) {
+    activeBtn.classList.add('active');
+    inactiveBtn.classList.remove('active');
+    activeBtn.style.background = '#6fc252';
+    activeBtn.style.color = 'white';
+    inactiveBtn.style.background = 'white';
+    inactiveBtn.style.color = '#6fc252';
+  }
+  
   if (pitchSearchModeBtn && contourSearchModeBtn) {
     pitchSearchModeBtn.addEventListener('click', function() {
       currentSearchMode = 'pitch';
-      pitchSearchModeBtn.classList.add('active');
-      contourSearchModeBtn.classList.remove('active');
-      pitchSearchModeBtn.style.background = '#6fc252';
-      pitchSearchModeBtn.style.color = 'white';
-      contourSearchModeBtn.style.background = 'white';
-      contourSearchModeBtn.style.color = '#6fc252';
+      updateSearchModeButtons(pitchSearchModeBtn, contourSearchModeBtn);
       if (pitchSearchInterface) pitchSearchInterface.style.display = 'block';
       if (contourSearchInterface) contourSearchInterface.style.display = 'none';
     });
     
     contourSearchModeBtn.addEventListener('click', function() {
       currentSearchMode = 'contour';
-      contourSearchModeBtn.classList.add('active');
-      pitchSearchModeBtn.classList.remove('active');
-      contourSearchModeBtn.style.background = '#6fc252';
-      contourSearchModeBtn.style.color = 'white';
-      pitchSearchModeBtn.style.background = 'white';
-      pitchSearchModeBtn.style.color = '#6fc252';
+      updateSearchModeButtons(contourSearchModeBtn, pitchSearchModeBtn);
       if (pitchSearchInterface) pitchSearchInterface.style.display = 'none';
       if (contourSearchInterface) contourSearchInterface.style.display = 'block';
     });
