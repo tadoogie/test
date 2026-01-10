@@ -5,7 +5,7 @@ console.log('Piano interface script file loaded!    ');
   console.log('Piano interface IIFE executing');
   
   // Pitch class mapping (C=1)
-const pitchClassMap = {
+  const pitchClassMap = {
   'C': '0', 'C#': '1', 'D': '2', 'D#': '3', 'E':  '4', 'F': '5',
   'F#':  '6', 'G': '7', 'G#': '8', 'A': '9', 'A#': '10', 'B': '11'
 };
@@ -149,7 +149,7 @@ const pitchClassMap = {
   // Update display with current notation
   function updateDisplay() {
     // Update visible input with note names or sol-fa
-    const visibleInput = document.getElementById('melodySearchInput');
+    const visibleInput = document.getElementById('melodySearchInputDisplay');
     if (visibleInput) {
       const displayValues = enteredNotes.map(note => 
         useSolfa ? solfaMap[note] : note
@@ -159,7 +159,7 @@ const pitchClassMap = {
     }
     
     // Update hidden input with pitch class numbers for search
-    const hiddenInput = document.getElementById('melodySearchPitchClasses');
+    const hiddenInput = document.getElementById('melodySearchInput');
     if (hiddenInput) {
       hiddenInput.value = enteredPitches.join(' ');
     }
@@ -408,4 +408,3 @@ const pitchClassMap = {
 })();
 
 console.log('Piano interface loaded');
-
