@@ -3439,10 +3439,135 @@ function normalizeMetreForComparison(metre) {
     try { maybeShowNextForTune(); } catch(e) { console.warn('maybeShowNextForTune error:', e); }
 }
 
+  // ===== CONTOUR SEARCH FUNCTIONALITY =====
+  
+  let currentSearchMode = 'pitch'; // 'pitch' or 'contour'
+  
+  // Setup search mode toggle buttons
+  const pitchSearchModeBtn = document.getElementById('pitchSearchModeBtn');
+  const contourSearchModeBtn = document.getElementById('contourSearchModeBtn');
+  const pitchSearchInterface = document.getElementById('pitchSearchInterface');
+  const contourSearchInterface = document.getElementById('contourSearchInterface');
+  
+  if (pitchSearchModeBtn && contourSearchModeBtn) {
+    pitchSearchModeBtn.addEventListener('click', function() {
+      currentSearchMode = 'pitch';
+      pitchSearchModeBtn.classList.add('active');
+      contourSearchModeBtn.classList.remove('active');
+      pitchSearchModeBtn.style.background = '#6fc252';
+      pitchSearchModeBtn.style.color = 'white';
+      contourSearchModeBtn.style.background = 'white';
+      contourSearchModeBtn.style.color = '#6fc252';
+      if (pitchSearchInterface) pitchSearchInterface.style.display = 'block';
+      if (contourSearchInterface) contourSearchInterface.style.display = 'none';
+    });
+    
+    contourSearchModeBtn.addEventListener('click', function() {
+      currentSearchMode = 'contour';
+      contourSearchModeBtn.classList.add('active');
+      pitchSearchModeBtn.classList.remove('active');
+      contourSearchModeBtn.style.background = '#6fc252';
+      contourSearchModeBtn.style.color = 'white';
+      pitchSearchModeBtn.style.background = 'white';
+      pitchSearchModeBtn.style.color = '#6fc252';
+      if (pitchSearchInterface) pitchSearchInterface.style.display = 'none';
+      if (contourSearchInterface) contourSearchInterface.style.display = 'block';
+    });
+  }
+  
+  // Contour input handling
+  let contourPattern = '';
+  const contourSearchInput = document.getElementById('contourSearchInput');
+  const contourUpBtn = document.getElementById('contourUpBtn');
+  const contourDownBtn = document.getElementById('contourDownBtn');
+  const contourSameBtn = document.getElementById('contourSameBtn');
+  const deleteContourBtn = document.getElementById('deleteContourBtn');
+  const clearContourBtn = document.getElementById('clearContourBtn');
+  
+  function updateContourDisplay() {
+    if (contourSearchInput) {
+      contourSearchInput.value = contourPattern;
+    }
+  }
+  
+  if (contourUpBtn) {
+    contourUpBtn.addEventListener('click', function() {
+      contourPattern += '+';
+      updateContourDisplay();
+    });
+  }
+  
+  if (contourDownBtn) {
+    contourDownBtn.addEventListener('click', function() {
+      contourPattern += '-';
+      updateContourDisplay();
+    });
+  }
+  
+  if (contourSameBtn) {
+    contourSameBtn.addEventListener('click', function() {
+      contourPattern += '=';
+      updateContourDisplay();
+    });
+  }
+  
+  if (deleteContourBtn) {
+    deleteContourBtn.addEventListener('click', function() {
+      if (contourPattern.length > 0) {
+        contourPattern = contourPattern.slice(0, -1);
+        updateContourDisplay();
+      }
+    });
+  }
+  
+  if (clearContourBtn) {
+    clearContourBtn.addEventListener('click', function() {
+      contourPattern = '';
+      updateContourDisplay();
+    });
+  }
+  
+  // Search by contour
+  async function searchMelodiesByContour(contour) {
+    if (!contour || contour.trim().length === 0) {
+      melodySearchResults.innerHTML = '<div style="padding:20px;text-align:center;color:#555;">Build a contour pattern using the buttons above to search for matching melodies.</div>';
+      return;
+    }
+    
+    if (contour.length < 2) {
+      melodySearchResults.innerHTML = '<div style="padding:20px;text-align:center;color:#d32f2f;">Please enter at least 2 contour symbols.</div>';
+      return;
+    }
+    
+    // Show loading state
+    melodySearchResults.innerHTML = '<div style="padding:20px;text-align:center;color:#555;">Searching for contour: ' + contour + '...</div>';
+    
+    try {
+      // Call server-side search
+      const url = `searchMelodiesContour.xq?contour=${encodeURIComponent(contour)}`;
+      const response = await fetch(url);
+      
+      if (!response.ok) {
+        throw new Error(`Search failed: ${response.status} ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      displayMelodySearchResults(data.results || []);
+      
+    } catch (error) {
+      console.error('Contour search error:', error);
+      melodySearchResults.innerHTML = '<div style="padding:20px;text-align:center;color:#d32f2f;">Search failed. Please try again.</div>';
+    }
+  }
+
   // Search button click handler
   if (executeMelodySearchBtn && melodySearchInput) {
     executeMelodySearchBtn.addEventListener('click', function() {
-      searchMelodies(melodySearchInput.value);
+      if (currentSearchMode === 'pitch') {
+        searchMelodies(melodySearchInput.value);
+      } else if (currentSearchMode === 'contour') {
+        searchMelodiesByContour(contourPattern);
+      }
     });
   }
   
