@@ -3286,25 +3286,7 @@ function normalizeMetreForComparison(metre) {
                     console.log('[Notation Render] Less than 3 bars, using full PAE');
                 }
                 
-                // Create minimal MEI document with PAE
-                const mei = `<?xml version="1.0" encoding="UTF-8"?>
-<mei xmlns="http://www.music-encoding.org/ns/mei" meiversion="5.1">
-    <meiHead>
-        <fileDesc><titleStmt><title>Incipit</title></titleStmt><pubStmt/></fileDesc>
-        <workList>
-            <work>
-                <incip>
-                    <incipCode form="plaineAndEasie">${paeCode}</incipCode>
-                </incip>
-            </work>
-        </workList>
-    </meiHead>
-    <music><body/></music>
-</mei>`;
-                
-                console.log('[Notation Render] Loading MEI into Verovio');
-                verovioTk.loadData(mei);
-                
+                // Set Verovio options before loading data
                 console.log('[Notation Render] Setting Verovio options');
                 verovioTk.setOptions({
                     inputFrom: 'pae',
@@ -3316,6 +3298,10 @@ function normalizeMetreForComparison(metre) {
                     header: 'none',
                     footer: 'none'
                 });
+                
+                // Load PAE data directly (no MEI wrapper needed with inputFrom: 'pae')
+                console.log('[Notation Render] Loading PAE data into Verovio');
+                verovioTk.loadData(paeCode);
                 
                 console.log('[Notation Render] Rendering to SVG');
                 const svg = verovioTk.renderToSVG(1);
