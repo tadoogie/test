@@ -20,13 +20,7 @@ let $results :=
     for $doc in collection("/db/tunes")//mei:mei
     let $contourCode := $doc//mei:incipCode[@form="contour"]
     let $pitchCode := $doc//mei:incipCode[@form="pitchclass"]
-    (: Try multiple possible locations/names for PAE code :)
-    let $paeCode := (
-      $doc//mei:incipCode[@form="pae"],
-      $doc//mei:incipCode[@form="plaineAndEasie"],
-      $doc//mei:incipCode[@form="plainAndEasy"],
-      $doc//mei:plaineAndEasie
-    )[1]
+    let $paeCode := $doc//mei:incipCode[@form="plaineAndEasie"]
     let $contourString := string($contourCode)
     (: Remove all whitespace from the stored contour for comparison :)
     let $normalizedContour := replace($contourString, "\s+", "")
