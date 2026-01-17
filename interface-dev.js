@@ -3257,15 +3257,17 @@ function normalizeMetreForComparison(metre) {
         // Generate SVG from PAE code using Verovio - first 2 bars only
         if (result.plaineAndEasie && verovioTk) {
             try {
-                // Extract first 2 bars from PAE code (bars are separated by '/')
+                // Extract first 2 bars from PAE code (bars are separated by '//')
                 let paeCode = result.plaineAndEasie.trim();
                 console.log('[Notation Render] Original PAE:', paeCode);
                 
-                const bars = paeCode.split('/');
+                // Split by double slash which separates bars in PAE
+                const bars = paeCode.split('//');
                 console.log('[Notation Render] Number of bars:', bars.length);
                 
                 if (bars.length > 2) {
-                    paeCode = bars.slice(0, 2).join('/');
+                    // Take first 2 bars and rejoin with //
+                    paeCode = bars.slice(0, 2).join('//');
                     console.log('[Notation Render] Truncated PAE to 2 bars:', paeCode);
                 }
                 
