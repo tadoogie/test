@@ -3166,11 +3166,22 @@ function normalizeMetreForComparison(metre) {
     
     // Initialize Verovio toolkit if needed
     let verovioTk = null;
+    console.log('[Verovio Check] window.melodyPlayer:', window.melodyPlayer);
+    console.log('[Verovio Check] typeof verovio:', typeof verovio);
+    
     if (window.melodyPlayer && window.melodyPlayer.verovioToolkit) {
         verovioTk = window.melodyPlayer.verovioToolkit;
-    } else if (typeof verovio !== 'undefined') {
+        console.log('[Verovio Check] Using melodyPlayer.verovioToolkit');
+    } else if (typeof verovio !== 'undefined' && verovio.toolkit) {
         // Create a toolkit instance for rendering notations
-        verovioTk = new verovio.toolkit();
+        try {
+            verovioTk = new verovio.toolkit();
+            console.log('[Verovio Check] Created new verovio.toolkit()');
+        } catch (e) {
+            console.error('[Verovio Check] Error creating toolkit:', e);
+        }
+    } else {
+        console.warn('[Verovio Check] Verovio not available');
     }
     
     results.forEach(result => {
@@ -3239,14 +3250,23 @@ function normalizeMetreForComparison(metre) {
         const notationContainer = document.createElement('div');
         notationContainer.style.cssText = 'width:200px;height:70px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:white;border:1px solid #ddd;border-radius:4px;overflow:hidden;';
         
+        console.log('[Notation Render] Processing result:', result.title);
+        console.log('[Notation Render] PAE code:', result.plaineAndEasie);
+        console.log('[Notation Render] verovioTk available:', !!verovioTk);
+        
         // Generate SVG from PAE code using Verovio - first 2 bars only
         if (result.plaineAndEasie && verovioTk) {
             try {
                 // Extract first 2 bars from PAE code (bars are separated by '/')
                 let paeCode = result.plaineAndEasie.trim();
+                console.log('[Notation Render] Original PAE:', paeCode);
+                
                 const bars = paeCode.split('/');
+                console.log('[Notation Render] Number of bars:', bars.length);
+                
                 if (bars.length > 2) {
                     paeCode = bars.slice(0, 2).join('/');
+                    console.log('[Notation Render] Truncated PAE to 2 bars:', paeCode);
                 }
                 
                 // Create minimal MEI document with PAE
@@ -3265,7 +3285,10 @@ function normalizeMetreForComparison(metre) {
     <music><body/></music>
 </mei>`;
                 
+                console.log('[Notation Render] Loading MEI into Verovio');
                 verovioTk.loadData(mei);
+                
+                console.log('[Notation Render] Setting Verovio options');
                 verovioTk.setOptions({
                     scale: 25,
                     pageHeight: 300,
@@ -3276,21 +3299,35 @@ function normalizeMetreForComparison(metre) {
                     noHeader: true
                 });
                 
+                console.log('[Notation Render] Rendering to SVG');
                 const svg = verovioTk.renderToSVG(1);
+                console.log('[Notation Render] SVG rendered, length:', svg ? svg.length : 0);
+                
                 if (svg) {
                     notationContainer.innerHTML = svg;
                     const svgElement = notationContainer.querySelector('svg');
                     if (svgElement) {
                         svgElement.style.cssText = 'max-width:100%;max-height:100%;';
+                        console.log('[Notation Render] SVG element inserted successfully');
+                    } else {
+                        console.warn('[Notation Render] No SVG element found after insertion');
                     }
                 } else {
+                    console.warn('[Notation Render] Verovio returned empty SVG');
                     notationContainer.innerHTML = '<span style="color:#999;font-size:0.8em;">Notation unavailable</span>';
                 }
             } catch (e) {
-                console.error('Error rendering notation:', e);
-                notationContainer.innerHTML = '<span style="color:#999;font-size:0.8em;">Notation unavailable</span>';
+                console.error('[Notation Render] Error rendering notation:', e);
+                console.error('[Notation Render] Error stack:', e.stack);
+                notationContainer.innerHTML = '<span style="color:#999;font-size:0.8em;">Error rendering notation</span>';
             }
         } else {
+            if (!result.plaineAndEasie) {
+                console.warn('[Notation Render] No PAE code available for:', result.title);
+            }
+            if (!verovioTk) {
+                console.warn('[Notation Render] Verovio toolkit not available');
+            }
             notationContainer.innerHTML = '<span style="color:#999;font-size:0.8em;">Notation unavailable</span>';
         }
         
