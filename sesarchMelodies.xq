@@ -100,7 +100,11 @@ let $results :=
           "relevance": $relevance
         }
 
+(: Limit results to top 20 :)
+let $limited-results := subsequence($results, 1, 20)
+
 return map {
-  "results": array { $results },
-  "count": count($results)
+  "results": array { $limited-results },
+  "count": count($limited-results),
+  "totalMatches": count($results)
 }

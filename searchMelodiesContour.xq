@@ -3,59 +3,111 @@ declare namespace mei="http://www.music-encoding.org/ns/mei";
 declare namespace output="http://www.w3.org/2010/xslt-xquery-serialization";
 declare option output:method "json";
 
+(: Function to generate trigrams (3-character windows) from a contour string :)
+declare function local:generate-contour-trigrams($contour as xs:string) as xs:string* {
+  let $normalized := replace($contour, '\s+', '')
+  let $length := string-length($normalized)
+  for $i in 1 to ($length - 2)
+  return substring($normalized, $i, 3)
+};
+
+(: Function to check if any trigram from search matches any trigram in document :)
+declare function local:matches-contour-trigram($doc-contour as xs:string, $search-trigrams as xs:string*) as xs:boolean {
+  let $doc-trigrams := local:generate-contour-trigrams($doc-contour)
+  return some $search-trigram in $search-trigrams satisfies
+    some $doc-trigram in $doc-trigrams satisfies $search-trigram = $doc-trigram
+};
+
+(: Function to calculate relevance score based on number of matching trigrams :)
+declare function local:calculate-contour-relevance($doc-contour as xs:string, $search-trigrams as xs:string*) as xs:integer {
+  let $doc-trigrams := local:generate-contour-trigrams($doc-contour)
+  let $matching-count := count(
+    for $search-trigram in $search-trigrams
+    where some $doc-trigram in $doc-trigrams satisfies $search-trigram = $doc-trigram
+    return $search-trigram
+  )
+  return $matching-count
+};
+
 (: Get search parameter :)
 let $contour := request:get-parameter("contour", "")
 
-(: Convert contour pattern to spaced version for matching :)
-let $contourWithSpaces := 
-  if (string-length($contour) = 0) then ""
-  else string-join(for $char in string-to-codepoints($contour) 
-                    return codepoints-to-string($char), " ")
-
-(: Search for matching contour patterns :)
+(: Search for matching contour patterns using trigrams :)
 let $results :=
   if (string-length($contour) = 0) then
     ()
   else
-    for $doc in collection("/db/tunes")//mei:mei
-    let $contourCode := $doc//mei:incipCode[@form="contour"]
-    let $pitchCode := $doc//mei:incipCode[@form="pitchclass"]
-    let $paeCode := $doc//mei:incipCode[@form="plaineAndEasie"]
-    let $contourString := string($contourCode)
-    (: Remove all whitespace from the stored contour for comparison :)
-    let $normalizedContour := replace($contourString, "\s+", "")
-    where $contourCode and 
-          (contains($contourString, $contour) or 
-           contains($contourString, $contourWithSpaces) or
-           contains($normalizedContour, $contour))
-    (: Get the actual document path :)
-    let $docPath := document-uri(root($doc))
-    let $fileName := tokenize($docPath, '/')[last()]
-    (: Try multiple paths to get the title :)
-    let $workTitle := $doc//mei:workList/mei:work/mei:title/text()
-    let $fileTitle := $doc//mei:fileDesc/mei:titleStmt/mei:title/text()
-    let $title := if (string-length($workTitle) > 0) then $workTitle else $fileTitle
-    (: Get the date :)
-    let $date := string($doc//mei:editionStmt/mei:edition/mei:date/text())
-    (: Get the metre from otherChar :)
-    let $metre := string($doc//mei:workList/mei:work/mei:otherChar/text())
-    let $contourMatch := string($contourCode)
-    let $pitchMatch := string($pitchCode)
-    let $plaineAndEasie := string($paeCode)
-    order by $title
-    return map {
-      "title": $title,
-      "date": $date,
-      "metre": $metre,
-      "meiFilePath": $docPath,
-      "fileName": $fileName,
-      "label": $title,
-      "contourMatch": $contourMatch,
-      "pitchMatch": $pitchMatch,
-      "plaineAndEasie": $plaineAndEasie
-    }
+    let $normalized-search := replace($contour, '\s+', '')
+    let $search-trigrams := local:generate-contour-trigrams($normalized-search)
+    return
+      if (string-length($normalized-search) < 3) then
+        (: If fewer than 3 characters, fall back to exact substring matching :)
+        for $doc in collection("/db/tunes")//mei:mei
+        let $contourCode := $doc//mei:incipCode[@form="contour"]
+        let $pitchCode := $doc//mei:incipCode[@form="pitchclass"]
+        let $paeCode := $doc//mei:incipCode[@form="plaineAndEasie"]
+        let $contourString := string($contourCode)
+        let $normalizedContour := replace($contourString, "\s+", "")
+        where $contourCode and contains($normalizedContour, $normalized-search)
+        let $docPath := document-uri(root($doc))
+        let $fileName := tokenize($docPath, '/')[last()]
+        let $workTitle := $doc//mei:workList/mei:work/mei:title/text()
+        let $fileTitle := $doc//mei:fileDesc/mei:titleStmt/mei:title/text()
+        let $title := if (string-length($workTitle) > 0) then $workTitle else $fileTitle
+        let $date := string($doc//mei:editionStmt/mei:edition/mei:date/text())
+        let $metre := string($doc//mei:workList/mei:work/mei:otherChar/text())
+        let $contourMatch := string($contourCode)
+        let $pitchMatch := string($pitchCode)
+        let $plaineAndEasie := string($paeCode)
+        order by $title
+        return map {
+          "title": $title,
+          "date": $date,
+          "metre": $metre,
+          "meiFilePath": $docPath,
+          "fileName": $fileName,
+          "label": $title,
+          "contourMatch": $contourMatch,
+          "pitchMatch": $pitchMatch,
+          "plaineAndEasie": $plaineAndEasie
+        }
+      else
+        (: Use trigram matching for 3 or more characters :)
+        for $doc in collection("/db/tunes")//mei:mei
+        let $contourCode := $doc//mei:incipCode[@form="contour"]
+        let $pitchCode := $doc//mei:incipCode[@form="pitchclass"]
+        let $paeCode := $doc//mei:incipCode[@form="plaineAndEasie"]
+        where $contourCode and local:matches-contour-trigram(string($contourCode), $search-trigrams)
+        let $docPath := document-uri(root($doc))
+        let $fileName := tokenize($docPath, '/')[last()]
+        let $workTitle := $doc//mei:workList/mei:work/mei:title/text()
+        let $fileTitle := $doc//mei:fileDesc/mei:titleStmt/mei:title/text()
+        let $title := if (string-length($workTitle) > 0) then $workTitle else $fileTitle
+        let $date := string($doc//mei:editionStmt/mei:edition/mei:date/text())
+        let $metre := string($doc//mei:workList/mei:work/mei:otherChar/text())
+        let $contourMatch := string($contourCode)
+        let $pitchMatch := string($pitchCode)
+        let $plaineAndEasie := string($paeCode)
+        let $relevance := local:calculate-contour-relevance(string($contourCode), $search-trigrams)
+        order by $relevance descending, $title
+        return map {
+          "title": $title,
+          "date": $date,
+          "metre": $metre,
+          "meiFilePath": $docPath,
+          "fileName": $fileName,
+          "label": $title,
+          "contourMatch": $contourMatch,
+          "pitchMatch": $pitchMatch,
+          "plaineAndEasie": $plaineAndEasie,
+          "relevance": $relevance
+        }
+
+(: Limit results to top 20 :)
+let $limited-results := subsequence($results, 1, 20)
 
 return map {
-  "results": array { $results },
-  "count": count($results)
+  "results": array { $limited-results },
+  "count": count($limited-results),
+  "totalMatches": count($results)
 }
