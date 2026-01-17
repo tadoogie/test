@@ -18,6 +18,17 @@ declare function local:matches-trigram($doc-intervals as xs:string, $search-trig
     some $doc-trigram in $doc-trigrams satisfies $search-trigram = $doc-trigram
 };
 
+(: Function to calculate relevance score based on number of matching trigrams :)
+declare function local:calculate-relevance($doc-intervals as xs:string, $search-trigrams as xs:string*) as xs:integer {
+  let $doc-trigrams := local:generate-trigrams($doc-intervals)
+  let $matching-count := count(
+    for $search-trigram in $search-trigrams
+    where some $doc-trigram in $doc-trigrams satisfies $search-trigram = $doc-trigram
+    return $search-trigram
+  )
+  return $matching-count
+};
+
 (: Get search parameter :)
 let $signedinterval := request:get-parameter("signedinterval", "")
 
@@ -74,7 +85,8 @@ let $results :=
         let $intervalMatch := string($intervalCode)
         let $pitchMatch := string($pitchCode)
         let $plaineAndEasie := string($paeCode)
-        order by $title
+        let $relevance := local:calculate-relevance(string($intervalCode), $search-trigrams)
+        order by $relevance descending, $title
         return map {
           "title": $title,
           "date": $date,
@@ -84,7 +96,8 @@ let $results :=
           "label": $title,
           "intervalMatch": $intervalMatch,
           "pitchMatch": $pitchMatch,
-          "plaineAndEasie": $plaineAndEasie
+          "plaineAndEasie": $plaineAndEasie,
+          "relevance": $relevance
         }
 
 return map {
