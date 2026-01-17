@@ -3164,6 +3164,15 @@ function normalizeMetreForComparison(metre) {
     
     melodySearchResults.innerHTML = '';
     
+    // Initialize Verovio toolkit if needed
+    let verovioTk = null;
+    if (window.melodyPlayer && window.melodyPlayer.verovioToolkit) {
+        verovioTk = window.melodyPlayer.verovioToolkit;
+    } else if (typeof verovio !== 'undefined') {
+        // Create a toolkit instance for rendering notations
+        verovioTk = new verovio.toolkit();
+    }
+    
     results.forEach(result => {
         const resultItem = document.createElement('div');
         resultItem.style.cssText = 'padding:12px;margin:8px 0;background:#f5f5f5;border-radius:6px;cursor:pointer;display:flex;align-items:center;gap:12px;transition:background 0.2s;';
@@ -3182,60 +3191,112 @@ function normalizeMetreForComparison(metre) {
         console.log('Metre comparison:', {
             current: currentMetre,
             currentNormalized: normalizedCurrentMetre,
-            result: result. metre,
+            result: result.metre,
             resultNormalized: normalizedResultMetre,
             matches: metreMatches,
             fullLabel: fullLabel
         });
         
-        // Create play button
+        // Column 1: Create play button
         const playBtn = window.melodyPlayer.createPlayButton();
-        playBtn.style.flexShrink = '0';
+        playBtn.style.cssText = 'flex-shrink:0;width:40px;';
         
-        // Create main content container (fixed width to maintain alignment)
-        const contentContainer = document.createElement('div');
-        contentContainer.style.cssText = 'flex: 1;display:flex;align-items:center;gap:12px;min-width:0;';
-        
-        // Left side:  title, date, and metre (takes up available space)
+        // Column 2: Title, date, and metre
         const textInfo = document.createElement('div');
         textInfo.style.cssText = 'flex:1;min-width:0;';
         
-        // Tune title
-        const titleDiv = document.createElement('div');
-        titleDiv.textContent = result.title;
-        titleDiv.style.cssText = 'font-weight:bold;font-size:1em;color:#333;margin-bottom:2px;';
+        // Title and date on same line
+        const titleDateDiv = document.createElement('div');
+        titleDateDiv.style.cssText = 'font-size:1em;color:#333;margin-bottom:4px;';
         
-        // Date (NEW)
-        const dateDiv = document. createElement('div');
-        dateDiv.textContent = result.date || 'Date unknown';
-        dateDiv.style. cssText = 'font-size:0.85em;color:#888;margin-bottom:2px;';
+        const titleSpan = document.createElement('span');
+        titleSpan.textContent = result.title;
+        titleSpan.style.fontWeight = 'bold';
         
-        // Metre label
+        const dateSpan = document.createElement('span');
+        dateSpan.textContent = result.date ? ` (${result.date})` : '';
+        dateSpan.style.fontWeight = 'normal';
+        
+        titleDateDiv.appendChild(titleSpan);
+        titleDateDiv.appendChild(dateSpan);
+        
+        // Metre on second line with conditional styling
         const metreDiv = document.createElement('div');
-        metreDiv.textContent = result.metre || 'Unknown metre';
-        metreDiv.style.cssText = 'font-size:0.85em;color:#666;font-weight:normal;';
-        
-        textInfo.appendChild(titleDiv);
-        textInfo.appendChild(dateDiv);
-        textInfo.appendChild(metreDiv);
-        
-        contentContainer.appendChild(textInfo);
-        
-        // Right side: warning if metre doesn't match (fixed width to maintain alignment)
-        const warningContainer = document.createElement('div');
-        warningContainer.style.cssText = 'width:80px;flex-shrink:30px;text-align:right;';
+        metreDiv.style.cssText = 'font-size:0.85em;';
         
         if (!metreMatches && currentMetre) {
-            const warningDiv = document.createElement('div');
-            warningDiv. textContent = 'Tune\'s metre is different from text\'s';
-            warningDiv.style.cssText = 'color:#d32f2f;font-size:0.85em;line-height:1.3;';
-            warningContainer. appendChild(warningDiv);
+            metreDiv.style.color = '#d32f2f'; // Red
+            metreDiv.textContent = (result.metre || 'Unknown metre') + ' *';
+        } else {
+            metreDiv.style.color = '#666';
+            metreDiv.textContent = result.metre || 'Unknown metre';
         }
         
-        contentContainer.appendChild(warningContainer);
+        textInfo.appendChild(titleDateDiv);
+        textInfo.appendChild(metreDiv);
+        
+        // Column 3: Music notation SVG
+        const notationContainer = document.createElement('div');
+        notationContainer.style.cssText = 'width:200px;height:70px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:white;border:1px solid #ddd;border-radius:4px;overflow:hidden;';
+        
+        // Generate SVG from PAE code using Verovio - first 2 bars only
+        if (result.plaineAndEasie && verovioTk) {
+            try {
+                // Extract first 2 bars from PAE code (bars are separated by '/')
+                let paeCode = result.plaineAndEasie.trim();
+                const bars = paeCode.split('/');
+                if (bars.length > 2) {
+                    paeCode = bars.slice(0, 2).join('/');
+                }
+                
+                // Create minimal MEI document with PAE
+                const mei = `<?xml version="1.0" encoding="UTF-8"?>
+<mei xmlns="http://www.music-encoding.org/ns/mei" meiversion="5.1">
+    <meiHead>
+        <fileDesc><titleStmt><title>Incipit</title></titleStmt><pubStmt/></fileDesc>
+        <workList>
+            <work>
+                <incip>
+                    <incipCode form="plaineAndEasie">${paeCode}</incipCode>
+                </incip>
+            </work>
+        </workList>
+    </meiHead>
+    <music><body/></music>
+</mei>`;
+                
+                verovioTk.loadData(mei);
+                verovioTk.setOptions({
+                    scale: 25,
+                    pageHeight: 300,
+                    pageWidth: 800,
+                    adjustPageHeight: true,
+                    breaks: 'none',
+                    noFooter: true,
+                    noHeader: true
+                });
+                
+                const svg = verovioTk.renderToSVG(1);
+                if (svg) {
+                    notationContainer.innerHTML = svg;
+                    const svgElement = notationContainer.querySelector('svg');
+                    if (svgElement) {
+                        svgElement.style.cssText = 'max-width:100%;max-height:100%;';
+                    }
+                } else {
+                    notationContainer.innerHTML = '<span style="color:#999;font-size:0.8em;">Notation unavailable</span>';
+                }
+            } catch (e) {
+                console.error('Error rendering notation:', e);
+                notationContainer.innerHTML = '<span style="color:#999;font-size:0.8em;">Notation unavailable</span>';
+            }
+        } else {
+            notationContainer.innerHTML = '<span style="color:#999;font-size:0.8em;">Notation unavailable</span>';
+        }
         
         resultItem.appendChild(playBtn);
-        resultItem.appendChild(contentContainer);
+        resultItem.appendChild(textInfo);
+        resultItem.appendChild(notationContainer);
         
         // Play button click handler
         playBtn.addEventListener('click', function(e) {
