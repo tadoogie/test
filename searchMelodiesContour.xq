@@ -6,6 +6,12 @@ declare option output:method "json";
 (: Get search parameter :)
 let $contour := request:get-parameter("contour", "")
 
+(: Convert contour pattern to spaced version for matching :)
+let $contourWithSpaces := 
+  if (string-length($contour) = 0) then ""
+  else string-join(for $char in string-to-codepoints($contour) 
+                    return codepoints-to-string($char), " ")
+
 (: Search for matching contour patterns :)
 let $results :=
   if (string-length($contour) = 0) then
@@ -15,7 +21,13 @@ let $results :=
     let $contourCode := $doc//mei:incipCode[@form="contour"]
     let $pitchCode := $doc//mei:incipCode[@form="pitchclass"]
     let $paeCode := $doc//mei:incipCode[@form="pae"]
-    where $contourCode and contains(string($contourCode), $contour)
+    let $contourString := string($contourCode)
+    (: Remove all whitespace from the stored contour for comparison :)
+    let $normalizedContour := replace($contourString, "\s+", "")
+    where $contourCode and 
+          (contains($contourString, $contour) or 
+           contains($contourString, $contourWithSpaces) or
+           contains($normalizedContour, $contour))
     (: Get the actual document path :)
     let $docPath := document-uri(root($doc))
     let $fileName := tokenize($docPath, '/')[last()]
