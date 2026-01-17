@@ -3,9 +3,6 @@ declare namespace mei="http://www.music-encoding.org/ns/mei";
 declare namespace output="http://www.w3.org/2010/xslt-xquery-serialization";
 declare option output:method "json";
 
-(: Get search parameter :)
-let $signedinterval := request:get-parameter("signedinterval", "")
-
 (: Function to generate trigrams (3-note windows) from a space-separated interval string :)
 declare function local:generate-trigrams($intervals as xs:string) as xs:string* {
   let $tokens := tokenize($intervals, '\s+')
@@ -20,6 +17,9 @@ declare function local:matches-trigram($doc-intervals as xs:string, $search-trig
   return some $search-trigram in $search-trigrams satisfies
     some $doc-trigram in $doc-trigrams satisfies $search-trigram = $doc-trigram
 };
+
+(: Get search parameter :)
+let $signedinterval := request:get-parameter("signedinterval", "")
 
 (: Search for matching interval patterns using trigrams (3-note n-grams) :)
 let $results :=
