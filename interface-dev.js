@@ -3290,13 +3290,14 @@ function normalizeMetreForComparison(metre) {
                 
                 console.log('[Notation Render] Setting Verovio options');
                 verovioTk.setOptions({
+                    inputFrom: 'pae',
                     scale: 25,
                     pageHeight: 300,
                     pageWidth: 800,
                     adjustPageHeight: true,
                     breaks: 'none',
-                    noFooter: true,
-                    noHeader: true
+                    header: 'none',
+                    footer: 'none'
                 });
                 
                 console.log('[Notation Render] Rendering to SVG');
