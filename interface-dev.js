@@ -3053,10 +3053,10 @@ function domContentLoadedHandlerMelodySearch() {
   // Show initial instructions
   function showMelodySearchInstructions() {
     if (!melodySearchResults) return;
-    melodySearchResults.innerHTML = '<div style="padding:20px;text-align:center;color:#555;">Enter pitch classes (0-11) separated by spaces to search for matching melodies.</div>';
+    melodySearchResults.innerHTML = '<div style="padding:20px;text-align:center;color:#555;">Enter pitch classes (0-11) separated by spaces to search for matching melodies.<br><small>Note: Search uses 3-note n-grams (trigrams) to match melodic patterns flexibly.</small></div>';
   }
 
-  // Search melodies using server-side XQuery
+  // Search melodies using server-side XQuery with trigram (3-note n-gram) matching
   async function searchMelodies(pitchClassInput) {
     if (!pitchClassInput || pitchClassInput.trim().length === 0) {
       showMelodySearchInstructions();
@@ -3084,7 +3084,8 @@ function domContentLoadedHandlerMelodySearch() {
     const intervalString = intervals.join(' ');
 
     // Show loading state with the translated intervals
-    melodySearchResults.innerHTML = '<div style="padding:20px;text-align:center;color:#555;">Searching for intervals: ' + intervals.map(formatSignedInterval).join(' ') + '...</div>';
+    const searchType = intervals.length >= 2 ? '3-note n-gram (trigram) matching' : 'exact matching';
+    melodySearchResults.innerHTML = '<div style="padding:20px;text-align:center;color:#555;">Searching using ' + searchType + ' for intervals: ' + intervals.map(formatSignedInterval).join(' ') + '...</div>';
 
     try {
       // Call server-side search
