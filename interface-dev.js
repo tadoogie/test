@@ -3257,19 +3257,19 @@ function normalizeMetreForComparison(metre) {
         // Generate SVG from PAE code using Verovio - first 2 bars only
         if (result.plaineAndEasie && verovioTk) {
             try {
-                // Extract first 2 bars from PAE code
+                // Extract first 3 bars from PAE code
                 // In PAE: first '/' is after time signature, then each '/' is a bar line
-                // To get first 2 bars, we need everything up to the 3rd '/'
+                // To get first 3 bars, we need everything up to the 4th '/'
                 let paeCode = result.plaineAndEasie.trim();
                 console.log('[Notation Render] Original PAE:', paeCode);
                 
-                // Find the position of the 3rd '/' (index 2 in 0-based counting)
+                // Find the position of the 4th '/' (index 3 in 0-based counting)
                 let slashCount = 0;
                 let cutPosition = -1;
                 for (let i = 0; i < paeCode.length; i++) {
                     if (paeCode[i] === '/') {
                         slashCount++;
-                        if (slashCount === 3) {
+                        if (slashCount === 4) {
                             cutPosition = i;
                             break;
                         }
@@ -3279,20 +3279,20 @@ function normalizeMetreForComparison(metre) {
                 console.log('[Notation Render] Found', slashCount, 'slashes, cut position:', cutPosition);
                 
                 if (cutPosition > 0) {
-                    // Truncate to first 2 bars (everything before the 3rd slash)
+                    // Truncate to first 3 bars (everything before the 4th slash)
                     paeCode = paeCode.substring(0, cutPosition);
-                    console.log('[Notation Render] Truncated PAE to 2 bars:', paeCode);
+                    console.log('[Notation Render] Truncated PAE to 3 bars:', paeCode);
                 } else {
-                    console.log('[Notation Render] Less than 3 bars, using full PAE');
+                    console.log('[Notation Render] Less than 4 bars, using full PAE');
                 }
                 
                 // Set Verovio options before loading data
                 console.log('[Notation Render] Setting Verovio options');
                 verovioTk.setOptions({
                     inputFrom: 'pae',
-                    scale: 25,
-                    pageHeight: 300,
-                    pageWidth: 800,
+                    scale: 40,
+                    pageHeight: 400,
+                    pageWidth: 1000,
                     adjustPageHeight: true,
                     breaks: 'none',
                     header: 'none',
