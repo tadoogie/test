@@ -3257,18 +3257,33 @@ function normalizeMetreForComparison(metre) {
         // Generate SVG from PAE code using Verovio - first 2 bars only
         if (result.plaineAndEasie && verovioTk) {
             try {
-                // Extract first 2 bars from PAE code (bars are separated by '//')
+                // Extract first 2 bars from PAE code
+                // In PAE: first '/' is after time signature, then each '/' is a bar line
+                // To get first 2 bars, we need everything up to the 3rd '/'
                 let paeCode = result.plaineAndEasie.trim();
                 console.log('[Notation Render] Original PAE:', paeCode);
                 
-                // Split by double slash which separates bars in PAE
-                const bars = paeCode.split('//');
-                console.log('[Notation Render] Number of bars:', bars.length);
+                // Find the position of the 3rd '/' (index 2 in 0-based counting)
+                let slashCount = 0;
+                let cutPosition = -1;
+                for (let i = 0; i < paeCode.length; i++) {
+                    if (paeCode[i] === '/') {
+                        slashCount++;
+                        if (slashCount === 3) {
+                            cutPosition = i;
+                            break;
+                        }
+                    }
+                }
                 
-                if (bars.length > 2) {
-                    // Take first 2 bars and rejoin with //
-                    paeCode = bars.slice(0, 2).join('//');
+                console.log('[Notation Render] Found', slashCount, 'slashes, cut position:', cutPosition);
+                
+                if (cutPosition > 0) {
+                    // Truncate to first 2 bars (everything before the 3rd slash)
+                    paeCode = paeCode.substring(0, cutPosition);
                     console.log('[Notation Render] Truncated PAE to 2 bars:', paeCode);
+                } else {
+                    console.log('[Notation Render] Less than 3 bars, using full PAE');
                 }
                 
                 // Create minimal MEI document with PAE
