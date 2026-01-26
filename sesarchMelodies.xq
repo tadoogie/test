@@ -12,15 +12,27 @@ declare function local:generate-trigrams($intervals as xs:string) as xs:string* 
 };
 
 (: Function to check if any trigram from search matches any trigram in document :)
-declare function local:matches-trigram($doc-intervals as xs:string, $search-trigrams as xs:string*) as xs:boolean {
-  let $doc-trigrams := local:generate-trigrams($doc-intervals)
+declare function local:matches-trigram($doc-intervals as xs:string, $search-trigrams as xs:string*, $incipit as xs:boolean) as xs:boolean {
+  let $doc-trigrams := 
+    if ($incipit) then
+      (: For incipit search, only use trigrams from the beginning of the melody :)
+      let $all-trigrams := local:generate-trigrams($doc-intervals)
+      return subsequence($all-trigrams, 1, count($search-trigrams))
+    else
+      local:generate-trigrams($doc-intervals)
   return some $search-trigram in $search-trigrams satisfies
     some $doc-trigram in $doc-trigrams satisfies $search-trigram = $doc-trigram
 };
 
 (: Function to calculate relevance score based on number of matching trigrams :)
-declare function local:calculate-relevance($doc-intervals as xs:string, $search-trigrams as xs:string*) as xs:integer {
-  let $doc-trigrams := local:generate-trigrams($doc-intervals)
+declare function local:calculate-relevance($doc-intervals as xs:string, $search-trigrams as xs:string*, $incipit as xs:boolean) as xs:integer {
+  let $doc-trigrams := 
+    if ($incipit) then
+      (: For incipit search, only use trigrams from the beginning of the melody :)
+      let $all-trigrams := local:generate-trigrams($doc-intervals)
+      return subsequence($all-trigrams, 1, count($search-trigrams))
+    else
+      local:generate-trigrams($doc-intervals)
   let $matching-count := count(
     for $search-trigram in $search-trigrams
     where some $doc-trigram in $doc-trigrams satisfies $search-trigram = $doc-trigram
@@ -29,8 +41,10 @@ declare function local:calculate-relevance($doc-intervals as xs:string, $search-
   return $matching-count
 };
 
-(: Get search parameter :)
+(: Get search parameters :)
 let $signedinterval := request:get-parameter("signedinterval", "")
+let $incipit := request:get-parameter("incipit", "false")
+let $searchIncipit := $incipit = "true"
 
 (: Search for matching interval patterns using trigrams (3-note n-grams) :)
 let $results :=
@@ -45,7 +59,11 @@ let $results :=
         let $intervalCode := $doc//mei:incipCode[@form="signedinterval"]
         let $pitchCode := $doc//mei:incipCode[@form="pitchclass"]
         let $paeCode := $doc//mei:incipCode[@form="plaineAndEasie"]
-        where $intervalCode and contains(string($intervalCode), $signedinterval)
+        where $intervalCode and 
+              if ($searchIncipit) then
+                starts-with(string($intervalCode), $signedinterval)
+              else
+                contains(string($intervalCode), $signedinterval)
         let $docPath := document-uri(root($doc))
         let $fileName := tokenize($docPath, '/')[last()]
         let $workTitle := $doc//mei:workList/mei:work/mei:title/text()
@@ -74,7 +92,7 @@ let $results :=
         let $intervalCode := $doc//mei:incipCode[@form="signedinterval"]
         let $pitchCode := $doc//mei:incipCode[@form="pitchclass"]
         let $paeCode := $doc//mei:incipCode[@form="plaineAndEasie"]
-        where $intervalCode and local:matches-trigram(string($intervalCode), $search-trigrams)
+        where $intervalCode and local:matches-trigram(string($intervalCode), $search-trigrams, $searchIncipit)
         let $docPath := document-uri(root($doc))
         let $fileName := tokenize($docPath, '/')[last()]
         let $workTitle := $doc//mei:workList/mei:work/mei:title/text()
@@ -85,7 +103,7 @@ let $results :=
         let $intervalMatch := string($intervalCode)
         let $pitchMatch := string($pitchCode)
         let $plaineAndEasie := string($paeCode)
-        let $relevance := local:calculate-relevance(string($intervalCode), $search-trigrams)
+        let $relevance := local:calculate-relevance(string($intervalCode), $search-trigrams, $searchIncipit)
         order by $relevance descending, $title
         return map {
           "title": $title,

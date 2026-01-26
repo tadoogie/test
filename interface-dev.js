@@ -3085,17 +3085,19 @@ function domContentLoadedHandlerMelodySearch() {
 
     // Determine search mode
     const useFuzzy = typeof window.isFuzzySearchMode === 'function' ? window.isFuzzySearchMode() : true;
+    const useIncipit = typeof window.isIncipitSearchMode === 'function' ? window.isIncipitSearchMode() : false;
     
     // Show loading state with the translated intervals
     const searchType = useFuzzy ? 
       (intervals.length >= 2 ? '3-note n-gram (trigram) matching' : 'exact matching') :
       'exact interval matching';
-    melodySearchResults.innerHTML = '<div style="padding:20px;text-align:center;color:#555;">Searching using ' + searchType + ' for intervals: ' + intervals.map(formatSignedInterval).join(' ') + '...</div>';
+    const searchLocation = useIncipit ? 'incipit (starting notes)' : 'anywhere in melody';
+    melodySearchResults.innerHTML = '<div style="padding:20px;text-align:center;color:#555;">Searching using ' + searchType + ' in ' + searchLocation + ' for intervals: ' + intervals.map(formatSignedInterval).join(' ') + '...</div>';
 
     try {
       // Call server-side search using appropriate XQuery file
       const xqueryFile = useFuzzy ? 'sesarchMelodies.xq' : 'sesarchMelodiesExact.xq';
-      const url = `${xqueryFile}?signedinterval=${encodeURIComponent(intervalString)}`;
+      const url = `${xqueryFile}?signedinterval=${encodeURIComponent(intervalString)}&incipit=${useIncipit}`;
       const response = await fetch(url);
       
       if (!response.ok) {
@@ -3650,14 +3652,16 @@ function normalizeMetreForComparison(metre) {
     
     // Check if fuzzy search mode is enabled
     const useFuzzy = typeof window.isFuzzySearchMode === 'function' ? window.isFuzzySearchMode() : true;
+    const useIncipit = typeof window.isIncipitSearchMode === 'function' ? window.isIncipitSearchMode() : false;
     
     // Show loading state
-    melodySearchResults.innerHTML = '<div style="padding:20px;text-align:center;color:#555;">Searching for contour: ' + contour + '...</div>';
+    const searchLocation = useIncipit ? 'incipit (starting pattern)' : 'anywhere in melody';
+    melodySearchResults.innerHTML = '<div style="padding:20px;text-align:center;color:#555;">Searching for contour in ' + searchLocation + ': ' + contour + '...</div>';
     
     try {
       // Call appropriate server-side search based on mode
       const xqueryFile = useFuzzy ? 'searchMelodiesContour.xq' : 'searchMelodiesContourExact.xq';
-      const url = `${xqueryFile}?contour=${encodeURIComponent(contour)}`;
+      const url = `${xqueryFile}?contour=${encodeURIComponent(contour)}&incipit=${useIncipit}`;
       const response = await fetch(url);
       
       if (!response.ok) {

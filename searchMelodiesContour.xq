@@ -12,15 +12,27 @@ declare function local:generate-contour-trigrams($contour as xs:string) as xs:st
 };
 
 (: Function to check if any trigram from search matches any trigram in document :)
-declare function local:matches-contour-trigram($doc-contour as xs:string, $search-trigrams as xs:string*) as xs:boolean {
-  let $doc-trigrams := local:generate-contour-trigrams($doc-contour)
+declare function local:matches-contour-trigram($doc-contour as xs:string, $search-trigrams as xs:string*, $incipit as xs:boolean) as xs:boolean {
+  let $doc-trigrams := 
+    if ($incipit) then
+      (: For incipit search, only use trigrams from the beginning :)
+      let $all-trigrams := local:generate-contour-trigrams($doc-contour)
+      return subsequence($all-trigrams, 1, count($search-trigrams))
+    else
+      local:generate-contour-trigrams($doc-contour)
   return some $search-trigram in $search-trigrams satisfies
     some $doc-trigram in $doc-trigrams satisfies $search-trigram = $doc-trigram
 };
 
 (: Function to calculate relevance score based on number of matching trigrams :)
-declare function local:calculate-contour-relevance($doc-contour as xs:string, $search-trigrams as xs:string*) as xs:integer {
-  let $doc-trigrams := local:generate-contour-trigrams($doc-contour)
+declare function local:calculate-contour-relevance($doc-contour as xs:string, $search-trigrams as xs:string*, $incipit as xs:boolean) as xs:integer {
+  let $doc-trigrams := 
+    if ($incipit) then
+      (: For incipit search, only use trigrams from the beginning :)
+      let $all-trigrams := local:generate-contour-trigrams($doc-contour)
+      return subsequence($all-trigrams, 1, count($search-trigrams))
+    else
+      local:generate-contour-trigrams($doc-contour)
   let $matching-count := count(
     for $search-trigram in $search-trigrams
     where some $doc-trigram in $doc-trigrams satisfies $search-trigram = $doc-trigram
@@ -29,8 +41,10 @@ declare function local:calculate-contour-relevance($doc-contour as xs:string, $s
   return $matching-count
 };
 
-(: Get search parameter :)
+(: Get search parameters :)
 let $contour := request:get-parameter("contour", "")
+let $incipit := request:get-parameter("incipit", "false")
+let $searchIncipit := $incipit = "true"
 
 (: Search for matching contour patterns using trigrams :)
 let $results :=
@@ -48,7 +62,11 @@ let $results :=
         let $paeCode := $doc//mei:incipCode[@form="plaineAndEasie"]
         let $contourString := string($contourCode)
         let $normalizedContour := replace($contourString, "\s+", "")
-        where $contourCode and contains($normalizedContour, $normalized-search)
+        where $contourCode and 
+              if ($searchIncipit) then
+                starts-with($normalizedContour, $normalized-search)
+              else
+                contains($normalizedContour, $normalized-search)
         let $docPath := document-uri(root($doc))
         let $fileName := tokenize($docPath, '/')[last()]
         let $workTitle := $doc//mei:workList/mei:work/mei:title/text()
@@ -77,7 +95,7 @@ let $results :=
         let $contourCode := $doc//mei:incipCode[@form="contour"]
         let $pitchCode := $doc//mei:incipCode[@form="pitchclass"]
         let $paeCode := $doc//mei:incipCode[@form="plaineAndEasie"]
-        where $contourCode and local:matches-contour-trigram(string($contourCode), $search-trigrams)
+        where $contourCode and local:matches-contour-trigram(string($contourCode), $search-trigrams, $searchIncipit)
         let $docPath := document-uri(root($doc))
         let $fileName := tokenize($docPath, '/')[last()]
         let $workTitle := $doc//mei:workList/mei:work/mei:title/text()
@@ -88,7 +106,7 @@ let $results :=
         let $contourMatch := string($contourCode)
         let $pitchMatch := string($pitchCode)
         let $plaineAndEasie := string($paeCode)
-        let $relevance := local:calculate-contour-relevance(string($contourCode), $search-trigrams)
+        let $relevance := local:calculate-contour-relevance(string($contourCode), $search-trigrams, $searchIncipit)
         order by $relevance descending, $title
         return map {
           "title": $title,

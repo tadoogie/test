@@ -3,8 +3,10 @@ declare namespace mei="http://www.music-encoding.org/ns/mei";
 declare namespace output="http://www.w3.org/2010/xslt-xquery-serialization";
 declare option output:method "json";
 
-(: Get search parameter :)
+(: Get search parameters :)
 let $contour := request:get-parameter("contour", "")
+let $incipit := request:get-parameter("incipit", "false")
+let $searchIncipit := $incipit = "true"
 
 (: Convert contour pattern to spaced version for matching :)
 let $contourWithSpaces := 
@@ -25,9 +27,14 @@ let $results :=
     (: Remove all whitespace from the stored contour for comparison :)
     let $normalizedContour := replace($contourString, "\s+", "")
     where $contourCode and 
-          (contains($contourString, $contour) or 
-           contains($contourString, $contourWithSpaces) or
-           contains($normalizedContour, $contour))
+          if ($searchIncipit) then
+            (starts-with($contourString, $contour) or 
+             starts-with($contourString, $contourWithSpaces) or
+             starts-with($normalizedContour, $contour))
+          else
+            (contains($contourString, $contour) or 
+             contains($contourString, $contourWithSpaces) or
+             contains($normalizedContour, $contour))
     (: Get the actual document path :)
     let $docPath := document-uri(root($doc))
     let $fileName := tokenize($docPath, '/')[last()]

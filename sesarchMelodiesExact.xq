@@ -3,8 +3,10 @@ declare namespace mei="http://www.music-encoding.org/ns/mei";
 declare namespace output="http://www.w3.org/2010/xslt-xquery-serialization";
 declare option output:method "json";
 
-(: Get search parameter :)
+(: Get search parameters :)
 let $signedinterval := request:get-parameter("signedinterval", "")
+let $incipit := request:get-parameter("incipit", "false")
+let $searchIncipit := $incipit = "true"
 
 (: Search for matching interval patterns :)
 let $results : =
@@ -15,7 +17,11 @@ let $results : =
     let $intervalCode := $doc//mei:incipCode[@form="signedinterval"]
     let $pitchCode := $doc//mei:incipCode[@form="pitchclass"]
     let $paeCode := $doc//mei:incipCode[@form="plaineAndEasie"]
-    where $intervalCode and contains(string($intervalCode), $signedinterval)
+    where $intervalCode and 
+          if ($searchIncipit) then
+            starts-with(string($intervalCode), $signedinterval)
+          else
+            contains(string($intervalCode), $signedinterval)
     (: Get the actual document path :)
     let $docPath := document-uri(root($doc))
     let $fileName := tokenize($docPath, '/')[last()]

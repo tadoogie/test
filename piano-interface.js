@@ -49,6 +49,7 @@ console.log('Piano interface script file loaded!    ');
   let samplerReady = false;
   let useSolfa = false;    // Toggle state for notation display
   let useFuzzySearch = true; // Toggle state for search mode (fuzzy/exact)
+  let searchIncipit = false; // Toggle state for search location (incipit/anywhere)
   
   // Initialize with a realistic piano synthesizer
   async function initializePianoSampler() {
@@ -211,6 +212,20 @@ console.log('Piano interface script file loaded!    ');
         console.log(`Search mode toggle clicked - useFuzzySearch is now: ${useFuzzySearch}`);
       });
       console.log('Search mode toggle button initialized');
+    }
+    
+    // Set up the search location toggle button (Incipit/Anywhere)
+    const searchLocationToggleBtn = document.getElementById('searchLocationToggle');
+    if (searchLocationToggleBtn && !searchLocationToggleBtn.dataset.initialized) {
+      searchLocationToggleBtn.dataset.initialized = 'true';
+      searchLocationToggleBtn.addEventListener('click', function() {
+        searchIncipit = !searchIncipit;
+        searchLocationToggleBtn.textContent = searchIncipit ? 'Incipit' : 'Anywhere';
+        searchLocationToggleBtn.title = searchIncipit ? 'Switch to search anywhere in melody' : 'Switch to search only from beginning (incipit)';
+        searchLocationToggleBtn.classList.toggle('active', searchIncipit);
+        console.log(`Search location toggle clicked - searchIncipit is now: ${searchIncipit}`);
+      });
+      console.log('Search location toggle button initialized');
     }
     
     // Create container for keys
@@ -423,6 +438,11 @@ console.log('Piano interface script file loaded!    ');
   // Expose search mode state getter
   window.isFuzzySearchMode = function() {
     return useFuzzySearch;
+  };
+  
+  // Expose search location state getter
+  window.isIncipitSearchMode = function() {
+    return searchIncipit;
   };
   
 })();
