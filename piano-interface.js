@@ -186,46 +186,58 @@ console.log('Piano interface script file loaded!    ');
     
     // Set up the toggle button (it's already in the HTML above the keyboard)
     const toggleBtn = document.getElementById('notationToggle');
-    if (toggleBtn && !toggleBtn.dataset.initialized) {
-      toggleBtn.dataset.initialized = 'true';
-      toggleBtn.addEventListener('click', function() {
+    if (toggleBtn) {
+      // Remove old listener if exists by cloning the button
+      const newBtn = toggleBtn.cloneNode(true);
+      toggleBtn.parentNode.replaceChild(newBtn, toggleBtn);
+      
+      // Add fresh event listener
+      newBtn.addEventListener('click', function() {
         useSolfa = !useSolfa;
-        toggleBtn.textContent = useSolfa ? 'Pitches' : 'Sol-fa';
-        toggleBtn.title = useSolfa ? 'Switch to pitch names' : 'Switch to Sol-fa notation';
-        toggleBtn.classList.toggle('active', useSolfa);
+        newBtn.textContent = useSolfa ? 'Pitches' : 'Sol-fa';
+        newBtn.title = useSolfa ? 'Switch to pitch names' : 'Switch to Sol-fa notation';
+        newBtn.classList.toggle('active', useSolfa);
         console.log(`Toggle clicked - useSolfa is now: ${useSolfa}`);
         updateKeyLabels();
         updateDisplay();
       });
-      console.log('Toggle button initialized');
+      console.log('Toggle button initialized (fresh listener)');
     }
     
     // Set up the search mode toggle button
     const searchModeToggleBtn = document.getElementById('searchModeToggle');
-    if (searchModeToggleBtn && !searchModeToggleBtn.dataset.initialized) {
-      searchModeToggleBtn.dataset.initialized = 'true';
-      searchModeToggleBtn.addEventListener('click', function() {
+    if (searchModeToggleBtn) {
+      // Remove old listener if exists by cloning the button
+      const newBtn = searchModeToggleBtn.cloneNode(true);
+      searchModeToggleBtn.parentNode.replaceChild(newBtn, searchModeToggleBtn);
+      
+      // Add fresh event listener
+      newBtn.addEventListener('click', function() {
         useFuzzySearch = !useFuzzySearch;
-        searchModeToggleBtn.textContent = useFuzzySearch ? 'Fuzzy' : 'Exact';
-        searchModeToggleBtn.title = useFuzzySearch ? 'Switch to exact interval matching' : 'Switch to fuzzy n-gram matching';
-        searchModeToggleBtn.classList.toggle('active', !useFuzzySearch);
+        newBtn.textContent = useFuzzySearch ? 'Fuzzy' : 'Exact';
+        newBtn.title = useFuzzySearch ? 'Switch to exact interval matching' : 'Switch to fuzzy n-gram matching';
+        newBtn.classList.toggle('active', !useFuzzySearch);
         console.log(`Search mode toggle clicked - useFuzzySearch is now: ${useFuzzySearch}`);
       });
-      console.log('Search mode toggle button initialized');
+      console.log('Search mode toggle button initialized (fresh listener)');
     }
     
     // Set up the search location toggle button (Incipit/Anywhere)
     const searchLocationToggleBtn = document.getElementById('searchLocationToggle');
-    if (searchLocationToggleBtn && !searchLocationToggleBtn.dataset.initialized) {
-      searchLocationToggleBtn.dataset.initialized = 'true';
-      searchLocationToggleBtn.addEventListener('click', function() {
+    if (searchLocationToggleBtn) {
+      // Remove old listener if exists by cloning the button
+      const newBtn = searchLocationToggleBtn.cloneNode(true);
+      searchLocationToggleBtn.parentNode.replaceChild(newBtn, searchLocationToggleBtn);
+      
+      // Add fresh event listener
+      newBtn.addEventListener('click', function() {
         searchIncipit = !searchIncipit;
-        searchLocationToggleBtn.textContent = searchIncipit ? 'Incipit' : 'Anywhere';
-        searchLocationToggleBtn.title = searchIncipit ? 'Switch to search anywhere in melody' : 'Switch to search only from beginning (incipit)';
-        searchLocationToggleBtn.classList.toggle('active', searchIncipit);
+        newBtn.textContent = searchIncipit ? 'Incipit' : 'Anywhere';
+        newBtn.title = searchIncipit ? 'Switch to search anywhere in melody' : 'Switch to search only from beginning (incipit)';
+        newBtn.classList.toggle('active', searchIncipit);
         console.log(`Search location toggle clicked - searchIncipit is now: ${searchIncipit}`);
       });
-      console.log('Search location toggle button initialized');
+      console.log('Search location toggle button initialized (fresh listener)');
     }
     
     // Create container for keys
