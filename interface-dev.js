@@ -3010,6 +3010,10 @@ function domContentLoadedHandlerMelodySearch() {
         melodySearchModal.style.display = "flex";
         melodySearchInput.focus();
         showMelodySearchInstructions();
+        // Initialize piano keyboard and toggle buttons
+        if (window.initMelodyPiano) {
+          window.initMelodyPiano();
+        }
       }
     });
   }
