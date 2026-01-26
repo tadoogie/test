@@ -47,7 +47,8 @@ console.log('Piano interface script file loaded!    ');
   let isInitialized = false;
   let pianoSynth = null;
   let samplerReady = false;
-  let useSolfa = false;    // Toggle state
+  let useSolfa = false;    // Toggle state for notation display
+  let useFuzzySearch = true; // Toggle state for search mode (fuzzy/exact)
   
   // Initialize with a realistic piano synthesizer
   async function initializePianoSampler() {
@@ -184,7 +185,7 @@ console.log('Piano interface script file loaded!    ');
     
     // Set up the toggle button (it's already in the HTML above the keyboard)
     const toggleBtn = document.getElementById('notationToggle');
-    if (toggleBtn && ! toggleBtn.dataset.initialized) {
+    if (toggleBtn && !toggleBtn.dataset.initialized) {
       toggleBtn.dataset.initialized = 'true';
       toggleBtn.addEventListener('click', function() {
         useSolfa = !useSolfa;
@@ -196,6 +197,20 @@ console.log('Piano interface script file loaded!    ');
         updateDisplay();
       });
       console.log('Toggle button initialized');
+    }
+    
+    // Set up the search mode toggle button
+    const searchModeToggleBtn = document.getElementById('searchModeToggle');
+    if (searchModeToggleBtn && !searchModeToggleBtn.dataset.initialized) {
+      searchModeToggleBtn.dataset.initialized = 'true';
+      searchModeToggleBtn.addEventListener('click', function() {
+        useFuzzySearch = !useFuzzySearch;
+        searchModeToggleBtn.textContent = useFuzzySearch ? 'Fuzzy' : 'Exact';
+        searchModeToggleBtn.title = useFuzzySearch ? 'Switch to exact interval matching' : 'Switch to fuzzy n-gram matching';
+        searchModeToggleBtn.classList.toggle('active', !useFuzzySearch);
+        console.log(`Search mode toggle clicked - useFuzzySearch is now: ${useFuzzySearch}`);
+      });
+      console.log('Search mode toggle button initialized');
     }
     
     // Create container for keys
@@ -404,6 +419,11 @@ console.log('Piano interface script file loaded!    ');
   }
   
   window.initMelodyPiano = initializePiano;
+  
+  // Expose search mode state getter
+  window.isFuzzySearchMode = function() {
+    return useFuzzySearch;
+  };
   
 })();
 

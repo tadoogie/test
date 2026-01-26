@@ -3083,13 +3083,19 @@ function domContentLoadedHandlerMelodySearch() {
     const intervals = translatePitchClassesToSignedIntervals(pitchClasses);
     const intervalString = intervals.join(' ');
 
+    // Determine search mode
+    const useFuzzy = typeof window.isFuzzySearchMode === 'function' ? window.isFuzzySearchMode() : true;
+    
     // Show loading state with the translated intervals
-    const searchType = intervals.length >= 2 ? '3-note n-gram (trigram) matching' : 'exact matching';
+    const searchType = useFuzzy ? 
+      (intervals.length >= 2 ? '3-note n-gram (trigram) matching' : 'exact matching') :
+      'exact interval matching';
     melodySearchResults.innerHTML = '<div style="padding:20px;text-align:center;color:#555;">Searching using ' + searchType + ' for intervals: ' + intervals.map(formatSignedInterval).join(' ') + '...</div>';
 
     try {
-      // Call server-side search
-      const url = `searchMelodies.xq?signedinterval=${encodeURIComponent(intervalString)}`;
+      // Call server-side search using appropriate XQuery file
+      const xqueryFile = useFuzzy ? 'sesarchMelodies.xq' : 'sesarchMelodiesExact.xq';
+      const url = `${xqueryFile}?signedinterval=${encodeURIComponent(intervalString)}`;
       const response = await fetch(url);
       
       if (!response.ok) {
