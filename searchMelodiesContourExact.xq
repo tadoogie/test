@@ -26,15 +26,6 @@ let $results :=
     let $contourString := string($contourCode)
     (: Remove all whitespace from the stored contour for comparison :)
     let $normalizedContour := replace($contourString, "\s+", "")
-    where $contourCode and 
-          if ($searchIncipit) then
-            (starts-with($contourString, $contour) or 
-             starts-with($contourString, $contourWithSpaces) or
-             starts-with($normalizedContour, $contour))
-          else
-            (contains($contourString, $contour) or 
-             contains($contourString, $contourWithSpaces) or
-             contains($normalizedContour, $contour))
     (: Get the actual document path :)
     let $docPath := document-uri(root($doc))
     let $fileName := tokenize($docPath, '/')[last()]
@@ -49,6 +40,15 @@ let $results :=
     let $contourMatch := string($contourCode)
     let $pitchMatch := string($pitchCode)
     let $plaineAndEasie := string($paeCode)
+    where $contourCode and 
+          (if ($searchIncipit) then
+            (starts-with($contourString, $contour) or 
+             starts-with($contourString, $contourWithSpaces) or
+             starts-with($normalizedContour, $contour))
+          else
+            (contains($contourString, $contour) or 
+             contains($contourString, $contourWithSpaces) or
+             contains($normalizedContour, $contour)))
     order by $title
     return map {
       "title": $title,

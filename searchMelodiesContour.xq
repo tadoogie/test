@@ -62,11 +62,6 @@ let $results :=
         let $paeCode := $doc//mei:incipCode[@form="plaineAndEasie"]
         let $contourString := string($contourCode)
         let $normalizedContour := replace($contourString, "\s+", "")
-        where $contourCode and 
-              if ($searchIncipit) then
-                starts-with($normalizedContour, $normalized-search)
-              else
-                contains($normalizedContour, $normalized-search)
         let $docPath := document-uri(root($doc))
         let $fileName := tokenize($docPath, '/')[last()]
         let $workTitle := $doc//mei:workList/mei:work/mei:title/text()
@@ -77,6 +72,11 @@ let $results :=
         let $contourMatch := string($contourCode)
         let $pitchMatch := string($pitchCode)
         let $plaineAndEasie := string($paeCode)
+        where $contourCode and 
+              (if ($searchIncipit) then
+                starts-with($normalizedContour, $normalized-search)
+              else
+                contains($normalizedContour, $normalized-search))
         order by $title
         return map {
           "title": $title,

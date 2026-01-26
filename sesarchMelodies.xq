@@ -59,11 +59,6 @@ let $results :=
         let $intervalCode := $doc//mei:incipCode[@form="signedinterval"]
         let $pitchCode := $doc//mei:incipCode[@form="pitchclass"]
         let $paeCode := $doc//mei:incipCode[@form="plaineAndEasie"]
-        where $intervalCode and 
-              if ($searchIncipit) then
-                starts-with(string($intervalCode), $signedinterval)
-              else
-                contains(string($intervalCode), $signedinterval)
         let $docPath := document-uri(root($doc))
         let $fileName := tokenize($docPath, '/')[last()]
         let $workTitle := $doc//mei:workList/mei:work/mei:title/text()
@@ -74,6 +69,11 @@ let $results :=
         let $intervalMatch := string($intervalCode)
         let $pitchMatch := string($pitchCode)
         let $plaineAndEasie := string($paeCode)
+        where $intervalCode and 
+              (if ($searchIncipit) then
+                starts-with(string($intervalCode), $signedinterval)
+              else
+                contains(string($intervalCode), $signedinterval))
         order by $title
         return map {
           "title": $title,
