@@ -3648,12 +3648,16 @@ function normalizeMetreForComparison(metre) {
       return;
     }
     
+    // Check if fuzzy search mode is enabled
+    const useFuzzy = typeof window.isFuzzySearchMode === 'function' ? window.isFuzzySearchMode() : true;
+    
     // Show loading state
     melodySearchResults.innerHTML = '<div style="padding:20px;text-align:center;color:#555;">Searching for contour: ' + contour + '...</div>';
     
     try {
-      // Call server-side search
-      const url = `searchMelodiesContour.xq?contour=${encodeURIComponent(contour)}`;
+      // Call appropriate server-side search based on mode
+      const xqueryFile = useFuzzy ? 'searchMelodiesContour.xq' : 'searchMelodiesContourExact.xq';
+      const url = `${xqueryFile}?contour=${encodeURIComponent(contour)}`;
       const response = await fetch(url);
       
       if (!response.ok) {
