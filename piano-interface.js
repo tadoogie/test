@@ -204,40 +204,78 @@ console.log('Piano interface script file loaded!    ');
       console.log('Toggle button initialized (fresh listener)');
     }
     
-    // Set up the search mode toggle button
-    const searchModeToggleBtn = document.getElementById('searchModeToggle');
-    if (searchModeToggleBtn) {
-      // Remove old listener if exists by cloning the button
-      const newBtn = searchModeToggleBtn.cloneNode(true);
-      searchModeToggleBtn.parentNode.replaceChild(newBtn, searchModeToggleBtn);
+    // Set up the search mode toggle buttons (Fuzzy/Exact)
+    const searchModeToggleFuzzy = document.getElementById('searchModeToggle');
+    const searchModeToggleExact = document.getElementById('searchModeToggleAlt');
+    
+    if (searchModeToggleFuzzy && searchModeToggleExact) {
+      // Remove old listeners by cloning
+      const newFuzzy = searchModeToggleFuzzy.cloneNode(true);
+      const newExact = searchModeToggleExact.cloneNode(true);
+      searchModeToggleFuzzy.parentNode.replaceChild(newFuzzy, searchModeToggleFuzzy);
+      searchModeToggleExact.parentNode.replaceChild(newExact, searchModeToggleExact);
       
-      // Add fresh event listener
-      newBtn.addEventListener('click', function() {
-        useFuzzySearch = !useFuzzySearch;
-        newBtn.textContent = useFuzzySearch ? 'Fuzzy' : 'Exact';
-        newBtn.title = useFuzzySearch ? 'Switch to exact interval matching' : 'Switch to fuzzy n-gram matching';
-        newBtn.classList.toggle('active', !useFuzzySearch);
-        console.log(`Search mode toggle clicked - useFuzzySearch is now: ${useFuzzySearch}`);
+      // Click handler for Fuzzy button
+      newFuzzy.addEventListener('click', function() {
+        if (!useFuzzySearch) {
+          useFuzzySearch = true;
+          newFuzzy.style.background = '#6fc252';
+          newFuzzy.style.color = 'white';
+          newExact.style.background = 'white';
+          newExact.style.color = '#6fc252';
+          console.log('Switched to Fuzzy search');
+        }
       });
-      console.log('Search mode toggle button initialized (fresh listener)');
+      
+      // Click handler for Exact button
+      newExact.addEventListener('click', function() {
+        if (useFuzzySearch) {
+          useFuzzySearch = false;
+          newExact.style.background = '#6fc252';
+          newExact.style.color = 'white';
+          newFuzzy.style.background = 'white';
+          newFuzzy.style.color = '#6fc252';
+          console.log('Switched to Exact search');
+        }
+      });
+      console.log('Search mode toggle buttons initialized');
     }
     
-    // Set up the search location toggle button (Incipit/Anywhere)
-    const searchLocationToggleBtn = document.getElementById('searchLocationToggle');
-    if (searchLocationToggleBtn) {
-      // Remove old listener if exists by cloning the button
-      const newBtn = searchLocationToggleBtn.cloneNode(true);
-      searchLocationToggleBtn.parentNode.replaceChild(newBtn, searchLocationToggleBtn);
+    // Set up the search location toggle buttons (Anywhere/Incipit)
+    const searchLocationAnywhere = document.getElementById('searchLocationToggle');
+    const searchLocationIncipit = document.getElementById('searchLocationToggleAlt');
+    
+    if (searchLocationAnywhere && searchLocationIncipit) {
+      // Remove old listeners by cloning
+      const newAnywhere = searchLocationAnywhere.cloneNode(true);
+      const newIncipit = searchLocationIncipit.cloneNode(true);
+      searchLocationAnywhere.parentNode.replaceChild(newAnywhere, searchLocationAnywhere);
+      searchLocationIncipit.parentNode.replaceChild(newIncipit, searchLocationIncipit);
       
-      // Add fresh event listener
-      newBtn.addEventListener('click', function() {
-        searchIncipit = !searchIncipit;
-        newBtn.textContent = searchIncipit ? 'Incipit' : 'Anywhere';
-        newBtn.title = searchIncipit ? 'Switch to search anywhere in melody' : 'Switch to search only from beginning (incipit)';
-        newBtn.classList.toggle('active', searchIncipit);
-        console.log(`Search location toggle clicked - searchIncipit is now: ${searchIncipit}`);
+      // Click handler for Anywhere button
+      newAnywhere.addEventListener('click', function() {
+        if (searchIncipit) {
+          searchIncipit = false;
+          newAnywhere.style.background = '#6fc252';
+          newAnywhere.style.color = 'white';
+          newIncipit.style.background = 'white';
+          newIncipit.style.color = '#6fc252';
+          console.log('Switched to Anywhere search');
+        }
       });
-      console.log('Search location toggle button initialized (fresh listener)');
+      
+      // Click handler for Incipit button
+      newIncipit.addEventListener('click', function() {
+        if (!searchIncipit) {
+          searchIncipit = true;
+          newIncipit.style.background = '#6fc252';
+          newIncipit.style.color = 'white';
+          newAnywhere.style.background = 'white';
+          newAnywhere.style.color = '#6fc252';
+          console.log('Switched to Incipit search');
+        }
+      });
+      console.log('Search location toggle buttons initialized');
     }
     
     // Create container for keys

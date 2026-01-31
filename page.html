@@ -1149,10 +1149,30 @@
         
         <!-- Search Options Section -->
         <div style="margin: 20px auto 10px; width: 90%; padding: 10px; background: #f5f5f5; border-radius: 8px;">
-          <div style="display: flex; align-items: center; justify-content: center; gap: 15px; flex-wrap: wrap;">
-            <span style="font-weight: 600; color: #555;">Search Options:</span>
-            <button class="notation-toggle" id="searchModeToggle">Fuzzy</button>
-            <button class="notation-toggle" id="searchLocationToggle">Anywhere</button>
+          <!-- Match Type Row -->
+          <div style="display: flex; align-items: center; justify-content: flex-start; gap: 15px; margin-bottom: 12px;">
+            <span style="font-weight: 600; color: #555; min-width: 100px;">Match Type:</span>
+            <div style="display: flex; gap: 0; width: 198px; border: 2px solid #6fc252; border-radius: 8px; overflow: hidden;">
+              <button id="searchModeToggle" class="search-mode-btn active" style="flex: 1; padding: 8px; background: #6fc252; color: white; border: none; cursor: pointer; font-size: 0.9em; font-weight: 600; transition: all 0.2s;">
+                Fuzzy
+              </button>
+              <button id="searchModeToggleAlt" class="search-mode-btn" style="flex: 1; padding: 8px; background: white; color: #6fc252; border: none; cursor: pointer; font-size: 0.9em; font-weight: 600; transition: all 0.2s;">
+                Exact
+              </button>
+            </div>
+          </div>
+          
+          <!-- Search Location Row -->
+          <div style="display: flex; align-items: center; justify-content: flex-start; gap: 15px;">
+            <span style="font-weight: 600; color: #555; min-width: 100px;">Location:</span>
+            <div style="display: flex; gap: 0; width: 198px; border: 2px solid #6fc252; border-radius: 8px; overflow: hidden;">
+              <button id="searchLocationToggle" class="search-mode-btn active" style="flex: 1; padding: 8px; background: #6fc252; color: white; border: none; cursor: pointer; font-size: 0.9em; font-weight: 600; transition: all 0.2s;">
+                Anywhere
+              </button>
+              <button id="searchLocationToggleAlt" class="search-mode-btn" style="flex: 1; padding: 8px; background: white; color: #6fc252; border: none; cursor: pointer; font-size: 0.9em; font-weight: 600; transition: all 0.2s;">
+                Incipit
+              </button>
+            </div>
           </div>
         </div>
         
