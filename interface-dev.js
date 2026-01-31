@@ -3117,14 +3117,55 @@ function domContentLoadedHandlerMelodySearch() {
     }
   }
 
+  // Helper function to highlight matching notes in SVG
+  function highlightMatchingNotes(svgElement, matchPositions) {
+    if (!svgElement || !matchPositions || matchPositions.length === 0) {
+      return;
+    }
+    
+    console.log('[Note Highlighting] Match positions:', matchPositions);
+    
+    // Find all note elements in the SVG
+    // Verovio uses <g class="note"> for note groups
+    const noteElements = svgElement.querySelectorAll('g.note');
+    console.log('[Note Highlighting] Found', noteElements.length, 'note elements in SVG');
+    
+    // Highlight each matching note position
+    matchPositions.forEach(position => {
+      // position is 0-indexed
+      if (position >= 0 && position < noteElements.length) {
+        const noteGroup = noteElements[position];
+        
+        // Find the notehead within this note group
+        const notehead = noteGroup.querySelector('.notehead');
+        if (notehead) {
+          // Add highlighting by changing fill color to a highlight color
+          notehead.setAttribute('fill', '#ff6b6b'); // Red highlight
+          notehead.setAttribute('stroke', '#ff0000');
+          notehead.setAttribute('stroke-width', '2');
+          console.log('[Note Highlighting] Highlighted note at position', position);
+        } else {
+          console.warn('[Note Highlighting] No notehead found in note group at position', position);
+        }
+      }
+    });
+  }
+
   // Display melody search results
-function displayMelodySearchResults(results) {
+function displayMelodySearchResults(results, searchIntervals, searchPitchClasses, searchContour) {
     if (! melodySearchResults) return;
     
     if (results.length === 0) {
         melodySearchResults.innerHTML = '<div style="padding: 20px;text-align:center;color:#888;">No matching tunes found.  Try a different pattern.</div>';
         return;
     }
+    
+    // Store search parameters for highlighting
+    const searchQuery = {
+        intervals: searchIntervals || [],
+        pitchClasses: searchPitchClasses || [],
+        contour: searchContour || ''
+    };
     
     // Get the currently selected text's metre
     const psTextInput = document.getElementById('pstext');
@@ -3326,6 +3367,17 @@ function normalizeMetreForComparison(metre) {
                     if (svgElement) {
                         svgElement.style.cssText = 'max-width:100%;max-height:100%;';
                         console.log('[Notation Render] SVG element inserted successfully');
+                        
+                        // Highlight matching notes if we have search query information and match positions
+                        if (result.matchPositions && result.matchPositions.length > 0) {
+                            if (searchQuery.intervals && searchQuery.intervals.length > 0) {
+                                // Pitch-based search highlighting
+                                highlightMatchingNotes(svgElement, result.matchPositions);
+                            } else if (searchQuery.contour && searchQuery.contour.length > 0) {
+                                // Contour search highlighting
+                                highlightMatchingNotes(svgElement, result.matchPositions);
+                            }
+                        }
                     } else {
                         console.warn('[Notation Render] No SVG element found after insertion');
                     }
@@ -3673,7 +3725,7 @@ function normalizeMetreForComparison(metre) {
       }
       
       const data = await response.json();
-      displayMelodySearchResults(data.results || []);
+      displayMelodySearchResults(data.results || [], null, null, contour);
       
     } catch (error) {
       console.error('Contour search error:', error);

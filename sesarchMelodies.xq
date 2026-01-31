@@ -3,6 +3,22 @@ declare namespace mei="http://www.music-encoding.org/ns/mei";
 declare namespace output="http://www.w3.org/2010/xslt-xquery-serialization";
 declare option output:method "json";
 
+(: Function to find matching note positions in the melody :)
+declare function local:find-match-positions($doc-intervals as xs:string, $search-intervals as xs:string, $doc-pitchclasses as xs:string) as xs:integer* {
+  let $doc-interval-tokens := tokenize($doc-intervals, '\s+')
+  let $search-interval-tokens := tokenize($search-intervals, '\s+')
+  let $doc-length := count($doc-interval-tokens)
+  let $search-length := count($search-interval-tokens)
+  
+  (: Find all positions where the pattern starts :)
+  for $i in 1 to ($doc-length - $search-length + 1)
+  let $doc-substring := string-join(subsequence($doc-interval-tokens, $i, $search-length), ' ')
+  where $doc-substring = $search-intervals
+  (: Return note positions (0-indexed) - the first note of the match and all subsequent notes in the pattern :)
+  return for $j in 0 to $search-length
+         return $i + $j - 1
+};
+
 (: Function to generate trigrams (3-note windows) from a space-separated interval string :)
 declare function local:generate-trigrams($intervals as xs:string) as xs:string* {
   let $tokens := tokenize($intervals, '\s+')
@@ -74,6 +90,7 @@ let $results :=
                 starts-with(string($intervalCode), $signedinterval)
               else
                 contains(string($intervalCode), $signedinterval))
+        let $matchPositions := local:find-match-positions(string($intervalCode), $signedinterval, string($pitchCode))
         order by $title
         return map {
           "title": $title,
@@ -84,7 +101,8 @@ let $results :=
           "label": $title,
           "intervalMatch": $intervalMatch,
           "pitchMatch": $pitchMatch,
-          "plaineAndEasie": $plaineAndEasie
+          "plaineAndEasie": $plaineAndEasie,
+          "matchPositions": array { distinct-values($matchPositions) }
         }
       else
         (: Use trigram matching for 3 or more intervals :)
@@ -104,6 +122,7 @@ let $results :=
         let $pitchMatch := string($pitchCode)
         let $plaineAndEasie := string($paeCode)
         let $relevance := local:calculate-relevance(string($intervalCode), $search-trigrams, $searchIncipit)
+        let $matchPositions := local:find-match-positions(string($intervalCode), $signedinterval, string($pitchCode))
         order by $relevance descending, $title
         return map {
           "title": $title,
@@ -115,7 +134,8 @@ let $results :=
           "intervalMatch": $intervalMatch,
           "pitchMatch": $pitchMatch,
           "plaineAndEasie": $plaineAndEasie,
-          "relevance": $relevance
+          "relevance": $relevance,
+          "matchPositions": array { distinct-values($matchPositions) }
         }
 
 (: Limit results to top 20 :)

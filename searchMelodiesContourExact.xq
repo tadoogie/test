@@ -3,6 +3,22 @@ declare namespace mei="http://www.music-encoding.org/ns/mei";
 declare namespace output="http://www.w3.org/2010/xslt-xquery-serialization";
 declare option output:method "json";
 
+(: Function to find matching character positions in the contour string :)
+declare function local:find-contour-match-positions($doc-contour as xs:string, $search-contour as xs:string) as xs:integer* {
+  let $normalized-doc := replace($doc-contour, '\s+', '')
+  let $normalized-search := replace($search-contour, '\s+', '')
+  let $doc-length := string-length($normalized-doc)
+  let $search-length := string-length($normalized-search)
+  
+  (: Find all positions where the pattern starts :)
+  for $i in 1 to ($doc-length - $search-length + 1)
+  let $doc-substring := substring($normalized-doc, $i, $search-length)
+  where $doc-substring = $normalized-search
+  (: Return character positions (0-indexed) :)
+  return for $j in 0 to ($search-length - 1)
+         return $i + $j - 1
+};
+
 (: Get search parameters :)
 let $contour := request:get-parameter("contour", "")
 let $incipit := request:get-parameter("incipit", "false")
@@ -40,6 +56,7 @@ let $results :=
     let $contourMatch := string($contourCode)
     let $pitchMatch := string($pitchCode)
     let $plaineAndEasie := string($paeCode)
+    let $matchPositions := local:find-contour-match-positions($contourString, $contour)
     where $contourCode and 
           (if ($searchIncipit) then
             (starts-with($contourString, $contour) or 
@@ -59,7 +76,8 @@ let $results :=
       "label": $title,
       "contourMatch": $contourMatch,
       "pitchMatch": $pitchMatch,
-      "plaineAndEasie": $plaineAndEasie
+      "plaineAndEasie": $plaineAndEasie,
+      "matchPositions": array { distinct-values($matchPositions) }
     }
 
 return map {
