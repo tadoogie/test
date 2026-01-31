@@ -3,7 +3,7 @@ declare namespace mei="http://www.music-encoding.org/ns/mei";
 declare namespace output="http://www.w3.org/2010/xslt-xquery-serialization";
 declare option output:method "json";
 
-(: Function to find matching character positions in the contour string :)
+(: Function to find matching character positions for exact matches :)
 declare function local:find-contour-match-positions($doc-contour as xs:string, $search-contour as xs:string) as xs:integer* {
   let $normalized-doc := replace($doc-contour, '\s+', '')
   let $normalized-search := replace($search-contour, '\s+', '')
@@ -17,6 +17,27 @@ declare function local:find-contour-match-positions($doc-contour as xs:string, $
   (: Return character positions (0-indexed) :)
   return for $j in 0 to ($search-length - 1)
          return $i + $j - 1
+};
+
+(: Function to find matching character positions based on trigram matches (for fuzzy search) :)
+declare function local:find-contour-trigram-match-positions($doc-contour as xs:string, $search-trigrams as xs:string*, $incipit as xs:boolean) as xs:integer* {
+  let $normalized-doc := replace($doc-contour, '\s+', '')
+  let $doc-trigrams := local:generate-contour-trigrams($doc-contour)
+  let $doc-trigrams-to-use := 
+    if ($incipit) then
+      subsequence($doc-trigrams, 1, count($search-trigrams))
+    else
+      $doc-trigrams
+  
+  (: Find positions of all matching trigrams :)
+  let $matching-positions :=
+    for $search-trigram in $search-trigrams
+    for $i in 1 to count($doc-trigrams-to-use)
+    where $doc-trigrams-to-use[$i] = $search-trigram
+    (: Each trigram spans 3 characters at positions i, i+1, i+2 (0-indexed: i-1, i, i+1) :)
+    return ($i - 1, $i, $i + 1)
+  
+  return distinct-values($matching-positions)
 };
 
 (: Function to generate trigrams (3-character windows) from a contour string :)
@@ -125,7 +146,7 @@ let $results :=
         let $pitchMatch := string($pitchCode)
         let $plaineAndEasie := string($paeCode)
         let $relevance := local:calculate-contour-relevance(string($contourCode), $search-trigrams, $searchIncipit)
-        let $matchPositions := local:find-contour-match-positions(string($contourCode), $contour)
+        let $matchPositions := local:find-contour-trigram-match-positions(string($contourCode), $search-trigrams, $searchIncipit)
         order by $relevance descending, $title
         return map {
           "title": $title,

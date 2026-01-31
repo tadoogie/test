@@ -3,7 +3,7 @@ declare namespace mei="http://www.music-encoding.org/ns/mei";
 declare namespace output="http://www.w3.org/2010/xslt-xquery-serialization";
 declare option output:method "json";
 
-(: Function to find matching note positions in the melody :)
+(: Function to find matching note positions for exact matches :)
 declare function local:find-match-positions($doc-intervals as xs:string, $search-intervals as xs:string, $doc-pitchclasses as xs:string) as xs:integer* {
   let $doc-interval-tokens := tokenize($doc-intervals, '\s+')
   let $search-interval-tokens := tokenize($search-intervals, '\s+')
@@ -17,6 +17,27 @@ declare function local:find-match-positions($doc-intervals as xs:string, $search
   (: Return note positions (0-indexed) - the first note of the match and all subsequent notes in the pattern :)
   return for $j in 0 to $search-length
          return $i + $j - 1
+};
+
+(: Function to find matching note positions based on trigram matches (for fuzzy search) :)
+declare function local:find-trigram-match-positions($doc-intervals as xs:string, $search-trigrams as xs:string*, $incipit as xs:boolean) as xs:integer* {
+  let $doc-interval-tokens := tokenize($doc-intervals, '\s+')
+  let $doc-trigrams := local:generate-trigrams($doc-intervals)
+  let $doc-trigrams-to-use := 
+    if ($incipit) then
+      subsequence($doc-trigrams, 1, count($search-trigrams))
+    else
+      $doc-trigrams
+  
+  (: Find positions of all matching trigrams :)
+  let $matching-positions :=
+    for $search-trigram in $search-trigrams
+    for $i in 1 to count($doc-trigrams-to-use)
+    where $doc-trigrams-to-use[$i] = $search-trigram
+    (: Each trigram spans 3 notes at positions i, i+1, i+2 (0-indexed: i-1, i, i+1) :)
+    return ($i - 1, $i, $i + 1)
+  
+  return distinct-values($matching-positions)
 };
 
 (: Function to generate trigrams (3-note windows) from a space-separated interval string :)
@@ -122,7 +143,7 @@ let $results :=
         let $pitchMatch := string($pitchCode)
         let $plaineAndEasie := string($paeCode)
         let $relevance := local:calculate-relevance(string($intervalCode), $search-trigrams, $searchIncipit)
-        let $matchPositions := local:find-match-positions(string($intervalCode), $signedinterval, string($pitchCode))
+        let $matchPositions := local:find-trigram-match-positions(string($intervalCode), $search-trigrams, $searchIncipit)
         order by $relevance descending, $title
         return map {
           "title": $title,
