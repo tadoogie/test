@@ -3118,92 +3118,104 @@ function domContentLoadedHandlerMelodySearch() {
   }
 
   // Helper function to analyze PAE and find which bars contain matching notes
-  function findBarsContainingMatches(paeCode, matchPositions) {
+  function extractNotesForDisplay(paeCode, matchPositions, maxNotes = 9) {
     if (!matchPositions || matchPositions.length === 0) {
-      // No matches, just return first 3 bars
-      return { startBar: 0, numBars: 3, noteOffset: 0 };
+      // No matches, extract first maxNotes notes
+      return extractFirstNNotes(paeCode, maxNotes, 0);
     }
     
-    // Parse PAE to count notes per bar
-    // In PAE: first '/' is after time signature, then each '/' is a bar line
-    // Notes are indicated by pitch letters (A-G, with optional accidentals and octave markers)
-    const bars = [];
-    let currentBarNotes = 0;
-    let totalNotes = 0;
-    let inFirstSection = true; // Before first '/'
+    // Find the first matching note position
+    const firstMatchPos = Math.min(...matchPositions);
+    console.log('[Note Extraction] First match position:', firstMatchPos);
     
-    for (let i = 0; i < paeCode.length; i++) {
-      const char = paeCode[i];
-      
-      if (char === '/') {
-        if (inFirstSection) {
-          // First '/' after time signature, start counting notes from here
-          inFirstSection = false;
-          bars.push({ startNote: 0, endNote: 0 });
-        } else {
-          // Bar line - save current bar and start new one
-          bars[bars.length - 1].endNote = totalNotes;
-          bars.push({ startNote: totalNotes, endNote: totalNotes });
-        }
-      } else if (!inFirstSection) {
-        // Count notes: capital letters A-G are note pitches
-        if (char >= 'A' && char <= 'G') {
-          totalNotes++;
-        }
+    // Extract maxNotes notes starting from firstMatchPos
+    return extractFirstNNotes(paeCode, maxNotes, firstMatchPos);
+  }
+  
+  function extractFirstNNotes(paeCode, maxNotes, startFromNote) {
+    // Parse PAE to find note positions and extract exactly maxNotes notes
+    // In PAE: first '/' is after time signature, then content follows
+    // Notes are indicated by capital letters A-G
+    
+    const firstSlashPos = paeCode.indexOf('/');
+    if (firstSlashPos === -1) {
+      console.warn('[Note Extraction] No slash found in PAE');
+      return { paeCode: paeCode, noteOffset: 0 };
+    }
+    
+    const header = paeCode.substring(0, firstSlashPos + 1);
+    const content = paeCode.substring(firstSlashPos + 1);
+    
+    // Find note positions in content
+    const notePositions = [];
+    for (let i = 0; i < content.length; i++) {
+      const char = content[i];
+      if (char >= 'A' && char <= 'G') {
+        notePositions.push(i);
       }
     }
     
-    // Close the last bar
-    if (bars.length > 0) {
-      bars[bars.length - 1].endNote = totalNotes;
+    console.log('[Note Extraction] Total notes found:', notePositions.length);
+    console.log('[Note Extraction] Requested start from note:', startFromNote, 'max notes:', maxNotes);
+    
+    if (notePositions.length === 0) {
+      console.warn('[Note Extraction] No notes found in PAE content');
+      return { paeCode: paeCode, noteOffset: 0 };
     }
     
-    console.log('[Bar Analysis] Found', bars.length, 'bars with', totalNotes, 'total notes');
-    console.log('[Bar Analysis] Bars:', bars);
-    
-    // Find which bars contain the matching notes
-    const minMatchPos = Math.min(...matchPositions);
-    const maxMatchPos = Math.max(...matchPositions);
-    
-    console.log('[Bar Analysis] Match range:', minMatchPos, '-', maxMatchPos);
-    
-    let startBar = 0;
-    let endBar = 0;
-    
-    for (let i = 0; i < bars.length; i++) {
-      const bar = bars[i];
-      // Check if this bar contains any part of the match
-      if (minMatchPos >= bar.startNote && minMatchPos < bar.endNote) {
-        startBar = i;
-      }
-      if (maxMatchPos >= bar.startNote && maxMatchPos < bar.endNote) {
-        endBar = i;
-      }
+    // If startFromNote is beyond available notes, start from beginning
+    if (startFromNote >= notePositions.length) {
+      startFromNote = 0;
     }
     
-    // Add context: show at least 3 bars if possible
-    const numBarsInMatch = endBar - startBar + 1;
-    let displayBars = 3;
+    // Calculate which notes to extract
+    const startNoteIndex = startFromNote;
+    const endNoteIndex = Math.min(startFromNote + maxNotes, notePositions.length);
+    const actualNotesExtracted = endNoteIndex - startNoteIndex;
     
-    if (numBarsInMatch < 3) {
-      // Extend to show 3 bars total, centered on the match if possible
-      const extraBars = 3 - numBarsInMatch;
-      const beforeBars = Math.floor(extraBars / 2);
-      const afterBars = extraBars - beforeBars;
-      
-      startBar = Math.max(0, startBar - beforeBars);
-      endBar = Math.min(bars.length - 1, endBar + afterBars);
-      displayBars = endBar - startBar + 1;
+    console.log('[Note Extraction] Extracting notes', startNoteIndex, 'to', endNoteIndex - 1, '(', actualNotesExtracted, 'notes)');
+    
+    if (startNoteIndex === 0 && endNoteIndex >= notePositions.length) {
+      // Using entire melody, no extraction needed
+      console.log('[Note Extraction] Using entire melody');
+      return { paeCode: paeCode, noteOffset: 0 };
+    }
+    
+    // Find the character positions to extract
+    const startCharPos = notePositions[startNoteIndex];
+    let endCharPos;
+    
+    if (endNoteIndex < notePositions.length) {
+      // Extract up to (but not including) the next note
+      endCharPos = notePositions[endNoteIndex];
     } else {
-      displayBars = numBarsInMatch;
+      // Extract to end of content
+      endCharPos = content.length;
     }
     
-    // Calculate note offset (how many notes are before the first displayed bar)
-    const noteOffset = startBar < bars.length ? bars[startBar].startNote : 0;
+    // For the start, we need to include any preceding modifiers (rhythms, accidentals, octaves)
+    // Back up to find the start of the note's expression
+    let actualStartPos = startCharPos;
+    while (actualStartPos > 0) {
+      const prevChar = content[actualStartPos - 1];
+      // If previous char is a note letter, a slash (bar line), or certain delimiters, stop backing up
+      if ((prevChar >= 'A' && prevChar <= 'G') || prevChar === '/' || prevChar === ' ') {
+        break;
+      }
+      // Otherwise, include it (it's a modifier like rhythm, accidental, octave mark)
+      actualStartPos--;
+    }
     
-    console.log('[Bar Analysis] Displaying bars', startBar, 'to', endBar, '(', displayBars, 'bars), note offset:', noteOffset);
+    const extractedContent = content.substring(actualStartPos, endCharPos);
+    const extractedPAE = header + extractedContent;
     
-    return { startBar, numBars: displayBars, noteOffset };
+    console.log('[Note Extraction] Extracted PAE:', extractedPAE);
+    console.log('[Note Extraction] Note offset for highlighting:', startNoteIndex);
+    
+    return {
+      paeCode: extractedPAE,
+      noteOffset: startNoteIndex
+    };
   }
   
   // Helper function to highlight matching notes in SVG
@@ -3407,53 +3419,13 @@ function normalizeMetreForComparison(metre) {
                 let paeCode = result.plaineAndEasie.trim();
                 console.log('[Notation Render] Original PAE:', paeCode);
                 
-                // Determine which bars to display based on match positions
-                const barInfo = findBarsContainingMatches(paeCode, result.matchPositions || []);
-                console.log('[Notation Render] Bar info:', barInfo);
+                // Extract exactly 9 notes starting from the first match position
+                const extractionResult = extractNotesForDisplay(paeCode, result.matchPositions || [], 9);
+                paeCode = extractionResult.paeCode;
+                const noteOffset = extractionResult.noteOffset;
                 
-                // Extract the relevant bars from PAE code
-                // Count slashes to find bar boundaries
-                const targetStartSlash = barInfo.startBar + 1; // +1 because first slash is time signature
-                const targetEndSlash = targetStartSlash + barInfo.numBars;
-                
-                let slashCount = 0;
-                let startPosition = -1;
-                let endPosition = -1;
-                
-                for (let i = 0; i < paeCode.length; i++) {
-                    if (paeCode[i] === '/') {
-                        slashCount++;
-                        if (slashCount === targetStartSlash) {
-                            startPosition = i + 1; // Start after this slash
-                        }
-                        if (slashCount === targetEndSlash) {
-                            endPosition = i;
-                            break;
-                        }
-                    }
-                }
-                
-                console.log('[Notation Render] Slash count:', slashCount, 'start pos:', startPosition, 'end pos:', endPosition);
-                
-                // If we're not starting from the beginning, we need to preserve the header
-                if (startPosition > 0 && barInfo.startBar > 0) {
-                    // Extract header (everything before first bar)
-                    const firstSlashPos = paeCode.indexOf('/');
-                    const header = paeCode.substring(0, firstSlashPos + 1);
-                    const barsToDisplay = endPosition > startPosition ? 
-                        paeCode.substring(startPosition, endPosition) : 
-                        paeCode.substring(startPosition);
-                    paeCode = header + barsToDisplay;
-                    console.log('[Notation Render] Extracted bars', barInfo.startBar, 'to', (barInfo.startBar + barInfo.numBars - 1));
-                } else if (endPosition > 0) {
-                    // Starting from beginning, just truncate
-                    paeCode = paeCode.substring(0, endPosition);
-                    console.log('[Notation Render] Truncated to first', barInfo.numBars, 'bars');
-                } else {
-                    console.log('[Notation Render] Using full PAE (less than', barInfo.numBars, 'bars available)');
-                }
-                
-                console.log('[Notation Render] Final PAE:', paeCode);
+                console.log('[Notation Render] Extracted PAE:', paeCode);
+                console.log('[Notation Render] Note offset:', noteOffset);
                 
                 // Set Verovio options before loading data
                 console.log('[Notation Render] Setting Verovio options');
@@ -3487,10 +3459,10 @@ function normalizeMetreForComparison(metre) {
                         if (result.matchPositions && result.matchPositions.length > 0) {
                             if (searchQuery.intervals && searchQuery.intervals.length > 0) {
                                 // Pitch-based search highlighting
-                                highlightMatchingNotes(svgElement, result.matchPositions, barInfo.noteOffset);
+                                highlightMatchingNotes(svgElement, result.matchPositions, noteOffset);
                             } else if (searchQuery.contour && searchQuery.contour.length > 0) {
                                 // Contour search highlighting
-                                highlightMatchingNotes(svgElement, result.matchPositions, barInfo.noteOffset);
+                                highlightMatchingNotes(svgElement, result.matchPositions, noteOffset);
                             }
                         }
                     } else {
