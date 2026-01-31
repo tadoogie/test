@@ -217,26 +217,24 @@ console.log('Piano interface script file loaded!    ');
       
       // Click handler for Fuzzy button
       newFuzzy.addEventListener('click', function() {
-        if (!useFuzzySearch) {
-          useFuzzySearch = true;
-          newFuzzy.style.background = '#6fc252';
-          newFuzzy.style.color = 'white';
-          newExact.style.background = 'white';
-          newExact.style.color = '#6fc252';
-          console.log('Switched to Fuzzy search');
-        }
+        // Always update visual state, regardless of current state
+        useFuzzySearch = true;
+        newFuzzy.style.background = '#6fc252';
+        newFuzzy.style.color = 'white';
+        newExact.style.background = 'white';
+        newExact.style.color = '#6fc252';
+        console.log('Switched to Fuzzy search');
       });
       
       // Click handler for Exact button
       newExact.addEventListener('click', function() {
-        if (useFuzzySearch) {
-          useFuzzySearch = false;
-          newExact.style.background = '#6fc252';
-          newExact.style.color = 'white';
-          newFuzzy.style.background = 'white';
-          newFuzzy.style.color = '#6fc252';
-          console.log('Switched to Exact search');
-        }
+        // Always update visual state, regardless of current state
+        useFuzzySearch = false;
+        newExact.style.background = '#6fc252';
+        newExact.style.color = 'white';
+        newFuzzy.style.background = 'white';
+        newFuzzy.style.color = '#6fc252';
+        console.log('Switched to Exact search');
       });
       console.log('Search mode toggle buttons initialized');
     }
@@ -254,26 +252,24 @@ console.log('Piano interface script file loaded!    ');
       
       // Click handler for Anywhere button
       newAnywhere.addEventListener('click', function() {
-        if (searchIncipit) {
-          searchIncipit = false;
-          newAnywhere.style.background = '#6fc252';
-          newAnywhere.style.color = 'white';
-          newIncipit.style.background = 'white';
-          newIncipit.style.color = '#6fc252';
-          console.log('Switched to Anywhere search');
-        }
+        // Always update visual state, regardless of current state
+        searchIncipit = false;
+        newAnywhere.style.background = '#6fc252';
+        newAnywhere.style.color = 'white';
+        newIncipit.style.background = 'white';
+        newIncipit.style.color = '#6fc252';
+        console.log('Switched to Anywhere search');
       });
       
       // Click handler for Incipit button
       newIncipit.addEventListener('click', function() {
-        if (!searchIncipit) {
-          searchIncipit = true;
-          newIncipit.style.background = '#6fc252';
-          newIncipit.style.color = 'white';
-          newAnywhere.style.background = 'white';
-          newAnywhere.style.color = '#6fc252';
-          console.log('Switched to Incipit search');
-        }
+        // Always update visual state, regardless of current state
+        searchIncipit = true;
+        newIncipit.style.background = '#6fc252';
+        newIncipit.style.color = 'white';
+        newAnywhere.style.background = 'white';
+        newAnywhere.style.color = '#6fc252';
+        console.log('Switched to Incipit search');
       });
       console.log('Search location toggle buttons initialized');
     }
