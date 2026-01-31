@@ -3323,6 +3323,13 @@ function normalizeMetreForComparison(metre) {
     
     melodySearchResults.innerHTML = '';
     
+    // Add results count display (right-aligned)
+    const countDiv = document.createElement('div');
+    countDiv.style.cssText = 'text-align: right; padding: 8px 0; color: #666; font-size: 0.95em; margin-bottom: 8px;';
+    const resultText = results.length === 1 ? '1 result' : `${results.length} results`;
+    countDiv.textContent = resultText;
+    melodySearchResults.appendChild(countDiv);
+    
     // Initialize Verovio toolkit if needed
     let verovioTk = null;
     console.log('[Verovio Check] window.melodyPlayer:', window.melodyPlayer);
