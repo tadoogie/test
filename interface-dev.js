@@ -3117,13 +3117,102 @@ function domContentLoadedHandlerMelodySearch() {
     }
   }
 
+  // Helper function to analyze PAE and find which bars contain matching notes
+  function findBarsContainingMatches(paeCode, matchPositions) {
+    if (!matchPositions || matchPositions.length === 0) {
+      // No matches, just return first 3 bars
+      return { startBar: 0, numBars: 3, noteOffset: 0 };
+    }
+    
+    // Parse PAE to count notes per bar
+    // In PAE: first '/' is after time signature, then each '/' is a bar line
+    // Notes are indicated by pitch letters (A-G, with optional accidentals and octave markers)
+    const bars = [];
+    let currentBarNotes = 0;
+    let totalNotes = 0;
+    let inFirstSection = true; // Before first '/'
+    
+    for (let i = 0; i < paeCode.length; i++) {
+      const char = paeCode[i];
+      
+      if (char === '/') {
+        if (inFirstSection) {
+          // First '/' after time signature, start counting notes from here
+          inFirstSection = false;
+          bars.push({ startNote: 0, endNote: 0 });
+        } else {
+          // Bar line - save current bar and start new one
+          bars[bars.length - 1].endNote = totalNotes;
+          bars.push({ startNote: totalNotes, endNote: totalNotes });
+        }
+      } else if (!inFirstSection) {
+        // Count notes: capital letters A-G are note pitches
+        if (char >= 'A' && char <= 'G') {
+          totalNotes++;
+        }
+      }
+    }
+    
+    // Close the last bar
+    if (bars.length > 0) {
+      bars[bars.length - 1].endNote = totalNotes;
+    }
+    
+    console.log('[Bar Analysis] Found', bars.length, 'bars with', totalNotes, 'total notes');
+    console.log('[Bar Analysis] Bars:', bars);
+    
+    // Find which bars contain the matching notes
+    const minMatchPos = Math.min(...matchPositions);
+    const maxMatchPos = Math.max(...matchPositions);
+    
+    console.log('[Bar Analysis] Match range:', minMatchPos, '-', maxMatchPos);
+    
+    let startBar = 0;
+    let endBar = 0;
+    
+    for (let i = 0; i < bars.length; i++) {
+      const bar = bars[i];
+      // Check if this bar contains any part of the match
+      if (minMatchPos >= bar.startNote && minMatchPos < bar.endNote) {
+        startBar = i;
+      }
+      if (maxMatchPos >= bar.startNote && maxMatchPos < bar.endNote) {
+        endBar = i;
+      }
+    }
+    
+    // Add context: show at least 3 bars if possible
+    const numBarsInMatch = endBar - startBar + 1;
+    let displayBars = 3;
+    
+    if (numBarsInMatch < 3) {
+      // Extend to show 3 bars total, centered on the match if possible
+      const extraBars = 3 - numBarsInMatch;
+      const beforeBars = Math.floor(extraBars / 2);
+      const afterBars = extraBars - beforeBars;
+      
+      startBar = Math.max(0, startBar - beforeBars);
+      endBar = Math.min(bars.length - 1, endBar + afterBars);
+      displayBars = endBar - startBar + 1;
+    } else {
+      displayBars = numBarsInMatch;
+    }
+    
+    // Calculate note offset (how many notes are before the first displayed bar)
+    const noteOffset = startBar < bars.length ? bars[startBar].startNote : 0;
+    
+    console.log('[Bar Analysis] Displaying bars', startBar, 'to', endBar, '(', displayBars, 'bars), note offset:', noteOffset);
+    
+    return { startBar, numBars: displayBars, noteOffset };
+  }
+  
   // Helper function to highlight matching notes in SVG
-  function highlightMatchingNotes(svgElement, matchPositions) {
+  function highlightMatchingNotes(svgElement, matchPositions, noteOffset) {
     if (!svgElement || !matchPositions || matchPositions.length === 0) {
       return;
     }
     
-    console.log('[Note Highlighting] Match positions:', matchPositions);
+    console.log('[Note Highlighting] Match positions:', matchPositions, 'Note offset:', noteOffset);
     
     // Find all note elements in the SVG
     // Verovio uses <g class="note"> for note groups
@@ -3131,10 +3220,14 @@ function domContentLoadedHandlerMelodySearch() {
     console.log('[Note Highlighting] Found', noteElements.length, 'note elements in SVG');
     
     // Highlight each matching note position
-    matchPositions.forEach(position => {
-      // position is 0-indexed
-      if (position >= 0 && position < noteElements.length) {
-        const noteGroup = noteElements[position];
+    // Adjust positions by the note offset since we may not be showing the first bar
+    matchPositions.forEach(absolutePosition => {
+      const relativePosition = absolutePosition - noteOffset;
+      console.log('[Note Highlighting] Absolute position', absolutePosition, '-> relative position', relativePosition);
+      
+      // Only highlight if within the displayed range
+      if (relativePosition >= 0 && relativePosition < noteElements.length) {
+        const noteGroup = noteElements[relativePosition];
         
         // Find the notehead within this note group
         const notehead = noteGroup.querySelector('.notehead');
@@ -3143,9 +3236,9 @@ function domContentLoadedHandlerMelodySearch() {
           notehead.setAttribute('fill', '#ff6b6b'); // Red highlight
           notehead.setAttribute('stroke', '#ff0000');
           notehead.setAttribute('stroke-width', '2');
-          console.log('[Note Highlighting] Highlighted note at position', position);
+          console.log('[Note Highlighting] Highlighted note at relative position', relativePosition);
         } else {
-          console.warn('[Note Highlighting] No notehead found in note group at position', position);
+          console.warn('[Note Highlighting] No notehead found in note group at position', relativePosition);
         }
       }
     });
@@ -3308,37 +3401,59 @@ function normalizeMetreForComparison(metre) {
         console.log('[Notation Render] PAE code:', result.plaineAndEasie);
         console.log('[Notation Render] verovioTk available:', !!verovioTk);
         
-        // Generate SVG from PAE code using Verovio - first 2 bars only
+        // Generate SVG from PAE code using Verovio
         if (result.plaineAndEasie && verovioTk) {
             try {
-                // Extract first 3 bars from PAE code
-                // In PAE: first '/' is after time signature, then each '/' is a bar line
-                // To get first 3 bars, we need everything up to the 4th '/'
                 let paeCode = result.plaineAndEasie.trim();
                 console.log('[Notation Render] Original PAE:', paeCode);
                 
-                // Find the position of the 4th '/' (index 3 in 0-based counting)
+                // Determine which bars to display based on match positions
+                const barInfo = findBarsContainingMatches(paeCode, result.matchPositions || []);
+                console.log('[Notation Render] Bar info:', barInfo);
+                
+                // Extract the relevant bars from PAE code
+                // Count slashes to find bar boundaries
+                const targetStartSlash = barInfo.startBar + 1; // +1 because first slash is time signature
+                const targetEndSlash = targetStartSlash + barInfo.numBars;
+                
                 let slashCount = 0;
-                let cutPosition = -1;
+                let startPosition = -1;
+                let endPosition = -1;
+                
                 for (let i = 0; i < paeCode.length; i++) {
                     if (paeCode[i] === '/') {
                         slashCount++;
-                        if (slashCount === 4) {
-                            cutPosition = i;
+                        if (slashCount === targetStartSlash) {
+                            startPosition = i + 1; // Start after this slash
+                        }
+                        if (slashCount === targetEndSlash) {
+                            endPosition = i;
                             break;
                         }
                     }
                 }
                 
-                console.log('[Notation Render] Found', slashCount, 'slashes, cut position:', cutPosition);
+                console.log('[Notation Render] Slash count:', slashCount, 'start pos:', startPosition, 'end pos:', endPosition);
                 
-                if (cutPosition > 0) {
-                    // Truncate to first 3 bars (everything before the 4th slash)
-                    paeCode = paeCode.substring(0, cutPosition);
-                    console.log('[Notation Render] Truncated PAE to 3 bars:', paeCode);
+                // If we're not starting from the beginning, we need to preserve the header
+                if (startPosition > 0 && barInfo.startBar > 0) {
+                    // Extract header (everything before first bar)
+                    const firstSlashPos = paeCode.indexOf('/');
+                    const header = paeCode.substring(0, firstSlashPos + 1);
+                    const barsToDisplay = endPosition > startPosition ? 
+                        paeCode.substring(startPosition, endPosition) : 
+                        paeCode.substring(startPosition);
+                    paeCode = header + barsToDisplay;
+                    console.log('[Notation Render] Extracted bars', barInfo.startBar, 'to', (barInfo.startBar + barInfo.numBars - 1));
+                } else if (endPosition > 0) {
+                    // Starting from beginning, just truncate
+                    paeCode = paeCode.substring(0, endPosition);
+                    console.log('[Notation Render] Truncated to first', barInfo.numBars, 'bars');
                 } else {
-                    console.log('[Notation Render] Less than 4 bars, using full PAE');
+                    console.log('[Notation Render] Using full PAE (less than', barInfo.numBars, 'bars available)');
                 }
+                
+                console.log('[Notation Render] Final PAE:', paeCode);
                 
                 // Set Verovio options before loading data
                 console.log('[Notation Render] Setting Verovio options');
@@ -3372,10 +3487,10 @@ function normalizeMetreForComparison(metre) {
                         if (result.matchPositions && result.matchPositions.length > 0) {
                             if (searchQuery.intervals && searchQuery.intervals.length > 0) {
                                 // Pitch-based search highlighting
-                                highlightMatchingNotes(svgElement, result.matchPositions);
+                                highlightMatchingNotes(svgElement, result.matchPositions, barInfo.noteOffset);
                             } else if (searchQuery.contour && searchQuery.contour.length > 0) {
                                 // Contour search highlighting
-                                highlightMatchingNotes(svgElement, result.matchPositions);
+                                highlightMatchingNotes(svgElement, result.matchPositions, barInfo.noteOffset);
                             }
                         }
                     } else {
