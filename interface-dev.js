@@ -3261,6 +3261,11 @@ function displayMelodySearchResults(results, searchIntervals, searchPitchClasses
     if (! melodySearchResults) return;
     
     if (results.length === 0) {
+        // Clear count display when no results
+        const countDiv = document.getElementById('melodySearchCount');
+        if (countDiv) {
+            countDiv.textContent = '';
+        }
         melodySearchResults.innerHTML = '<div style="padding: 20px;text-align:center;color:#888;">No matching tunes found.  Try a different pattern.</div>';
         return;
     }
@@ -3323,12 +3328,12 @@ function normalizeMetreForComparison(metre) {
     
     melodySearchResults.innerHTML = '';
     
-    // Add results count display (right-aligned)
-    const countDiv = document.createElement('div');
-    countDiv.style.cssText = 'text-align: right; padding: 8px 0; color: #666; font-size: 0.95em; margin-bottom: 8px;';
-    const resultText = results.length === 1 ? '1 result' : `${results.length} results`;
-    countDiv.textContent = resultText;
-    melodySearchResults.appendChild(countDiv);
+    // Update results count display in separate div (outside scrollable area)
+    const countDiv = document.getElementById('melodySearchCount');
+    if (countDiv) {
+        const resultText = results.length === 1 ? '1 result' : `${results.length} results`;
+        countDiv.textContent = resultText;
+    }
     
     // Initialize Verovio toolkit if needed
     let verovioTk = null;
