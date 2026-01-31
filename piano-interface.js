@@ -219,6 +219,8 @@ console.log('Piano interface script file loaded!    ');
       newFuzzy.addEventListener('click', function() {
         // Always update visual state, regardless of current state
         useFuzzySearch = true;
+        newFuzzy.classList.add('active');
+        newExact.classList.remove('active');
         newFuzzy.style.background = '#6fc252';
         newFuzzy.style.color = 'white';
         newExact.style.background = 'white';
@@ -230,6 +232,8 @@ console.log('Piano interface script file loaded!    ');
       newExact.addEventListener('click', function() {
         // Always update visual state, regardless of current state
         useFuzzySearch = false;
+        newExact.classList.add('active');
+        newFuzzy.classList.remove('active');
         newExact.style.background = '#6fc252';
         newExact.style.color = 'white';
         newFuzzy.style.background = 'white';
@@ -254,6 +258,8 @@ console.log('Piano interface script file loaded!    ');
       newAnywhere.addEventListener('click', function() {
         // Always update visual state, regardless of current state
         searchIncipit = false;
+        newAnywhere.classList.add('active');
+        newIncipit.classList.remove('active');
         newAnywhere.style.background = '#6fc252';
         newAnywhere.style.color = 'white';
         newIncipit.style.background = 'white';
@@ -265,6 +271,8 @@ console.log('Piano interface script file loaded!    ');
       newIncipit.addEventListener('click', function() {
         // Always update visual state, regardless of current state
         searchIncipit = true;
+        newIncipit.classList.add('active');
+        newAnywhere.classList.remove('active');
         newIncipit.style.background = '#6fc252';
         newIncipit.style.color = 'white';
         newAnywhere.style.background = 'white';
