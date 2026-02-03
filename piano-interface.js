@@ -50,6 +50,13 @@ console.log('Piano interface script file loaded!    ');
   let useSolfa = false;    // Toggle state for notation display
   let useFuzzySearch = true; // Toggle state for search mode (fuzzy/exact)
   let searchIncipit = false; // Toggle state for search location (incipit/anywhere)
+  let resizeHandlerAttached = false; // Track if resize handler is attached
+  
+  // Black key positioning map - defines which white keys each black key sits between
+  const blackKeyPositions = {
+    1: [0, 1], 3: [1, 2], 6: [3, 4], 8: [4, 5], 10: [5, 6],
+    13: [7, 8], 15: [8, 9], 18: [10, 11]
+  };
   
   // Initialize with a realistic piano synthesizer
   async function initializePianoSampler() {
@@ -316,17 +323,12 @@ console.log('Piano interface script file loaded!    ');
     
     // Position black keys
     requestAnimationFrame(() => {
-      const blackKeyPositions = {
-        1: [0, 1], 3: [1, 2], 6: [3, 4], 8: [4, 5], 10: [5, 6],
-        13: [7, 8], 15: [8, 9], 18: [10, 11]
-      };
-      
       blackKeyData.forEach(({ key, index }) => {
         const keyElement = createPianoKey(key, index);
         container.appendChild(keyElement);
         
         // Use the shared positioning function
-        positionBlackKey(keyElement, whiteKeyElements, container, blackKeyPositions);
+        positionBlackKey(keyElement, whiteKeyElements, container);
       });
     });
     
@@ -334,7 +336,7 @@ console.log('Piano interface script file loaded!    ');
     console.log('✓ Piano UI initialized');
     
     // Add resize handler to reposition black keys (only once)
-    if (!window._pianoResizeHandlerAttached) {
+    if (!resizeHandlerAttached) {
       let resizeTimeout;
       window.addEventListener('resize', () => {
         clearTimeout(resizeTimeout);
@@ -342,13 +344,12 @@ console.log('Piano interface script file loaded!    ');
           repositionBlackKeys();
         }, 100);
       });
-      window._pianoResizeHandlerAttached = true;
+      resizeHandlerAttached = true;
     }
   }
   
-  // Function to reposition black keys on resize
-  // This extracts the positioning logic for reuse
-  function positionBlackKey(blackKey, whiteKeys, container, blackKeyPositions) {
+  // Shared function to position a single black key
+  function positionBlackKey(blackKey, whiteKeys, container) {
     const index = parseInt(blackKey.dataset.index);
     const whiteKeyIndices = blackKeyPositions[index];
     
@@ -368,7 +369,7 @@ console.log('Piano interface script file loaded!    ');
     }
   }
   
-  // Function to reposition black keys on resize
+  // Reposition all black keys (called on window resize)
   function repositionBlackKeys() {
     const container = document.getElementById('pianoKeysContainer');
     if (!container) return;
@@ -376,13 +377,8 @@ console.log('Piano interface script file loaded!    ');
     const whiteKeys = Array.from(container.querySelectorAll('.piano-key.white:not(.half-key)'));
     const blackKeys = Array.from(container.querySelectorAll('.piano-key.black'));
     
-    const blackKeyPositions = {
-      1: [0, 1], 3: [1, 2], 6: [3, 4], 8: [4, 5], 10: [5, 6],
-      13: [7, 8], 15: [8, 9], 18: [10, 11]
-    };
-    
     blackKeys.forEach(blackKey => {
-      positionBlackKey(blackKey, whiteKeys, container, blackKeyPositions);
+      positionBlackKey(blackKey, whiteKeys, container);
     });
   }
   
