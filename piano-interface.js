@@ -52,6 +52,10 @@ console.log('Piano interface script file loaded!    ');
   let searchIncipit = false; // Toggle state for search location (incipit/anywhere)
   let resizeHandlerAttached = false; // Track if resize handler is attached
   
+  // Selectors for piano keys
+  const WHITE_KEY_SELECTOR = '.piano-key.white:not(.half-key)';
+  const BLACK_KEY_SELECTOR = '.piano-key.black';
+  
   // Black key positioning map - defines which white keys each black key sits between
   const blackKeyPositions = {
     1: [0, 1], 3: [1, 2], 6: [3, 4], 8: [4, 5], 10: [5, 6],
@@ -374,8 +378,8 @@ console.log('Piano interface script file loaded!    ');
     const container = document.getElementById('pianoKeysContainer');
     if (!container) return;
     
-    const whiteKeys = Array.from(container.querySelectorAll('.piano-key.white:not(.half-key)'));
-    const blackKeys = Array.from(container.querySelectorAll('.piano-key.black'));
+    const whiteKeys = Array.from(container.querySelectorAll(WHITE_KEY_SELECTOR));
+    const blackKeys = Array.from(container.querySelectorAll(BLACK_KEY_SELECTOR));
     
     blackKeys.forEach(blackKey => {
       positionBlackKey(blackKey, whiteKeys, container);

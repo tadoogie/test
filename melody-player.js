@@ -170,7 +170,7 @@ async play(paeCode, tuneName, button) {
     // Validate inputs
     if (!paeCode || typeof paeCode !== 'string') {
         console.error('Invalid PAE code:', paeCode);
-        alert('Unable to play melody: Invalid PAE code');
+        alert('Unable to play melody: Melody data is not available');
         return;
     }
 
