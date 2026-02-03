@@ -366,9 +366,7 @@ function ensurePstuneSearchUI(tuneLabels, tuneListObjs, initialValue) {
         modal.style.display = 'flex';
         input.focus();
         const resultsDiv = document.getElementById('melodySearchResults');
-        if (resultsDiv) {
-          resultsDiv.innerHTML = '<div style="padding:20px;text-align:center;color:#555;">Enter pitch classes (0-11) separated by spaces to search for matching melodies.</div>';
-        }
+        
       }
     });
   }
@@ -3010,6 +3008,10 @@ function domContentLoadedHandlerMelodySearch() {
         melodySearchModal.style.display = "flex";
         melodySearchInput.focus();
         showMelodySearchInstructions();
+        // Initialize piano keyboard and toggle buttons
+        if (window.initMelodyPiano) {
+          window.initMelodyPiano();
+        }
       }
     });
   }
@@ -3053,10 +3055,10 @@ function domContentLoadedHandlerMelodySearch() {
   // Show initial instructions
   function showMelodySearchInstructions() {
     if (!melodySearchResults) return;
-    melodySearchResults.innerHTML = '<div style="padding:20px;text-align:center;color:#555;">Enter pitch classes (0-11) separated by spaces to search for matching melodies.</div>';
+    
   }
 
-  // Search melodies using server-side XQuery
+  // Search melodies using server-side XQuery with trigram (3-note n-gram) matching
   async function searchMelodies(pitchClassInput) {
     if (!pitchClassInput || pitchClassInput.trim().length === 0) {
       showMelodySearchInstructions();
@@ -3083,12 +3085,21 @@ function domContentLoadedHandlerMelodySearch() {
     const intervals = translatePitchClassesToSignedIntervals(pitchClasses);
     const intervalString = intervals.join(' ');
 
+    // Determine search mode
+    const useFuzzy = typeof window.isFuzzySearchMode === 'function' ? window.isFuzzySearchMode() : true;
+    const useIncipit = typeof window.isIncipitSearchMode === 'function' ? window.isIncipitSearchMode() : false;
+    
     // Show loading state with the translated intervals
-    melodySearchResults.innerHTML = '<div style="padding:20px;text-align:center;color:#555;">Searching for intervals: ' + intervals.map(formatSignedInterval).join(' ') + '...</div>';
+    const searchType = useFuzzy ? 
+      (intervals.length >= 2 ? '3-note n-gram (trigram) matching' : 'exact matching') :
+      'exact interval matching';
+    const searchLocation = useIncipit ? 'incipit (starting notes)' : 'anywhere in melody';
+    melodySearchResults.innerHTML = '<div style="padding:20px;text-align:center;color:#555;">Searching using ' + searchType + ' in ' + searchLocation + ' for intervals: ' + intervals.map(formatSignedInterval).join(' ') + '...</div>';
 
     try {
-      // Call server-side search
-      const url = `searchMelodies.xq?signedinterval=${encodeURIComponent(intervalString)}`;
+      // Call server-side search using appropriate XQuery file
+      const xqueryFile = useFuzzy ? 'searchMelodies.xq' : 'searchMelodiesExact.xq';
+      const url = `${xqueryFile}?signedinterval=${encodeURIComponent(intervalString)}&incipit=${useIncipit}`;
       const response = await fetch(url);
       
       if (!response.ok) {
@@ -3104,14 +3115,165 @@ function domContentLoadedHandlerMelodySearch() {
     }
   }
 
+  // Helper function to analyze PAE and find which bars contain matching notes
+  function extractNotesForDisplay(paeCode, matchPositions, maxNotes = 9) {
+    if (!matchPositions || matchPositions.length === 0) {
+      // No matches, extract first maxNotes notes
+      return extractFirstNNotes(paeCode, maxNotes, 0);
+    }
+    
+    // Find the first matching note position
+    const firstMatchPos = Math.min(...matchPositions);
+    console.log('[Note Extraction] First match position:', firstMatchPos);
+    
+    // Extract maxNotes notes starting from firstMatchPos
+    return extractFirstNNotes(paeCode, maxNotes, firstMatchPos);
+  }
+  
+  function extractFirstNNotes(paeCode, maxNotes, startFromNote) {
+    // Parse PAE to find note positions and extract exactly maxNotes notes
+    // In PAE: first '/' is after time signature, then content follows
+    // Notes are indicated by capital letters A-G
+    
+    const firstSlashPos = paeCode.indexOf('/');
+    if (firstSlashPos === -1) {
+      console.warn('[Note Extraction] No slash found in PAE');
+      return { paeCode: paeCode, noteOffset: 0 };
+    }
+    
+    const header = paeCode.substring(0, firstSlashPos + 1);
+    const content = paeCode.substring(firstSlashPos + 1);
+    
+    // Find note positions in content
+    const notePositions = [];
+    for (let i = 0; i < content.length; i++) {
+      const char = content[i];
+      if (char >= 'A' && char <= 'G') {
+        notePositions.push(i);
+      }
+    }
+    
+    console.log('[Note Extraction] Total notes found:', notePositions.length);
+    console.log('[Note Extraction] Requested start from note:', startFromNote, 'max notes:', maxNotes);
+    
+    if (notePositions.length === 0) {
+      console.warn('[Note Extraction] No notes found in PAE content');
+      return { paeCode: paeCode, noteOffset: 0 };
+    }
+    
+    // If startFromNote is beyond available notes, start from beginning
+    if (startFromNote >= notePositions.length) {
+      startFromNote = 0;
+    }
+    
+    // Calculate which notes to extract
+    const startNoteIndex = startFromNote;
+    const endNoteIndex = Math.min(startFromNote + maxNotes, notePositions.length);
+    const actualNotesExtracted = endNoteIndex - startNoteIndex;
+    
+    console.log('[Note Extraction] Extracting notes', startNoteIndex, 'to', endNoteIndex - 1, '(', actualNotesExtracted, 'notes)');
+    
+    if (startNoteIndex === 0 && endNoteIndex >= notePositions.length) {
+      // Using entire melody, no extraction needed
+      console.log('[Note Extraction] Using entire melody');
+      return { paeCode: paeCode, noteOffset: 0 };
+    }
+    
+    // Find the character positions to extract
+    const startCharPos = notePositions[startNoteIndex];
+    let endCharPos;
+    
+    if (endNoteIndex < notePositions.length) {
+      // Extract up to (but not including) the next note
+      endCharPos = notePositions[endNoteIndex];
+    } else {
+      // Extract to end of content
+      endCharPos = content.length;
+    }
+    
+    // For the start, we need to include any preceding modifiers (rhythms, accidentals, octaves)
+    // Back up to find the start of the note's expression
+    let actualStartPos = startCharPos;
+    while (actualStartPos > 0) {
+      const prevChar = content[actualStartPos - 1];
+      // If previous char is a note letter, a slash (bar line), or certain delimiters, stop backing up
+      if ((prevChar >= 'A' && prevChar <= 'G') || prevChar === '/' || prevChar === ' ') {
+        break;
+      }
+      // Otherwise, include it (it's a modifier like rhythm, accidental, octave mark)
+      actualStartPos--;
+    }
+    
+    const extractedContent = content.substring(actualStartPos, endCharPos);
+    const extractedPAE = header + extractedContent;
+    
+    console.log('[Note Extraction] Extracted PAE:', extractedPAE);
+    console.log('[Note Extraction] Note offset for highlighting:', startNoteIndex);
+    
+    return {
+      paeCode: extractedPAE,
+      noteOffset: startNoteIndex
+    };
+  }
+  
+  // Helper function to highlight matching notes in SVG
+  function highlightMatchingNotes(svgElement, matchPositions, noteOffset) {
+    if (!svgElement || !matchPositions || matchPositions.length === 0) {
+      return;
+    }
+    
+    console.log('[Note Highlighting] Match positions:', matchPositions, 'Note offset:', noteOffset);
+    
+    // Find all note elements in the SVG
+    // Verovio uses <g class="note"> for note groups
+    const noteElements = svgElement.querySelectorAll('g.note');
+    console.log('[Note Highlighting] Found', noteElements.length, 'note elements in SVG');
+    
+    // Highlight each matching note position
+    // Adjust positions by the note offset since we may not be showing the first bar
+    matchPositions.forEach(absolutePosition => {
+      const relativePosition = absolutePosition - noteOffset;
+      console.log('[Note Highlighting] Absolute position', absolutePosition, '-> relative position', relativePosition);
+      
+      // Only highlight if within the displayed range
+      if (relativePosition >= 0 && relativePosition < noteElements.length) {
+        const noteGroup = noteElements[relativePosition];
+        
+        // Find the notehead within this note group
+        const notehead = noteGroup.querySelector('.notehead');
+        if (notehead) {
+          // Add highlighting by changing fill color to a highlight color
+          notehead.setAttribute('fill', '#ff6b6b'); // Red highlight
+          notehead.setAttribute('stroke', '#ff0000');
+          notehead.setAttribute('stroke-width', '2');
+          console.log('[Note Highlighting] Highlighted note at relative position', relativePosition);
+        } else {
+          console.warn('[Note Highlighting] No notehead found in note group at position', relativePosition);
+        }
+      }
+    });
+  }
+
   // Display melody search results
-function displayMelodySearchResults(results) {
+function displayMelodySearchResults(results, searchIntervals, searchPitchClasses, searchContour) {
     if (! melodySearchResults) return;
     
     if (results.length === 0) {
+        // Clear count display when no results
+        const countDiv = document.getElementById('melodySearchCount');
+        if (countDiv) {
+            countDiv.textContent = '';
+        }
         melodySearchResults.innerHTML = '<div style="padding: 20px;text-align:center;color:#888;">No matching tunes found.  Try a different pattern.</div>';
         return;
     }
+    
+    // Store search parameters for highlighting
+    const searchQuery = {
+        intervals: searchIntervals || [],
+        pitchClasses: searchPitchClasses || [],
+        contour: searchContour || ''
+    };
     
     // Get the currently selected text's metre
     const psTextInput = document.getElementById('pstext');
@@ -3164,6 +3326,33 @@ function normalizeMetreForComparison(metre) {
     
     melodySearchResults.innerHTML = '';
     
+    // Update results count display in separate div (outside scrollable area)
+    const countDiv = document.getElementById('melodySearchCount');
+    if (countDiv) {
+        const resultText = results.length === 1 ? '1 result' : `${results.length} results`;
+        countDiv.textContent = resultText;
+    }
+    
+    // Initialize Verovio toolkit if needed
+    let verovioTk = null;
+    console.log('[Verovio Check] window.melodyPlayer:', window.melodyPlayer);
+    console.log('[Verovio Check] typeof verovio:', typeof verovio);
+    
+    if (window.melodyPlayer && window.melodyPlayer.verovioToolkit) {
+        verovioTk = window.melodyPlayer.verovioToolkit;
+        console.log('[Verovio Check] Using melodyPlayer.verovioToolkit');
+    } else if (typeof verovio !== 'undefined' && verovio.toolkit) {
+        // Create a toolkit instance for rendering notations
+        try {
+            verovioTk = new verovio.toolkit();
+            console.log('[Verovio Check] Created new verovio.toolkit()');
+        } catch (e) {
+            console.error('[Verovio Check] Error creating toolkit:', e);
+        }
+    } else {
+        console.warn('[Verovio Check] Verovio not available');
+    }
+    
     results.forEach(result => {
         const resultItem = document.createElement('div');
         resultItem.style.cssText = 'padding:12px;margin:8px 0;background:#f5f5f5;border-radius:6px;cursor:pointer;display:flex;align-items:center;gap:12px;transition:background 0.2s;';
@@ -3182,60 +3371,139 @@ function normalizeMetreForComparison(metre) {
         console.log('Metre comparison:', {
             current: currentMetre,
             currentNormalized: normalizedCurrentMetre,
-            result: result. metre,
+            result: result.metre,
             resultNormalized: normalizedResultMetre,
             matches: metreMatches,
             fullLabel: fullLabel
         });
         
-        // Create play button
+        // Column 1: Create play button
         const playBtn = window.melodyPlayer.createPlayButton();
-        playBtn.style.flexShrink = '0';
+        playBtn.style.cssText = 'flex-shrink:0;width:40px;';
         
-        // Create main content container (fixed width to maintain alignment)
-        const contentContainer = document.createElement('div');
-        contentContainer.style.cssText = 'flex: 1;display:flex;align-items:center;gap:12px;min-width:0;';
-        
-        // Left side:  title, date, and metre (takes up available space)
+        // Column 2: Title, date, and metre
         const textInfo = document.createElement('div');
         textInfo.style.cssText = 'flex:1;min-width:0;';
         
-        // Tune title
-        const titleDiv = document.createElement('div');
-        titleDiv.textContent = result.title;
-        titleDiv.style.cssText = 'font-weight:bold;font-size:1em;color:#333;margin-bottom:2px;';
+        // Title and date on same line
+        const titleDateDiv = document.createElement('div');
+        titleDateDiv.style.cssText = 'font-size:1em;color:#333;margin-bottom:4px;';
         
-        // Date (NEW)
-        const dateDiv = document. createElement('div');
-        dateDiv.textContent = result.date || 'Date unknown';
-        dateDiv.style. cssText = 'font-size:0.85em;color:#888;margin-bottom:2px;';
+        const titleSpan = document.createElement('span');
+        titleSpan.textContent = result.title;
+        titleSpan.style.fontWeight = 'bold';
         
-        // Metre label
+        const dateSpan = document.createElement('span');
+        dateSpan.textContent = result.date ? ` (${result.date})` : '';
+        dateSpan.style.fontWeight = 'normal';
+        
+        titleDateDiv.appendChild(titleSpan);
+        titleDateDiv.appendChild(dateSpan);
+        
+        // Metre on second line with conditional styling
         const metreDiv = document.createElement('div');
-        metreDiv.textContent = result.metre || 'Unknown metre';
-        metreDiv.style.cssText = 'font-size:0.85em;color:#666;font-weight:normal;';
-        
-        textInfo.appendChild(titleDiv);
-        textInfo.appendChild(dateDiv);
-        textInfo.appendChild(metreDiv);
-        
-        contentContainer.appendChild(textInfo);
-        
-        // Right side: warning if metre doesn't match (fixed width to maintain alignment)
-        const warningContainer = document.createElement('div');
-        warningContainer.style.cssText = 'width:80px;flex-shrink:30px;text-align:right;';
+        metreDiv.style.cssText = 'font-size:0.85em;';
         
         if (!metreMatches && currentMetre) {
-            const warningDiv = document.createElement('div');
-            warningDiv. textContent = 'Tune\'s metre is different from text\'s';
-            warningDiv.style.cssText = 'color:#d32f2f;font-size:0.85em;line-height:1.3;';
-            warningContainer. appendChild(warningDiv);
+            metreDiv.style.color = '#d32f2f'; // Red
+            metreDiv.textContent = (result.metre || 'Unknown metre') + ' *';
+        } else {
+            metreDiv.style.color = '#666';
+            metreDiv.textContent = result.metre || 'Unknown metre';
         }
         
-        contentContainer.appendChild(warningContainer);
+        textInfo.appendChild(titleDateDiv);
+        textInfo.appendChild(metreDiv);
+        
+        // Column 3: Music notation SVG
+        const notationContainer = document.createElement('div');
+        notationContainer.style.cssText = 'width:250px;height:70px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:white;border:1px solid #ddd;border-radius:4px;overflow:hidden;';
+        
+        console.log('[Notation Render] Processing result:', result.title);
+        console.log('[Notation Render] PAE code:', result.plaineAndEasie);
+        console.log('[Notation Render] verovioTk available:', !!verovioTk);
+        
+        // Generate SVG from PAE code using Verovio
+        if (result.plaineAndEasie && verovioTk) {
+            try {
+                let paeCode = result.plaineAndEasie.trim();
+                console.log('[Notation Render] Original PAE:', paeCode);
+                
+                // Extract exactly 9 notes starting from the first match position
+                const extractionResult = extractNotesForDisplay(paeCode, result.matchPositions || [], 9);
+                paeCode = extractionResult.paeCode;
+                const noteOffset = extractionResult.noteOffset;
+                
+                console.log('[Notation Render] Extracted PAE:', paeCode);
+                console.log('[Notation Render] Note offset:', noteOffset);
+                
+                // Set Verovio options before loading data
+                console.log('[Notation Render] Setting Verovio options');
+                verovioTk.setOptions({
+                    inputFrom: 'pae',
+                    scale: 40,
+                    pageHeight: 400,
+                    pageWidth: 1000,
+                    pageMarginTop: 0,
+                    pageMarginBottom: 0,
+                    adjustPageHeight: true,
+                    evenNoteSpacing: true,
+                    spacingLinear: 0.5,
+                    breaks: 'none',
+                    header: 'none',
+                    footer: 'none'
+                });
+                
+                // Load PAE data directly (no MEI wrapper needed with inputFrom: 'pae')
+                console.log('[Notation Render] Loading PAE data into Verovio');
+                verovioTk.loadData(paeCode);
+                
+                console.log('[Notation Render] Rendering to SVG');
+                const svg = verovioTk.renderToSVG(1);
+                console.log('[Notation Render] SVG rendered, length:', svg ? svg.length : 0);
+                
+                if (svg) {
+                    notationContainer.innerHTML = svg;
+                    const svgElement = notationContainer.querySelector('svg');
+                    if (svgElement) {
+                        svgElement.style.cssText = 'max-width:100%;max-height:100%;';
+                        console.log('[Notation Render] SVG element inserted successfully');
+                        
+                        // Highlight matching notes if we have search query information and match positions
+                        if (result.matchPositions && result.matchPositions.length > 0) {
+                            if (searchQuery.intervals && searchQuery.intervals.length > 0) {
+                                // Pitch-based search highlighting
+                                highlightMatchingNotes(svgElement, result.matchPositions, noteOffset);
+                            } else if (searchQuery.contour && searchQuery.contour.length > 0) {
+                                // Contour search highlighting
+                                highlightMatchingNotes(svgElement, result.matchPositions, noteOffset);
+                            }
+                        }
+                    } else {
+                        console.warn('[Notation Render] No SVG element found after insertion');
+                    }
+                } else {
+                    console.warn('[Notation Render] Verovio returned empty SVG');
+                    notationContainer.innerHTML = '<span style="color:#999;font-size:0.8em;">Notation unavailable</span>';
+                }
+            } catch (e) {
+                console.error('[Notation Render] Error rendering notation:', e);
+                console.error('[Notation Render] Error stack:', e.stack);
+                notationContainer.innerHTML = '<span style="color:#999;font-size:0.8em;">Error rendering notation</span>';
+            }
+        } else {
+            if (!result.plaineAndEasie) {
+                console.warn('[Notation Render] No PAE code available for:', result.title);
+            }
+            if (!verovioTk) {
+                console.warn('[Notation Render] Verovio toolkit not available');
+            }
+            notationContainer.innerHTML = '<span style="color:#999;font-size:0.8em;">Notation unavailable</span>';
+        }
         
         resultItem.appendChild(playBtn);
-        resultItem.appendChild(contentContainer);
+        resultItem.appendChild(textInfo);
+        resultItem.appendChild(notationContainer);
         
         // Play button click handler
         playBtn.addEventListener('click', function(e) {
@@ -3439,10 +3707,141 @@ function normalizeMetreForComparison(metre) {
     try { maybeShowNextForTune(); } catch(e) { console.warn('maybeShowNextForTune error:', e); }
 }
 
+  // ===== CONTOUR SEARCH FUNCTIONALITY =====
+  
+  let currentSearchMode = 'pitch'; // 'pitch' or 'contour'
+  
+  // Setup search mode toggle buttons
+  const pitchSearchModeBtn = document.getElementById('pitchSearchModeBtn');
+  const contourSearchModeBtn = document.getElementById('contourSearchModeBtn');
+  const pitchSearchInterface = document.getElementById('pitchSearchInterface');
+  const contourSearchInterface = document.getElementById('contourSearchInterface');
+  
+  // Helper function to update button styles
+  function updateSearchModeButtons(activeBtn, inactiveBtn) {
+    activeBtn.classList.add('active');
+    inactiveBtn.classList.remove('active');
+    activeBtn.style.background = '#6fc252';
+    activeBtn.style.color = 'white';
+    inactiveBtn.style.background = 'white';
+    inactiveBtn.style.color = '#6fc252';
+  }
+  
+  if (pitchSearchModeBtn && contourSearchModeBtn) {
+    pitchSearchModeBtn.addEventListener('click', function() {
+      currentSearchMode = 'pitch';
+      updateSearchModeButtons(pitchSearchModeBtn, contourSearchModeBtn);
+      if (pitchSearchInterface) pitchSearchInterface.style.display = 'block';
+      if (contourSearchInterface) contourSearchInterface.style.display = 'none';
+    });
+    
+    contourSearchModeBtn.addEventListener('click', function() {
+      currentSearchMode = 'contour';
+      updateSearchModeButtons(contourSearchModeBtn, pitchSearchModeBtn);
+      if (pitchSearchInterface) pitchSearchInterface.style.display = 'none';
+      if (contourSearchInterface) contourSearchInterface.style.display = 'block';
+    });
+  }
+  
+  // Contour input handling
+  let contourPattern = '';
+  const contourSearchInput = document.getElementById('contourSearchInput');
+  const contourUpBtn = document.getElementById('contourUpBtn');
+  const contourDownBtn = document.getElementById('contourDownBtn');
+  const contourSameBtn = document.getElementById('contourSameBtn');
+  const deleteContourBtn = document.getElementById('deleteContourBtn');
+  const clearContourBtn = document.getElementById('clearContourBtn');
+  
+  function updateContourDisplay() {
+    if (contourSearchInput) {
+      contourSearchInput.value = contourPattern;
+    }
+  }
+  
+  if (contourUpBtn) {
+    contourUpBtn.addEventListener('click', function() {
+      contourPattern += '+';
+      updateContourDisplay();
+    });
+  }
+  
+  if (contourDownBtn) {
+    contourDownBtn.addEventListener('click', function() {
+      contourPattern += '-';
+      updateContourDisplay();
+    });
+  }
+  
+  if (contourSameBtn) {
+    contourSameBtn.addEventListener('click', function() {
+      contourPattern += '=';
+      updateContourDisplay();
+    });
+  }
+  
+  if (deleteContourBtn) {
+    deleteContourBtn.addEventListener('click', function() {
+      if (contourPattern.length > 0) {
+        contourPattern = contourPattern.slice(0, -1);
+        updateContourDisplay();
+      }
+    });
+  }
+  
+  if (clearContourBtn) {
+    clearContourBtn.addEventListener('click', function() {
+      contourPattern = '';
+      updateContourDisplay();
+    });
+  }
+  
+  // Search by contour
+  async function searchMelodiesByContour(contour) {
+    if (!contour || contour.trim().length === 0) {
+      melodySearchResults.innerHTML = '<div style="padding:20px;text-align:center;color:#555;">Build a contour pattern using the buttons above to search for matching melodies.</div>';
+      return;
+    }
+    
+    if (contour.length < 2) {
+      melodySearchResults.innerHTML = '<div style="padding:20px;text-align:center;color:#d32f2f;">Please enter at least 2 contour symbols.</div>';
+      return;
+    }
+    
+    // Check if fuzzy search mode is enabled
+    const useFuzzy = typeof window.isFuzzySearchMode === 'function' ? window.isFuzzySearchMode() : true;
+    const useIncipit = typeof window.isIncipitSearchMode === 'function' ? window.isIncipitSearchMode() : false;
+    
+    // Show loading state
+    const searchLocation = useIncipit ? 'incipit (starting pattern)' : 'anywhere in melody';
+    melodySearchResults.innerHTML = '<div style="padding:20px;text-align:center;color:#555;">Searching for contour in ' + searchLocation + ': ' + contour + '...</div>';
+    
+    try {
+      // Call appropriate server-side search based on mode
+      const xqueryFile = useFuzzy ? 'searchMelodiesContour.xq' : 'searchMelodiesContourExact.xq';
+      const url = `${xqueryFile}?contour=${encodeURIComponent(contour)}&incipit=${useIncipit}`;
+      const response = await fetch(url);
+      
+      if (!response.ok) {
+        throw new Error(`Search failed: ${response.status} ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      displayMelodySearchResults(data.results || [], null, null, contour);
+      
+    } catch (error) {
+      console.error('Contour search error:', error);
+      melodySearchResults.innerHTML = '<div style="padding:20px;text-align:center;color:#d32f2f;">Search failed. Please try again.</div>';
+    }
+  }
+
   // Search button click handler
   if (executeMelodySearchBtn && melodySearchInput) {
     executeMelodySearchBtn.addEventListener('click', function() {
-      searchMelodies(melodySearchInput.value);
+      if (currentSearchMode === 'pitch') {
+        searchMelodies(melodySearchInput.value);
+      } else if (currentSearchMode === 'contour') {
+        searchMelodiesByContour(contourPattern);
+      }
     });
   }
   
