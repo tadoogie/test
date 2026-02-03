@@ -336,7 +336,9 @@ console.log('Piano interface script file loaded!    ');
             const leftRect = leftKey.getBoundingClientRect();
             const containerRect = container.getBoundingClientRect();
             const leftEdge = leftRect.right - containerRect.left;
-            const centerPosition = leftEdge - 14;
+            // Calculate offset as half of black key width
+            const blackKeyWidth = keyElement.offsetWidth;
+            const centerPosition = leftEdge - (blackKeyWidth / 2);
             
             keyElement.style.left = `${centerPosition}px`;
           }
@@ -346,6 +348,49 @@ console.log('Piano interface script file loaded!    ');
     
     isInitialized = true;
     console.log('✓ Piano UI initialized');
+    
+    // Add resize handler to reposition black keys
+    let resizeTimeout;
+    window.addEventListener('resize', () => {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(() => {
+        repositionBlackKeys();
+      }, 100);
+    });
+  }
+  
+  // Function to reposition black keys on resize
+  function repositionBlackKeys() {
+    const container = document.getElementById('pianoKeysContainer');
+    if (!container) return;
+    
+    const whiteKeys = Array.from(container.querySelectorAll('.piano-key.white:not(.half-key)'));
+    const blackKeys = Array.from(container.querySelectorAll('.piano-key.black'));
+    
+    const blackKeyPositions = {
+      1: [0, 1], 3: [1, 2], 6: [3, 4], 8: [4, 5], 10: [5, 6],
+      13: [7, 8], 15: [8, 9], 18: [10, 11]
+    };
+    
+    blackKeys.forEach(blackKey => {
+      const index = parseInt(blackKey.dataset.index);
+      const whiteKeyIndices = blackKeyPositions[index];
+      
+      if (whiteKeyIndices) {
+        const [leftIdx, rightIdx] = whiteKeyIndices;
+        const leftKey = whiteKeys[leftIdx];
+        
+        if (leftKey) {
+          const leftRect = leftKey.getBoundingClientRect();
+          const containerRect = container.getBoundingClientRect();
+          const leftEdge = leftRect.right - containerRect.left;
+          const blackKeyWidth = blackKey.offsetWidth;
+          const centerPosition = leftEdge - (blackKeyWidth / 2);
+          
+          blackKey.style.left = `${centerPosition}px`;
+        }
+      }
+    });
   }
   
   function createPianoKey(key, index) {
@@ -357,7 +402,7 @@ console.log('Piano interface script file loaded!    ');
     
     const label = document.createElement('span');
     label.textContent = key.note;
-    label.style.fontSize = key.type === 'black' ? '14px' : '14px';
+    // Font size is now handled by CSS clamp() for responsiveness
     keyElement.appendChild(label);
     
     // Click handler

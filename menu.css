@@ -910,7 +910,7 @@ dl dt { font-weight: bold; }
  #paperSizeModal, #shareModal, #searchModal, #melodySearchModal {
                 display: none;
                 position: fixed;
-                z-index: 1000;
+                z-index: 1400;
                 left: 0;
                 top: 0;
                 width: 100%;
@@ -1778,6 +1778,8 @@ div #tuneButtons button, .source-button {
   position: relative;
   display: flex;
   gap: 2px;
+  width: 100%;
+  height: 100%;
 }
 
 .piano-key {
@@ -1790,17 +1792,17 @@ div #tuneButtons button, .source-button {
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  font-size: 10px;
   font-weight: bold;
   padding-bottom: 5px;
 }
 
 .piano-key.white {
-  width: 36px;
-  height: 110px;
+  width: calc((100% - 24px) / 12); /* 12 white keys, minus gaps */
+  height: 100%;
   background: linear-gradient(to bottom, #fff 0%, #f5f5f5 100%);
   z-index: 1;
   color: #666;
+  font-size: clamp(8px, 1vw, 14px); /* Responsive font size */
 }
 
 .piano-key.white:hover {
@@ -1808,7 +1810,7 @@ div #tuneButtons button, .source-button {
 }
 
 .piano-key.white:active,
-.piano-key.white. active {
+.piano-key.white.active {
   background: linear-gradient(to bottom, #89cb72 0%, #6fc252 100%);
   color: white;
   transform: translateY(2px);
@@ -1816,14 +1818,15 @@ div #tuneButtons button, .source-button {
 }
 
 .piano-key.black {
-  width: 24px;
-  height: 70px;
+  width: calc((100% - 24px) / 18); /* Relative to container width */
+  height: 63.6%; /* 70/110 = 63.6% of white key height */
   background: linear-gradient(to bottom, #333 0%, #000 100%);
   position: absolute;
   z-index: 2;
   color: #ccc;
-  border:  1px solid #000;
+  border: 1px solid #000;
   box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+  font-size: clamp(7px, 0.9vw, 12px); /* Responsive font size */
 }
 
 .piano-key.black:hover {
@@ -1831,26 +1834,16 @@ div #tuneButtons button, .source-button {
 }
 
 .piano-key.black:active,
-.piano-key.black. active {
+.piano-key.black.active {
   background: linear-gradient(to bottom, #6fc252 0%, #5ab03d 100%);
   color: white;
   transform: translateY(2px);
   box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
 }
 
-/* Position black keys */
-.piano-key. black:nth-of-type(1) { left: 26px; }
-.piano-key.black:nth-of-type(2) { left: 64px; }
-.piano-key.black:nth-of-type(3) { left: 140px; }
-.piano-key.black:nth-of-type(4) { left: 178px; }
-.piano-key.black:nth-of-type(5) { left: 216px; }
-.piano-key.black:nth-of-type(6) { left: 292px; }
-.piano-key.black:nth-of-type(7) { left: 330px; }
-.piano-key.black:nth-of-type(8) { left: 406px; }
-.piano-key.black:nth-of-type(9) { left: 444px; }
-.piano-key.black:nth-of-type(10) { left: 482px; }
+/* Black key positioning is now calculated dynamically in JavaScript */
 
-#deletePitchBtn: hover {
+#deletePitchBtn:hover {
   background-color:  #da190b;
 }
 
