@@ -47,7 +47,9 @@ console.log('Piano interface script file loaded!    ');
   let isInitialized = false;
   let pianoSynth = null;
   let samplerReady = false;
-  let useSolfa = false;    // Toggle state
+  let useSolfa = false;    // Toggle state for notation display
+  let useFuzzySearch = true; // Toggle state for search mode (fuzzy/exact)
+  let searchIncipit = false; // Toggle state for search location (incipit/anywhere)
   
   // Initialize with a realistic piano synthesizer
   async function initializePianoSampler() {
@@ -184,18 +186,100 @@ console.log('Piano interface script file loaded!    ');
     
     // Set up the toggle button (it's already in the HTML above the keyboard)
     const toggleBtn = document.getElementById('notationToggle');
-    if (toggleBtn && ! toggleBtn.dataset.initialized) {
-      toggleBtn.dataset.initialized = 'true';
-      toggleBtn.addEventListener('click', function() {
+    if (toggleBtn) {
+      // Remove old listener if exists by cloning the button
+      const newBtn = toggleBtn.cloneNode(true);
+      toggleBtn.parentNode.replaceChild(newBtn, toggleBtn);
+      
+      // Add fresh event listener
+      newBtn.addEventListener('click', function() {
         useSolfa = !useSolfa;
-        toggleBtn.textContent = useSolfa ? 'Pitches' : 'Sol-fa';
-        toggleBtn.title = useSolfa ? 'Switch to pitch names' : 'Switch to Sol-fa notation';
-        toggleBtn.classList.toggle('active', useSolfa);
+        newBtn.textContent = useSolfa ? 'Pitches' : 'Sol-fa';
+        newBtn.title = useSolfa ? 'Switch to pitch names' : 'Switch to Sol-fa notation';
+        newBtn.classList.toggle('active', useSolfa);
         console.log(`Toggle clicked - useSolfa is now: ${useSolfa}`);
         updateKeyLabels();
         updateDisplay();
       });
-      console.log('Toggle button initialized');
+      console.log('Toggle button initialized (fresh listener)');
+    }
+    
+    // Set up the search mode toggle buttons (Fuzzy/Exact)
+    const searchModeToggleFuzzy = document.getElementById('searchModeToggle');
+    const searchModeToggleExact = document.getElementById('searchModeToggleAlt');
+    
+    if (searchModeToggleFuzzy && searchModeToggleExact) {
+      // Remove old listeners by cloning
+      const newFuzzy = searchModeToggleFuzzy.cloneNode(true);
+      const newExact = searchModeToggleExact.cloneNode(true);
+      searchModeToggleFuzzy.parentNode.replaceChild(newFuzzy, searchModeToggleFuzzy);
+      searchModeToggleExact.parentNode.replaceChild(newExact, searchModeToggleExact);
+      
+      // Click handler for Fuzzy button
+      newFuzzy.addEventListener('click', function() {
+        // Always update visual state, regardless of current state
+        useFuzzySearch = true;
+        newFuzzy.classList.add('active');
+        newExact.classList.remove('active');
+        newFuzzy.style.background = '#6fc252';
+        newFuzzy.style.color = 'white';
+        newExact.style.background = 'white';
+        newExact.style.color = '#6fc252';
+        console.log('Switched to Fuzzy search');
+      });
+      
+      // Click handler for Exact button
+      newExact.addEventListener('click', function() {
+        // Always update visual state, regardless of current state
+        useFuzzySearch = false;
+        newExact.classList.add('active');
+        newFuzzy.classList.remove('active');
+        newExact.style.background = '#6fc252';
+        newExact.style.color = 'white';
+        newFuzzy.style.background = 'white';
+        newFuzzy.style.color = '#6fc252';
+        console.log('Switched to Exact search');
+      });
+      console.log('Search mode toggle buttons initialized');
+    }
+    
+    // Set up the search location toggle buttons (Anywhere/Incipit)
+    const searchLocationAnywhere = document.getElementById('searchLocationToggle');
+    const searchLocationIncipit = document.getElementById('searchLocationToggleAlt');
+    
+    if (searchLocationAnywhere && searchLocationIncipit) {
+      // Remove old listeners by cloning
+      const newAnywhere = searchLocationAnywhere.cloneNode(true);
+      const newIncipit = searchLocationIncipit.cloneNode(true);
+      searchLocationAnywhere.parentNode.replaceChild(newAnywhere, searchLocationAnywhere);
+      searchLocationIncipit.parentNode.replaceChild(newIncipit, searchLocationIncipit);
+      
+      // Click handler for Anywhere button
+      newAnywhere.addEventListener('click', function() {
+        // Always update visual state, regardless of current state
+        searchIncipit = false;
+        newAnywhere.classList.add('active');
+        newIncipit.classList.remove('active');
+        newAnywhere.style.background = '#6fc252';
+        newAnywhere.style.color = 'white';
+        newIncipit.style.background = 'white';
+        newIncipit.style.color = '#6fc252';
+        console.log('Switched to Anywhere search');
+      });
+      
+      // Click handler for Incipit button
+      newIncipit.addEventListener('click', function() {
+        // Always update visual state, regardless of current state
+        searchIncipit = true;
+        newIncipit.classList.add('active');
+        newAnywhere.classList.remove('active');
+        newIncipit.style.background = '#6fc252';
+        newIncipit.style.color = 'white';
+        newAnywhere.style.background = 'white';
+        newAnywhere.style.color = '#6fc252';
+        console.log('Switched to Incipit search');
+      });
+      console.log('Search location toggle buttons initialized');
     }
     
     // Create container for keys
@@ -404,6 +488,16 @@ console.log('Piano interface script file loaded!    ');
   }
   
   window.initMelodyPiano = initializePiano;
+  
+  // Expose search mode state getter
+  window.isFuzzySearchMode = function() {
+    return useFuzzySearch;
+  };
+  
+  // Expose search location state getter
+  window.isIncipitSearchMode = function() {
+    return searchIncipit;
+  };
   
 })();
 
