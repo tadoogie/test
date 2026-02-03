@@ -1797,7 +1797,7 @@ div #tuneButtons button, .source-button {
 }
 
 .piano-key.white {
-  width: calc((100% - 24px) / 12); /* 12 white keys, minus gaps */
+  width: calc((100% - 22px) / 12); /* 12 white keys with 11 gaps of 2px each (11 * 2px = 22px) */
   height: 100%;
   background: linear-gradient(to bottom, #fff 0%, #f5f5f5 100%);
   z-index: 1;
@@ -1818,7 +1818,7 @@ div #tuneButtons button, .source-button {
 }
 
 .piano-key.black {
-  width: calc((100% - 24px) / 18); /* Relative to container width */
+  width: calc((100% - 22px) / 18); /* Black keys sized proportionally smaller than white keys */
   height: 63.6%; /* 70/110 = 63.6% of white key height */
   background: linear-gradient(to bottom, #333 0%, #000 100%);
   position: absolute;

@@ -325,38 +325,47 @@ console.log('Piano interface script file loaded!    ');
         const keyElement = createPianoKey(key, index);
         container.appendChild(keyElement);
         
-        const whiteKeyIndices = blackKeyPositions[index];
-        if (whiteKeyIndices) {
-          const [leftIdx, rightIdx] = whiteKeyIndices;
-          const leftKey = whiteKeyElements[leftIdx];
-          const rightKey = rightIdx < whiteKeyElements.length ? 
-                          whiteKeyElements[rightIdx] : halfKey;
-          
-          if (leftKey && rightKey) {
-            const leftRect = leftKey.getBoundingClientRect();
-            const containerRect = container.getBoundingClientRect();
-            const leftEdge = leftRect.right - containerRect.left;
-            // Calculate offset as half of black key width
-            const blackKeyWidth = keyElement.offsetWidth;
-            const centerPosition = leftEdge - (blackKeyWidth / 2);
-            
-            keyElement.style.left = `${centerPosition}px`;
-          }
-        }
+        // Use the shared positioning function
+        positionBlackKey(keyElement, whiteKeyElements, container, blackKeyPositions);
       });
     });
     
     isInitialized = true;
     console.log('✓ Piano UI initialized');
     
-    // Add resize handler to reposition black keys
-    let resizeTimeout;
-    window.addEventListener('resize', () => {
-      clearTimeout(resizeTimeout);
-      resizeTimeout = setTimeout(() => {
-        repositionBlackKeys();
-      }, 100);
-    });
+    // Add resize handler to reposition black keys (only once)
+    if (!window._pianoResizeHandlerAttached) {
+      let resizeTimeout;
+      window.addEventListener('resize', () => {
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(() => {
+          repositionBlackKeys();
+        }, 100);
+      });
+      window._pianoResizeHandlerAttached = true;
+    }
+  }
+  
+  // Function to reposition black keys on resize
+  // This extracts the positioning logic for reuse
+  function positionBlackKey(blackKey, whiteKeys, container, blackKeyPositions) {
+    const index = parseInt(blackKey.dataset.index);
+    const whiteKeyIndices = blackKeyPositions[index];
+    
+    if (whiteKeyIndices) {
+      const [leftIdx, rightIdx] = whiteKeyIndices;
+      const leftKey = whiteKeys[leftIdx];
+      
+      if (leftKey) {
+        const leftRect = leftKey.getBoundingClientRect();
+        const containerRect = container.getBoundingClientRect();
+        const leftEdge = leftRect.right - containerRect.left;
+        const blackKeyWidth = blackKey.offsetWidth;
+        const centerPosition = leftEdge - (blackKeyWidth / 2);
+        
+        blackKey.style.left = `${centerPosition}px`;
+      }
+    }
   }
   
   // Function to reposition black keys on resize
@@ -373,23 +382,7 @@ console.log('Piano interface script file loaded!    ');
     };
     
     blackKeys.forEach(blackKey => {
-      const index = parseInt(blackKey.dataset.index);
-      const whiteKeyIndices = blackKeyPositions[index];
-      
-      if (whiteKeyIndices) {
-        const [leftIdx, rightIdx] = whiteKeyIndices;
-        const leftKey = whiteKeys[leftIdx];
-        
-        if (leftKey) {
-          const leftRect = leftKey.getBoundingClientRect();
-          const containerRect = container.getBoundingClientRect();
-          const leftEdge = leftRect.right - containerRect.left;
-          const blackKeyWidth = blackKey.offsetWidth;
-          const centerPosition = leftEdge - (blackKeyWidth / 2);
-          
-          blackKey.style.left = `${centerPosition}px`;
-        }
-      }
+      positionBlackKey(blackKey, whiteKeys, container, blackKeyPositions);
     });
   }
   
