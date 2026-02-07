@@ -1863,3 +1863,66 @@ div #tuneButtons button, .source-button {
   letter-spacing: 2px;
   text-align: center;
 }
+
+/* Responsive design for mobile devices - make modals full width with reduced padding */
+@media (max-width: 600px) {
+  #melodySearchModal > div,
+  #searchModal > div {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 15px !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+    height: 100vh;
+    overflow-y: auto;
+  }
+
+  /* Reduce padding for toggle buttons on mobile */
+  #melodySearchModal button.search-mode-btn {
+    padding: 10px !important;
+    font-size: 1.1em !important;
+  }
+
+  /* Make piano keyboard container use more space */
+  #pianoContainer {
+    width: 95% !important;
+    margin: 8px auto !important;
+  }
+
+  /* Reduce keyboard padding */
+  #pianoKeyboard {
+    padding: 8px !important;
+    height: 120px !important;
+  }
+
+  /* Adjust search options section */
+  #melodySearchModal .search-options {
+    padding: 8px !important;
+    margin: 8px auto 0 !important;
+  }
+
+  /* Make buttons more compact */
+  #melodySearchModal button#executeMelodySearchBtn,
+  #melodySearchModal button#closeMelodySearchModalBtn {
+    padding: 8px 15px !important;
+    margin: 8px 3px !important;
+    font-size: 0.95em !important;
+  }
+}
+
+/* Additional adjustments for very small screens (like older iPhones) */
+@media (max-width: 400px) {
+  #melodySearchModal > div,
+  #searchModal > div {
+    padding: 10px !important;
+  }
+
+  #melodySearchModal button.search-mode-btn {
+    padding: 8px !important;
+    font-size: 1em !important;
+  }
+
+  #pianoKeyboard {
+    height: 100px !important;
+  }
+}
