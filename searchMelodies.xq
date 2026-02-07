@@ -14,7 +14,7 @@ let $results : =
     for $doc in collection("/db/tunes")//mei:mei
     let $intervalCode := $doc//mei:incipCode[@form="signedinterval"]
     let $pitchCode := $doc//mei:incipCode[@form="pitchclass"]
-    let $paeCode := $doc//mei:incipCode[@form="pae"]
+    let $paeCode := $doc//mei:incipCode[@form="plaineAndEasie"]
     where $intervalCode and contains(string($intervalCode), $signedinterval)
     (: Get the actual document path :)
     let $docPath := document-uri(root($doc))
