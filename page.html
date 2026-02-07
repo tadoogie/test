@@ -1251,10 +1251,8 @@
         }
 
         document.addEventListener("DOMContentLoaded", function() {
-          // Awesomplete setup
-          if (typeof pssourceList !== "undefined" &amp;&amp; Array.isArray(pssourceList)) {
-              new Awesomplete(document.getElementById("pssource"), { list: pssourceList });
-          }
+          // Awesomplete setup removed for pssource (hidden field, no autocomplete needed)
+          // The pssource field is a hidden input that stores selected source values programmatically
 
           // Sidenav push logic
            var sidenav = document.getElementById("sidenav");
