@@ -6,7 +6,11 @@ class MelodyPlayer {
         this.currentButton = null;
         this.animationFrame = null;
         this.verovioToolkit = null;
-        this. isPlaying = false;
+        this.isPlaying = false;
+        this.playerReady = false;
+        
+        // Pre-initialize player on construction
+        this.ensurePlayerReady();
     }
 
     async initialize() {
@@ -17,10 +21,44 @@ class MelodyPlayer {
         }
         
         if (!this.verovioToolkit) {
-            await verovio.module. onRuntimeInitialized;
+            await verovio.module.onRuntimeInitialized;
             this.verovioToolkit = new verovio.toolkit();
         }
         return true;
+    }
+
+    // Pre-create and initialize MIDI player to avoid delays during playback
+    async ensurePlayerReady() {
+        if (this.playerReady) {
+            return;
+        }
+
+        try {
+            // Start Tone.js early if available
+            if (typeof Tone !== 'undefined') {
+                await Tone.start();
+                console.log('✓ Tone.js pre-initialized');
+            }
+
+            // Create MIDI player element if it doesn't exist
+            let player = document.getElementById('melody-midi-player');
+            if (!player) {
+                console.log('Pre-creating MIDI player element...');
+                player = document.createElement('midi-player');
+                player.id = 'melody-midi-player';
+                player.setAttribute('sound-font', 'https://storage.googleapis.com/magentadata/js/soundfonts/salamander');
+                player.style.display = 'none';
+                document.body.appendChild(player);
+                
+                // Wait for player to be ready
+                await new Promise(resolve => setTimeout(resolve, 500));
+                console.log('✓ MIDI player pre-created and ready');
+            }
+            
+            this.playerReady = true;
+        } catch (error) {
+            console.warn('Error pre-initializing player:', error);
+        }
     }
 
     // Create MEI with Plain and Easy incipit
@@ -197,12 +235,8 @@ async play(paeCode, tuneName, button) {
     this.setPlayingState(true);
 
     try {
-        // Start Tone.js if needed
-        if (typeof Tone !== 'undefined') {
-            console.log('Starting Tone.js...');
-            await Tone.start();
-            console.log('Tone.js started');
-        }
+        // Ensure player is pre-initialized
+        await this.ensurePlayerReady();
 
         // Pass PAE directly to Verovio (it natively supports PAE format)
         console.log('Loading PAE directly into Verovio...');
@@ -231,42 +265,56 @@ async play(paeCode, tuneName, button) {
         const base64midi = this.verovioToolkit.renderToMIDI();
         console.log('MIDI rendered, base64 length:', base64midi.length);
 
-        if (! base64midi || base64midi. length < 100) {
+        if (!base64midi || base64midi.length < 100) {
             console.error('MIDI data seems too short or empty');
             throw new Error('Failed to generate MIDI from melody');
         }
 
-        // Get or create MIDI player
-        let player = document.getElementById('melody-midi-player');
+        // Get the pre-created MIDI player
+        const player = document.getElementById('melody-midi-player');
         if (!player) {
-            console.log('Creating new MIDI player element...');
-            player = document. createElement('midi-player');
-            player.id = 'melody-midi-player';
-            player.setAttribute('sound-font', 'https://storage.googleapis.com/magentadata/js/soundfonts/salamander');
-            player.style.display = 'none';
-            document.body.appendChild(player);
-            
-            await new Promise(resolve => setTimeout(resolve, 500));
+            throw new Error('MIDI player not available');
         }
 
         this.currentPlayer = player;
         
+        // Load MIDI data and wait for it to be ready
         console.log('Loading MIDI into player...');
         player.src = 'data:audio/midi;base64,' + base64midi;
         
-        await new Promise(resolve => setTimeout(resolve, 100));
+        // Wait for player to load the MIDI data
+        await new Promise((resolve, reject) => {
+            const loadHandler = () => {
+                console.log('✓ Player loaded MIDI data');
+                resolve();
+            };
+            const errorHandler = (e) => {
+                console.error('Player load error:', e);
+                reject(new Error('Failed to load MIDI'));
+            };
+            
+            // Set up listeners
+            player.addEventListener('load', loadHandler, { once: true });
+            player.addEventListener('error', errorHandler, { once: true });
+            
+            // Call load if available
+            if (typeof player.load === 'function') {
+                player.load();
+            }
+            
+            // Fallback timeout in case load event doesn't fire
+            setTimeout(() => {
+                player.removeEventListener('load', loadHandler);
+                player.removeEventListener('error', errorHandler);
+                resolve();
+            }, 1000);
+        });
 
-        if (typeof player.load === 'function') {
-            console.log('Calling player. load()...');
-            player. load();
-        }
-
-        await new Promise(resolve => setTimeout(resolve, 300));
-
+        // Start playback immediately - player is now ready
         if (typeof player.start === 'function') {
-            console.log('Calling player. start()...');
-            player. start();
-            console.log('Player started');
+            console.log('Starting playback...');
+            player.start();
+            console.log('✓ Playback started');
             
             // Estimate duration - assume ~30 notes average for an incipit
             const estimatedDuration = 15000; // 15 seconds default
@@ -276,7 +324,7 @@ async play(paeCode, tuneName, button) {
 
         // Listen for player end event
         player.addEventListener('ended', () => {
-            console. log('Playback ended');
+            console.log('Playback ended');
             if (this.currentPlayer === player) {
                 this.stop();
             }
