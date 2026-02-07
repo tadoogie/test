@@ -539,7 +539,7 @@ nav ul, nav li, #nav ul, #nav li {
               border-radius: 5px;
               font-size: 32px;
               cursor: pointer;
-              z-index: 1000;
+              z-index: 1300;
               display: flex;
               align-items: center;
               justify-content: center;
@@ -623,7 +623,7 @@ nav ul, nav li, #nav ul, #nav li {
               border: none;
               background: #555;
               cursor: pointer;
-              z-index: 1000;
+              z-index: 1300;
               display: flex;
               align-items: center;
               justify-content: center;
@@ -2003,4 +2003,28 @@ div #tuneButtons button, .source-button {
   #pianoKeyboard {
     height: 100px !important;
   }
+}
+
+/* Responsive layout for melody search results */
+.melody-result-item {
+    /* Base styles defined in JavaScript inline styles */
+}
+
+.melody-result-play-btn {
+    /* Base styles defined in JavaScript inline styles */
+}
+
+.melody-result-text {
+    /* Base styles defined in JavaScript inline styles */
+}
+
+.melody-result-notation {
+    /* Base styles defined in JavaScript inline styles */
+}
+
+/* Hide notation SVG on narrow displays (600px and below) */
+@media (max-width: 600px) {
+    .melody-result-notation {
+        display: none !important;
+    }
 }
