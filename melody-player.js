@@ -204,61 +204,28 @@ async play(paeCode, tuneName, button) {
             console.log('Tone.js started');
         }
 
-        // Create MEI with the PAE incipit
-        console.log('Creating MEI with PAE incipit...');
-        const meiXML = this.createMEIWithIncipit(paeCode, tuneName);
-        console.log('MEI created, length:', meiXML.length);
+        // Pass PAE directly to Verovio (it natively supports PAE format)
+        console.log('Loading PAE directly into Verovio...');
+        console.log('PAE to load:', paeCode);
         
-        // Enable incip option to tell Verovio to process the incipit
+        // Set Verovio options for PAE rendering
         this.verovioToolkit.setOptions({
-            incip: true,        // Process the <incipCode> in the MEI
             scale: 40,
             pageHeight: 500,
             pageWidth: 500,
             adjustPageHeight: true
         });
         
-        console.log('Verovio options set:', {
-            incip: true,
-            scale: 40
-        });
-        
-        console.log('Loading MEI with PAE incipit into Verovio...');
-
-        const loaded = this.verovioToolkit.loadData(meiXML);
+        // Load PAE data directly - Verovio can parse PAE natively
+        const loaded = this.verovioToolkit.loadData(paeCode);
         console.log('loadData returned:', loaded);
         
         if (loaded === 0 || !loaded) {
             console.error('❌ Verovio loadData failed - returned:', loaded);
-            throw new Error('Verovio failed to load MEI data');
+            throw new Error('Verovio failed to load PAE data');
         }
         
-        console.log('✓ MEI loaded successfully');
-        
-        console.log('=== Verovio Debug ===');
-        console.log('Getting MEI back from Verovio: ');
-        const verovioMEI = this.verovioToolkit.getMEI();
-        console.log('Verovio MEI length:', verovioMEI. length);
-        console.log('Verovio MEI first 2000 chars:', verovioMEI.substring(0, 2000));
-        
-        // Check if incipCode is still present
-        if (verovioMEI.includes('<incipCode')) {
-            console.log('✓ incipCode element found in Verovio output');
-            const incipMatch = verovioMEI. match(/<incipCode[^>]*>([^<]*)<\/incipCode>/);
-            if (incipMatch) {
-                console.log('incipCode content:', incipMatch[0]);
-            }
-        } else {
-            console. log('✗ incipCode element NOT found in Verovio output');
-        }
-        
-        // Check if Verovio generated any music from the incipit
-        if (verovioMEI.includes('<measure')) {
-            console.log('✓ Verovio generated measure elements');
-        } else {
-            console.log('✗ No measure elements - Verovio did not process incipit');
-        }
-        console.log('=== End Verovio Debug ===');
+        console.log('✓ PAE loaded successfully into Verovio');
         
         console.log('Rendering to MIDI...');
         const base64midi = this.verovioToolkit.renderToMIDI();
