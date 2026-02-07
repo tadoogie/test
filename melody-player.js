@@ -162,15 +162,15 @@ class MelodyPlayer {
 
     // Play melody from Plain and Easy code
    // Replace the play method in melody-player.js:
-async play(meiFilePath, tuneName, button) {
+async play(paeCode, tuneName, button) {
     console.log('=== Melody Player Debug ===');
-    console.log('MEI File Path:', meiFilePath);
+    console.log('PAE Code:', paeCode);
     console.log('Tune Name:', tuneName);
     
     // Validate inputs
-    if (!meiFilePath || typeof meiFilePath !== 'string') {
-        console.error('Invalid MEI file path:', meiFilePath);
-        alert('Unable to play melody:  Invalid file path');
+    if (!paeCode || typeof paeCode !== 'string') {
+        console.error('Invalid PAE code:', paeCode);
+        alert('Unable to play melody: Melody data is not available');
         return;
     }
 
@@ -193,47 +193,21 @@ async play(meiFilePath, tuneName, button) {
     }
 
     this.currentButton = button;
-    this. isPlaying = true;
+    this.isPlaying = true;
     this.setPlayingState(true);
 
     try {
         // Start Tone.js if needed
         if (typeof Tone !== 'undefined') {
             console.log('Starting Tone.js...');
-            await Tone. start();
+            await Tone.start();
             console.log('Tone.js started');
         }
 
-        // Fetch the full MEI file using the full path from the database
-        console.log('Fetching MEI file.. .');
-        const response = await fetch(meiFilePath); // Use the full path directly
-        if (!response.ok) {
-            throw new Error(`Failed to fetch MEI file: ${response.statusText}`);
-        }
-        
-        const meiXML = await response.text();
-        console.log('MEI file loaded, length:', meiXML.length);
-        console.log('First 500 chars:', meiXML.substring(0, 500));
-        
-        // Check for XML parsing errors first
-        const parser = new DOMParser();
-        const xmlDoc = parser. parseFromString(meiXML, 'text/xml');
-        const parseError = xmlDoc.querySelector('parsererror');
-        if (parseError) {
-            console.error('XML parsing error:', parseError. textContent);
-            throw new Error('Invalid XML in MEI file');
-        }
-        console.log('✓ XML is well-formed');
-        
-        // Check for incipCode
-        const incipCode = xmlDoc. querySelector('incipCode[form="plaineAndEasie"], incipCode[form="pae"]');
-        if (incipCode) {
-            console.log('✓ Found incipCode element');
-            console.log('  form attribute:', incipCode.getAttribute('form'));
-            console.log('  content:', incipCode.textContent);
-        } else {
-            console. warn('✗ No incipCode found in document');
-        }
+        // Create MEI with the PAE incipit
+        console.log('Creating MEI with PAE incipit...');
+        const meiXML = this.createMEIWithIncipit(paeCode, tuneName);
+        console.log('MEI created, length:', meiXML.length);
         
         // Enable incip option to tell Verovio to process the incipit
         this.verovioToolkit.setOptions({
@@ -249,16 +223,13 @@ async play(meiFilePath, tuneName, button) {
             scale: 40
         });
         
-        console.log('Loading full MEI file into Verovio with incip:  true.. .');
-        console.log('Calling loadData with MEI of length:', meiXML.length);
+        console.log('Loading MEI with PAE incipit into Verovio...');
 
         const loaded = this.verovioToolkit.loadData(meiXML);
         console.log('loadData returned:', loaded);
         
-        if (loaded === 0 || ! loaded) {
+        if (loaded === 0 || !loaded) {
             console.error('❌ Verovio loadData failed - returned:', loaded);
-            // Try to get error messages from Verovio
-            console.log('Checking Verovio log.. .');
             throw new Error('Verovio failed to load MEI data');
         }
         

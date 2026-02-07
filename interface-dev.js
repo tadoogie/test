@@ -3510,7 +3510,7 @@ function normalizeMetreForComparison(metre) {
             e.stopPropagation();
             
             window.melodyPlayer.play(
-                result.meiFilePath,
+                result.plaineAndEasie,
                 result.title,
                 playBtn
             );
