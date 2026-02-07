@@ -8,7 +8,7 @@
         <title>Splitleaf Psalter Viewer</title>
         <link rel="shortcut icon" href="/resources/images/leaf.ico"/>
         <link type="text/css" rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open+Sans:400,600,700|Fjalla+One|Roboto+Slab:300,400,500,700"/>
-        <link rel="preload" href="resources/css/menu.css" as="style" onload="this.onload=null;this.rel='stylesheet'"/>
+        <link rel="preload" href="resources/css/menu-070201.css" as="style" onload="this.onload=null;this.rel='stylesheet'"/>
         <noscript>
             <link rel="stylesheet" href="resources/css/menu.css"/>
         </noscript>
@@ -512,7 +512,7 @@
             /* Piano Keyboard Styles */
             #pianoContainer {
               margin: 20px auto;
-              width: 90%;
+              width: 20%;
               max-width:  480px;
             }
             
@@ -1089,7 +1089,7 @@
         <!-- Pitch Search Interface -->
         <div id="pitchSearchInterface">
           <!-- Piano Keyboard Container -->
-          <div id="pianoContainer" style="width: 90%; max-width: 600px;">
+          <div id="pianoContainer" style="width: 100%; max-width: 600px;">
             <div style="display: flex; justify-content: flex-end;">
                 <button class="notation-toggle" id="notationToggle">Sol-fa</button>
             </div>
@@ -1100,7 +1100,7 @@
           
           <!-- Display entered pitches -->
           <div style="width: 90%; display: flex; gap: 10px; align-items: center;">
-            <input type="text" id="melodySearchInputDisplay" placeholder="Use the keyboard above" style="flex: 1; font-size: 1em; border-radius:6px; border: 1px solid #888; background: #fff;letter-spacing: 0.3em;" readonly="readonly"/>
+            <input type="text" id="melodySearchInputDisplay" placeholder="Use the keyboard above" style="flex: 1; font-size: 0.9em; border-radius:6px; border: 1px solid #888; background: #fff;letter-spacing: 0.2em;" readonly="readonly"/>
             <input type="hidden" id="melodySearchInput"/>
             <button id="deletePitchBtn" style="background-color: #f44336; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 1em;">
               ← Delete

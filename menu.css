@@ -22,7 +22,7 @@ audio,video { display: inline-block; }
 audio:not([controls]) { display: none; height: 0; }
 img { border-style:none; }
 svg:not(:root) { overflow: hidden;}
-button, input, optgroup, select, textarea { font-family: inherit; font-size: 100%; line-height: 1.15; margin: 0; color: inherit; }
+button, input, optgroup, select, textarea { font-family: inherit; font-size: 100%; line-height: 1.15; margin: 0; padding: 4px; color: inherit; }
 button, input { overflow: visible; }
 button, select { text-transform: none; }
 button, html [type="button"], [type="reset"], [type="submit"] { -webkit-appearance: button; }
@@ -539,7 +539,7 @@ nav ul, nav li, #nav ul, #nav li {
               border-radius: 5px;
               font-size: 32px;
               cursor: pointer;
-              z-index: 800;
+              z-index: 1000;
               display: flex;
               align-items: center;
               justify-content: center;
@@ -623,7 +623,7 @@ nav ul, nav li, #nav ul, #nav li {
               border: none;
               background: #555;
               cursor: pointer;
-              z-index: 800;
+              z-index: 1000;
               display: flex;
               align-items: center;
               justify-content: center;
@@ -956,9 +956,9 @@ dl dt { font-weight: bold; }
             #melodySearchModal > div  {
                 background-color: #fefefe;
                 margin: auto;
-                padding: 30px;
+                padding: 20px 10px;
                 border: 1px solid #888;
-                width: 90%;
+                width: 100%;
                 max-width: 600px;
                 border-radius: 8px;
                 box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2), 0 6px 20px 0 rgba(0,0,0,0.19);
