@@ -3355,6 +3355,7 @@ function normalizeMetreForComparison(metre) {
     
     results.forEach(result => {
         const resultItem = document.createElement('div');
+        resultItem.className = 'melody-result-item';
         resultItem.style.cssText = 'padding:12px;margin:8px 0;background:#f5f5f5;border-radius:6px;cursor:pointer;display:flex;align-items:center;gap:12px;transition:background 0.2s;';
         resultItem.addEventListener('mouseenter', () => resultItem.style.background = '#e8e8e8');
         resultItem.addEventListener('mouseleave', () => resultItem.style.background = '#f5f5f5');
@@ -3379,10 +3380,17 @@ function normalizeMetreForComparison(metre) {
         
         // Column 1: Create play button
         const playBtn = window.melodyPlayer.createPlayButton();
+        playBtn.className = 'melody-result-play-btn';
         playBtn.style.cssText = 'flex-shrink:0;width:40px;';
+        
+        // Create wrapper for content (text + notation) - for responsive layout
+        const contentWrapper = document.createElement('div');
+        contentWrapper.className = 'melody-result-content';
+        contentWrapper.style.cssText = 'flex:1;display:flex;gap:12px;align-items:center;min-width:0;';
         
         // Column 2: Title, date, and metre
         const textInfo = document.createElement('div');
+        textInfo.className = 'melody-result-text';
         textInfo.style.cssText = 'flex:1;min-width:0;';
         
         // Title and date on same line
@@ -3417,6 +3425,7 @@ function normalizeMetreForComparison(metre) {
         
         // Column 3: Music notation SVG
         const notationContainer = document.createElement('div');
+        notationContainer.className = 'melody-result-notation';
         notationContainer.style.cssText = 'width:250px;height:70px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:white;border:1px solid #ddd;border-radius:4px;overflow:hidden;';
         
         console.log('[Notation Render] Processing result:', result.title);
@@ -3501,9 +3510,13 @@ function normalizeMetreForComparison(metre) {
             notationContainer.innerHTML = '<span style="color:#999;font-size:0.8em;">Notation unavailable</span>';
         }
         
+        // Append text and notation to content wrapper
+        contentWrapper.appendChild(textInfo);
+        contentWrapper.appendChild(notationContainer);
+        
+        // Append play button and content wrapper to result item
         resultItem.appendChild(playBtn);
-        resultItem.appendChild(textInfo);
-        resultItem.appendChild(notationContainer);
+        resultItem.appendChild(contentWrapper);
         
         // Play button click handler
         playBtn.addEventListener('click', function(e) {

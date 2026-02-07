@@ -2004,3 +2004,74 @@ div #tuneButtons button, .source-button {
     height: 100px !important;
   }
 }
+
+/* Responsive layout for melody search results */
+.melody-result-item {
+    /* Base styles defined in JavaScript inline styles */
+}
+
+.melody-result-play-btn {
+    /* Base styles defined in JavaScript inline styles */
+}
+
+.melody-result-content {
+    /* Base styles defined in JavaScript inline styles - flex container for text and notation */
+}
+
+.melody-result-text {
+    /* Base styles defined in JavaScript inline styles */
+}
+
+.melody-result-notation {
+    /* Base styles defined in JavaScript inline styles */
+}
+
+/* Responsive layout for narrow displays (600px and below) */
+@media (max-width: 600px) {
+    /* Make content wrapper vertical on narrow screens */
+    .melody-result-content {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 8px !important;
+    }
+    
+    /* On narrow screens, display all text elements on a single line */
+    .melody-result-text {
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: baseline !important;
+        flex-wrap: wrap !important;
+        gap: 6px !important;
+    }
+    
+    .melody-result-text > div:first-child {
+        /* Title and date - keep inline, remove bottom margin */
+        margin-bottom: 0 !important;
+        display: inline !important;
+    }
+    
+    .melody-result-text > div:last-child {
+        /* Metre - display inline on same row */
+        display: inline !important;
+    }
+    
+    /* Separator between title/date and metre (optional visual enhancement) */
+    .melody-result-text > div:first-child::after {
+        content: ' — ';
+        font-weight: normal;
+        color: #999;
+    }
+    
+    /* Make notation take full width on narrow screens */
+    .melody-result-notation {
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+}
+
+/* For very narrow displays, adjust notation height */
+@media (max-width: 400px) {
+    .melody-result-notation {
+        height: 60px !important;
+    }
+}
