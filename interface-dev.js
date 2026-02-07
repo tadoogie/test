@@ -3543,6 +3543,16 @@ function normalizeMetreForComparison(metre) {
         
         melodySearchResults.appendChild(resultItem);
     });
+    
+    // After all results are populated, scroll the modal to the bottom
+    // This helps mobile users see that results have been loaded
+    const modal = document.getElementById('melodySearchModal');
+    if (modal) {
+        // Use setTimeout to ensure DOM has been fully updated with all results
+        setTimeout(() => {
+            modal.scrollTop = modal.scrollHeight;
+        }, 100);
+    }
 }
 
   // Highlight the matching portion of the interval sequence
