@@ -3383,11 +3383,6 @@ function normalizeMetreForComparison(metre) {
         playBtn.className = 'melody-result-play-btn';
         playBtn.style.cssText = 'flex-shrink:0;width:40px;';
         
-        // Create wrapper for content (text + notation) - for responsive layout
-        const contentWrapper = document.createElement('div');
-        contentWrapper.className = 'melody-result-content';
-        contentWrapper.style.cssText = 'flex:1;display:flex;gap:12px;align-items:center;min-width:0;';
-        
         // Column 2: Title, date, and metre
         const textInfo = document.createElement('div');
         textInfo.className = 'melody-result-text';
@@ -3510,13 +3505,10 @@ function normalizeMetreForComparison(metre) {
             notationContainer.innerHTML = '<span style="color:#999;font-size:0.8em;">Notation unavailable</span>';
         }
         
-        // Append text and notation to content wrapper
-        contentWrapper.appendChild(textInfo);
-        contentWrapper.appendChild(notationContainer);
-        
-        // Append play button and content wrapper to result item
+        // Append elements directly to result item (3-column layout)
         resultItem.appendChild(playBtn);
-        resultItem.appendChild(contentWrapper);
+        resultItem.appendChild(textInfo);
+        resultItem.appendChild(notationContainer);
         
         // Play button click handler
         playBtn.addEventListener('click', function(e) {
