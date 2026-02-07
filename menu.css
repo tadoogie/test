@@ -539,7 +539,7 @@ nav ul, nav li, #nav ul, #nav li {
               border-radius: 5px;
               font-size: 32px;
               cursor: pointer;
-              z-index: 1300;
+              z-index: 800;
               display: flex;
               align-items: center;
               justify-content: center;
@@ -623,7 +623,7 @@ nav ul, nav li, #nav ul, #nav li {
               border: none;
               background: #555;
               cursor: pointer;
-              z-index: 1300;
+              z-index: 800;
               display: flex;
               align-items: center;
               justify-content: center;
