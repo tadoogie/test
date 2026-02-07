@@ -1864,6 +1864,65 @@ div #tuneButtons button, .source-button {
   text-align: center;
 }
 
+/* Default styles for melody search modal elements */
+#melodySearchModal button.search-mode-btn {
+  padding: 12px;
+}
+
+#pianoContainer {
+  margin: 10px auto;
+}
+
+#pianoContainer > div:first-child {
+  margin-bottom: 3px;
+}
+
+#pianoKeyboard {
+  padding: 10px;
+}
+
+#melodySearchModal input[type="text"] {
+  padding: 8px;
+}
+
+#melodySearchModal #pitchSearchInterface > div,
+#melodySearchModal #contourSearchInterface > div:not(:first-child) {
+  margin: 10px auto;
+}
+
+#melodySearchModal #contourSearchInterface > div:first-child {
+  margin: 20px auto;
+}
+
+#melodySearchModal .search-options {
+  margin: 10px auto 0;
+  padding: 10px;
+}
+
+#melodySearchModal .search-options button {
+  padding: 8px;
+}
+
+#melodySearchModal button#deletePitchBtn,
+#melodySearchModal button#clearPitchesBtn,
+#melodySearchModal button#deleteContourBtn,
+#melodySearchModal button#clearContourBtn {
+  padding: 8px 15px;
+}
+
+#melodySearchModal > div > div:nth-last-child(3) {
+  margin: 0 auto;
+}
+
+#melodySearchCount {
+  padding: 0 10px;
+  margin: 0 auto;
+}
+
+#melodySearchResults {
+  margin: 0 auto;
+}
+
 /* Responsive design for mobile devices - make modals full width with reduced padding */
 @media (max-width: 600px) {
   #melodySearchModal > div,
@@ -1907,6 +1966,25 @@ div #tuneButtons button, .source-button {
     padding: 8px 15px !important;
     margin: 8px 3px !important;
     font-size: 0.95em !important;
+  }
+  
+  /* Reduce margins for containers on mobile */
+  #melodySearchModal #pitchSearchInterface > div,
+  #melodySearchModal #contourSearchInterface > div {
+    margin: 8px auto !important;
+  }
+  
+  /* Input padding */
+  #melodySearchModal input[type="text"] {
+    padding: 6px !important;
+  }
+  
+  /* Compact delete/clear buttons */
+  #melodySearchModal button#deletePitchBtn,
+  #melodySearchModal button#clearPitchesBtn,
+  #melodySearchModal button#deleteContourBtn,
+  #melodySearchModal button#clearContourBtn {
+    padding: 6px 12px !important;
   }
 }
 
