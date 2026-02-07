@@ -3550,7 +3550,11 @@ function normalizeMetreForComparison(metre) {
     if (modal) {
         // Use setTimeout to ensure DOM has been fully updated with all results
         setTimeout(() => {
-            modal.scrollTop = modal.scrollHeight;
+            // Smooth scroll to bottom for better user experience
+            modal.scrollTo({
+                top: modal.scrollHeight,
+                behavior: 'smooth'
+            });
         }, 100);
     }
 }
