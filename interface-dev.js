@@ -3417,6 +3417,7 @@ function normalizeMetreForComparison(metre) {
         
         // Column 3: Music notation SVG
         const notationContainer = document.createElement('div');
+        notationContainer.className = 'melody-notation-container';
         notationContainer.style.cssText = 'width:250px;height:70px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:white;border:1px solid #ddd;border-radius:4px;overflow:hidden;';
         
         console.log('[Notation Render] Processing result:', result.title);

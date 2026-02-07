@@ -682,6 +682,13 @@
             .contour-input-btn:active {
               transform: scale(0.95);
             }
+            
+            /* Hide Verovio-generated SVG notation on narrow screens */
+            @media (max-width: 600px) {
+              .melody-notation-container {
+                display: none !important;
+              }
+            }
         </style>
     </head>
     <body>
