@@ -1181,4 +1181,151 @@
             </div>
           </div>
         </div>
+        
+        <div style="text-align:center;margin:0px;">
+          <button id="executeMelodySearchBtn">Search</button>
+          <button id="closeMelodySearchModalBtn">Close</button>
+        </div>
+        <div id="melodySearchCount" style="text-align: right; padding: 0px 10px 0px; margin: 0 auto; width: 90%; color: #666; font-size: 0.95em;"/>
+        <div id="melodySearchResults" style="max-height:250px;overflow-y:auto;width:90%;"/>
+      </div>
+    </div>
+    <script src="https://www.verovio.org/javascript/latest/verovio-toolkit-wasm.js" defer="defer"/>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/awesomplete/1.1.5/awesomplete.min.js"/>
+    <script src="resources/js/melody-player.js" defer="defer"/>
+    <script async="" src="https://www.googletagmanager.com/gtag/js?id=G-9HSZZ1BZCT"/>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"/>
 
+    <script src="https://cdn.jsdelivr.net/combine/npm/tone@14.7.58,npm/@magenta/music@1.23.1/es6/core.js,npm/focus-visible@5,npm/html-midi-player@1.5.0"/>
+    
+    <script src="resources/js/pdfkit.standalone.js"/>
+    <script src="resources/js/blob-stream.js"/>
+    <script src="resources/js/svg-to-pdfkit.js"/>
+    
+    <!-- Define the expected JS build for runtime verification -->
+    <script>window.EXPECTED_BUILD = '2025-10-28-2';</script>
+    
+    <!-- Versioned, deferred site scripts to avoid stale caches and preserve order -->
+    <script defer="defer" src="resources/js/app-dev.js"/>
+    <script defer="defer" src="resources/js/interface-dev.js"/>
+    <script defer="defer" src="resources/js/piano-interface.js"/>
+    
+    <!-- Script validation check - logs warnings but does not reload to prevent infinite loop -->
+    <script>
+        (function () {
+          function loadedOK() {
+            return window.INTERFACE_DEV_BUILD === window.EXPECTED_BUILD &amp;&amp;
+                   typeof initializeTabNavigation === 'function';
+          }
+          
+          // Check after scripts load, but DON'T reload - just log
+          setTimeout(function() {
+            if (!loadedOK()) {
+              console.warn('Script validation check failed. Expected build:', window.EXPECTED_BUILD, 'Found:', window.INTERFACE_DEV_BUILD);
+              console.warn('initializeTabNavigation exists:', typeof initializeTabNavigation === 'function');
+              // DO NOT RELOAD - just log the issue
+            } else {
+              console.log('Scripts loaded successfully');
+            }
+          }, 2000); // Increased timeout to 2 seconds to ensure deferred scripts execute
+        })();
+    </script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-9HSZZ1BZCT');
+        
+        function openNav() {
+            var sidenav = document.getElementById("sidenav");
+            var menutoggle = document.getElementById("menutoggle");
+            sidenav.style.width = "360px";
+            sidenav.style.height = "100%";
+            menutoggle.classList.add("is-active");
+        }
+        function closeNav() {
+          var sidenav = document.getElementById("sidenav");
+          var menutoggle = document.getElementById("menutoggle");
+          sidenav.style.width = "0";
+          menutoggle.classList.remove("is-active");
+        }
+
+        document.addEventListener("DOMContentLoaded", function() {
+          // Awesomplete setup
+          if (typeof pssourceList !== "undefined" &amp;&amp; Array.isArray(pssourceList)) {
+              new Awesomplete(document.getElementById("pssource"), { list: pssourceList });
+          }
+
+          // Sidenav push logic
+           var sidenav = document.getElementById("sidenav");
+           var main = document.getElementById("main");
+           var menutoggle = document.getElementById("menutoggle");
+           var closemenu = document.getElementById("closemenu");
+        
+           menutoggle.addEventListener("click", function() {
+             stopMIDIHandler();
+             if (!menutoggle.classList.contains("is-active")) {
+               openNav();
+             } else {
+               closeNav();
+             }
+           });
+           document.addEventListener("keydown", function(e) {
+             if (e.key === "Escape") closeNav();
+           });
+          });
+
+        document.addEventListener('DOMContentLoaded', function() {
+          document.querySelectorAll('#controls a, .tooltip').forEach(function(el) {
+            el.addEventListener('touchend', function() {
+              el.blur();
+              var tooltip = el.querySelector('.tooltiptext');
+              if (tooltip) {
+                tooltip.style.display = 'none';
+                tooltip.style.visibility = 'hidden';
+                tooltip.style.opacity = '0';
+              }
+            });
+          });
+        });
+        
+        document.querySelectorAll('#controls a, #controls button').forEach(el =&gt; {
+          el.addEventListener('touchend', () =&gt; el.blur());
+        });
+        
+        document.querySelectorAll('#controls a, #controls button').forEach(el =&gt; {
+          el.addEventListener('touchend', () =&gt; {
+            el.classList.remove('highlighted'); // If your hover uses a class
+            el.blur();
+          });
+        });
+        
+        /*slider.addEventListener('input', function(e) {
+            const ch = Number(this.getAttribute('data-channel'));
+            player.setInstrumentVolume(ch, Number(this.value));
+        });*/
+    </script>
+
+    <footer>
+        <div class="footbar">
+            <div>
+                <a href="index.html?tab=tab-about">About</a>
+            </div>
+            <div>
+                <a href="index.html?tab=tab-sources">Sources</a>
+            </div>
+            <div>
+                <a href="index.html?tab=tab-contact">Contact</a>
+            </div>
+        </div>
+        <div id="textLicense" class="footbar-sm"/>
+        <div id="tuneLicense" class="footbar-sm"/>
+        <div class="footbar-sm">
+            Edition by Timothy Duguid, <a href="https://creativecommons.org/licenses/by-nc/4.0/" target="_blank">CC BY-NC</a> 2021
+        </div>
+        <div class="footbar-sm">
+            Music engraving by <a href="http://verovio.org" target="_blank">Verovio</a>.
+        </div>
+    </footer>
+</body>
+</html>
