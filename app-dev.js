@@ -818,30 +818,42 @@ function loadDataWithLayerVolumes(data) {
     
     // Defer processing to allow browser to render the spinner
     setTimeout(() => {
-        // Parse the XML
-        const parser = new DOMParser();
-        const xmlDoc = parser.parseFromString(data, 'text/xml');
-        
-        // Detect layers and create controls
-        const layers = detectLayers(xmlDoc);
-        createLayerVolumeControls(layers);
-        
-        // **DON'T apply velocities here - only on play**
-        
-        // Store the original and layers for later use
-        window.currentLayers = layers;
-        window.originalXmlData = data; // Store original without velocity modifications
-        currentXmlData = data; // Keep original for display
-        
-        // Proceed with normal Verovio loading (without velocities)
-        setOptions();
-        vrvToolkit.loadData(data);
-        tk_pdf.loadData(data);
-        setTimemap(vrvToolkit.renderToTimemap({includeMeasures: true}));
-        buildNoteIdToPageMap();
-        buildMeasureIdToPageMap();
-        page = 1;
-        loadPage();
+        try {
+            // Parse the XML
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(data, 'text/xml');
+            
+            // Detect layers and create controls
+            const layers = detectLayers(xmlDoc);
+            createLayerVolumeControls(layers);
+            
+            // **DON'T apply velocities here - only on play**
+            
+            // Store the original and layers for later use
+            window.currentLayers = layers;
+            window.originalXmlData = data; // Store original without velocity modifications
+            currentXmlData = data; // Keep original for display
+            
+            // Proceed with normal Verovio loading (without velocities)
+            setOptions();
+            vrvToolkit.loadData(data);
+            tk_pdf.loadData(data);
+            setTimemap(vrvToolkit.renderToTimemap({includeMeasures: true}));
+            buildNoteIdToPageMap();
+            buildMeasureIdToPageMap();
+            page = 1;
+            loadPage();
+        } catch (error) {
+            console.error('Error loading data with layer volumes:', error);
+            // Show error message instead of spinner
+            const container = document.getElementById("svg_output");
+            container.innerHTML = `
+                <div style="padding: 20px; color: #d32f2f;">
+                    <h3>Error Loading Score</h3>
+                    <p>An error occurred while processing the music data. Please try again.</p>
+                </div>
+            `;
+        }
     }, 50); // Small delay to ensure spinner renders
 }
 
@@ -896,13 +908,25 @@ function loadData(data) {
     
     // Defer processing to allow browser to render the spinner
     setTimeout(() => {
-        setOptions();
-        vrvToolkit.loadData(data);
-        tk_pdf.loadData(data);
-        setTimemap(vrvToolkit.renderToTimemap({includeMeasures: true}));
-        buildNoteIdToPageMap();
-        page = 1;
-        loadPage();
+        try {
+            setOptions();
+            vrvToolkit.loadData(data);
+            tk_pdf.loadData(data);
+            setTimemap(vrvToolkit.renderToTimemap({includeMeasures: true}));
+            buildNoteIdToPageMap();
+            page = 1;
+            loadPage();
+        } catch (error) {
+            console.error('Error loading data:', error);
+            // Show error message instead of spinner
+            const container = document.getElementById("svg_output");
+            container.innerHTML = `
+                <div style="padding: 20px; color: #d32f2f;">
+                    <h3>Error Loading Score</h3>
+                    <p>An error occurred while processing the music data. Please try again.</p>
+                </div>
+            `;
+        }
     }, 50); // Small delay to ensure spinner renders
 }
 
@@ -1101,11 +1125,23 @@ function renderAndDisplayMEI(meiXML) {
     
     // Defer processing to allow browser to render the spinner
     setTimeout(() => {
-        vrvToolkit.loadData(meiXML);
-        tk_pdf.loadData(meiXML);
-        setTimemap(vrvToolkit.renderToTimemap({includeMeasures: true}));
-        document.getElementById("svg_output").innerHTML = vrvToolkit.renderToSVG(page);
-        unHighlightAllElements();
+        try {
+            vrvToolkit.loadData(meiXML);
+            tk_pdf.loadData(meiXML);
+            setTimemap(vrvToolkit.renderToTimemap({includeMeasures: true}));
+            document.getElementById("svg_output").innerHTML = vrvToolkit.renderToSVG(page);
+            unHighlightAllElements();
+        } catch (error) {
+            console.error('Error rendering MEI:', error);
+            // Show error message instead of spinner
+            const container = document.getElementById("svg_output");
+            container.innerHTML = `
+                <div style="padding: 20px; color: #d32f2f;">
+                    <h3>Error Loading Score</h3>
+                    <p>An error occurred while processing the music data. Please try again.</p>
+                </div>
+            `;
+        }
     }, 50); // Small delay to ensure spinner renders
 }
 
