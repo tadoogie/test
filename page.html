@@ -1107,12 +1107,12 @@
           
           <!-- Display entered pitches -->
           <div style="width: 90%; display: flex; gap: 10px; align-items: center; margin: 0 auto;">
-            <input type="text" id="melodySearchInputDisplay" placeholder="Use keyboard above" style="flex: 1; font-size: 0.9em; border-radius:6px; border: 1px solid #888; background: #fff;letter-spacing: 0.2em; text-align: center" readonly="readonly"/>
+            <input type="text" id="melodySearchInputDisplay" placeholder="Use keyboard above" style="flex: 1; font-size: 1em; border-radius:6px; border: 1px solid #888; background: #fff;letter-spacing: 0.2em; text-align: center; height: 2.3em" readonly="readonly"/>
             <input type="hidden" id="melodySearchInput"/>
-            <button id="deletePitchBtn" style="background-color: #f44336; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 0.9em; font-weight: 600; padding: 6px;">
+            <button id="deletePitchBtn" style="background-color: #ff9800; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 1em; padding: 8px">
               Backspace
             </button>
-            <button id="clearPitchesBtn" style="background-color: #ff9800; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 0.9em; font-weight: 600; padding: 6px;">
+            <button id="clearPitchesBtn" style="background-color: #f44336; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 1em; padding: 8px">
               Clear
             </button>
           </div>
@@ -1152,7 +1152,7 @@
           <div style="margin-bottom: 15px;">
             <!-- Row 1: Title and Buttons -->
             <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
-              <span style="font-weight: 600; color: #555; font-size:1.1em">Search Type:</span>
+              <span style="font-weight: 600; color: #555; font-size:1.3em">Search Type:</span>
               <div style="display: flex; gap: 0; width: 198px; border: 2px solid #6fc252; border-radius: 8px; overflow: hidden;">
                 <button id="searchModeToggle" class="search-mode-btn active" style="flex: 1; background: #6fc252; color: white; border: none; cursor: pointer; font-size: 0.9em; font-weight: 600; transition: all 0.2s;">
                   Fuzzy
@@ -1172,7 +1172,7 @@
           <div>
             <!-- Row 1: Title and Buttons -->
             <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
-              <span style="font-weight: 600; color: #555; font-size: 1.1em">Part of Melody to Search:</span>
+              <span style="font-weight: 600; color: #555; font-size: 1.3em">Part of Melody to Search:</span>
               <div style="display: flex; gap: 0; width: 198px; border: 2px solid #6fc252; border-radius: 8px; overflow: hidden;">
                 <button id="searchLocationToggle" class="search-mode-btn active" style="flex: 1; background: #6fc252; color: white; border: none; cursor: pointer; font-size: 0.9em; font-weight: 600; transition: all 0.2s;">
                   Anywhere
@@ -1194,7 +1194,7 @@
           <button id="closeMelodySearchModalBtn">Close</button>
         </div>
         <div id="melodySearchCount" style="text-align: right; padding: 0px 10px 0px; margin: 0 auto; width: 90%; color: #666; font-size: 0.95em;"/>
-        <div id="melodySearchResults" style="max-height:250px;overflow-y:auto;width:100%;"/>
+        <div id="melodySearchResults" style="max-height:250px;overflow-y:auto;width:90%;"/>
       </div>
     </div>
     <script src="https://www.verovio.org/javascript/latest/verovio-toolkit-wasm.js" defer="defer"/>
