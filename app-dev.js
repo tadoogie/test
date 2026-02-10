@@ -1,5 +1,14 @@
 // --- Globals for metadata and PDF generation ---
-// Version 2.1 (mei-friend-inspired MIDI highlighting)
+// Version 2.2 - With Spinner Debugging (2026-02-10)
+
+// VERSION CHECK - This should appear FIRST in console if file is loaded correctly
+console.log('%c═══════════════════════════════════════════════════════════', 'color: #4CAF50; font-weight: bold');
+console.log('%c🎵 APP-DEV.JS VERSION 2.2 - LOADED SUCCESSFULLY 🎵', 'color: #4CAF50; font-weight: bold; font-size: 14px');
+console.log('%c═══════════════════════════════════════════════════════════', 'color: #4CAF50; font-weight: bold');
+console.log('%cIf you see this message, the updated app-dev.js is loaded!', 'color: #2196F3; font-style: italic');
+console.log('%cDebugging features: Spinner logs with emoji indicators 🔄✅🎨', 'color: #2196F3');
+console.log('%cMinimum spinner display time: 500ms', 'color: #2196F3');
+console.log('%c═══════════════════════════════════════════════════════════', 'color: #4CAF50; font-weight: bold');
 
 var globalTitle = '';
 var globalTuneTitle = '';
