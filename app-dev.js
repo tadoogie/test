@@ -801,7 +801,26 @@ function applyLayerVolumes(xmlDoc, layers) {
     return xmlDoc;
 }
 
+// Helper functions for loading spinner
+function showLoadingSpinner() {
+    const container = document.getElementById("svg_output");
+    container.innerHTML = `
+        <div class="loading-spinner">
+            <div class="spinner"></div>
+            <div class="loading-text">Loading...</div>
+        </div>
+    `;
+}
+
+function hideLoadingSpinner() {
+    // The spinner will be replaced by the actual content in loadPage()
+    // This function is here for clarity and potential future use
+}
+
 function loadDataWithLayerVolumes(data) {
+    // Show loading spinner immediately
+    showLoadingSpinner();
+    
     // Parse the XML
     const parser = new DOMParser();
     const xmlDoc = parser.parseFromString(data, 'text/xml');
@@ -874,6 +893,8 @@ function setOptions() {
 }
 
 function loadData(data) {
+    // Show loading spinner immediately
+    showLoadingSpinner();
     
     setOptions();
     vrvToolkit.loadData(data);
@@ -1074,6 +1095,9 @@ async function loadAudioAndPlayHandler() {
 
 // --- When you load new MEI, update SVG, timemap, and clear highlights. ---
 function renderAndDisplayMEI(meiXML) {
+    // Show loading spinner immediately
+    showLoadingSpinner();
+    
     vrvToolkit.loadData(meiXML);
     tk_pdf.loadData(meiXML);
     setTimemap(vrvToolkit.renderToTimemap({includeMeasures: true}));
