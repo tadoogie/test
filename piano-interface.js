@@ -357,7 +357,7 @@ console.log('Piano interface script file loaded!    ');
     
     const label = document.createElement('span');
     label.textContent = key.note;
-    label.style.fontSize = key.type === 'black' ? '16px' : '16px';
+    label.style.fontSize = '16px';
     keyElement.appendChild(label);
     
     // Click handler
