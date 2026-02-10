@@ -3544,16 +3544,17 @@ function normalizeMetreForComparison(metre) {
         melodySearchResults.appendChild(resultItem);
     });
     
-    // After all results are populated, scroll the modal to the bottom
+    // After all results are populated, scroll to the results area
     // This helps mobile users see that results have been loaded
-    const modal = document.getElementById('melodySearchModal');
-    if (modal) {
+    // Use scrollIntoView on the results container to handle complex flexbox layout
+    if (melodySearchResults) {
         // Use setTimeout to ensure DOM has been fully updated with all results
         setTimeout(() => {
-            // Smooth scroll to bottom for better user experience
-            modal.scrollTo({
-                top: modal.scrollHeight,
-                behavior: 'smooth'
+            // Scroll the results container into view with smooth behavior
+            melodySearchResults.scrollIntoView({
+                behavior: 'smooth',
+                block: 'end',
+                inline: 'nearest'
             });
         }, 100);
     }
