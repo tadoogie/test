@@ -3543,6 +3543,21 @@ function normalizeMetreForComparison(metre) {
         
         melodySearchResults.appendChild(resultItem);
     });
+    
+    // After all results are populated, scroll to the results area
+    // This helps mobile users see that results have been loaded
+    // Use scrollIntoView on the results container to handle complex flexbox layout
+    if (melodySearchResults) {
+        // Use setTimeout to ensure DOM has been fully updated with all results
+        setTimeout(() => {
+            // Scroll the results container into view with smooth behavior
+            melodySearchResults.scrollIntoView({
+                behavior: 'smooth',
+                block: 'end',
+                inline: 'nearest'
+            });
+        }, 100);
+    }
 }
 
   // Highlight the matching portion of the interval sequence
