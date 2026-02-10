@@ -50,6 +50,17 @@ console.log('Piano interface script file loaded!    ');
   let useSolfa = false;    // Toggle state for notation display
   let useFuzzySearch = true; // Toggle state for search mode (fuzzy/exact)
   let searchIncipit = false; // Toggle state for search location (incipit/anywhere)
+  let resizeHandlerAttached = false; // Track if resize handler is attached
+  
+  // Selectors for piano keys
+  const WHITE_KEY_SELECTOR = '.piano-key.white:not(.half-key)';
+  const BLACK_KEY_SELECTOR = '.piano-key.black';
+  
+  // Black key positioning map - defines which white keys each black key sits between
+  const blackKeyPositions = {
+    1: [0, 1], 3: [1, 2], 6: [3, 4], 8: [4, 5], 10: [5, 6],
+    13: [7, 8], 15: [8, 9], 18: [10, 11]
+  };
   
   // Initialize with a realistic piano synthesizer
   async function initializePianoSampler() {
@@ -316,36 +327,63 @@ console.log('Piano interface script file loaded!    ');
     
     // Position black keys
     requestAnimationFrame(() => {
-      const blackKeyPositions = {
-        1: [0, 1], 3: [1, 2], 6: [3, 4], 8: [4, 5], 10: [5, 6],
-        13: [7, 8], 15: [8, 9], 18: [10, 11]
-      };
-      
       blackKeyData.forEach(({ key, index }) => {
         const keyElement = createPianoKey(key, index);
         container.appendChild(keyElement);
         
-        const whiteKeyIndices = blackKeyPositions[index];
-        if (whiteKeyIndices) {
-          const [leftIdx, rightIdx] = whiteKeyIndices;
-          const leftKey = whiteKeyElements[leftIdx];
-          const rightKey = rightIdx < whiteKeyElements.length ? 
-                          whiteKeyElements[rightIdx] : halfKey;
-          
-          if (leftKey && rightKey) {
-            const leftRect = leftKey.getBoundingClientRect();
-            const containerRect = container.getBoundingClientRect();
-            const leftEdge = leftRect.right - containerRect.left;
-            const centerPosition = leftEdge - 14;
-            
-            keyElement.style.left = `${centerPosition}px`;
-          }
-        }
+        // Use the shared positioning function
+        positionBlackKey(keyElement, whiteKeyElements, container);
       });
     });
     
     isInitialized = true;
     console.log('✓ Piano UI initialized');
+    
+    // Add resize handler to reposition black keys (only once)
+    if (!resizeHandlerAttached) {
+      let resizeTimeout;
+      window.addEventListener('resize', () => {
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(() => {
+          repositionBlackKeys();
+        }, 100);
+      });
+      resizeHandlerAttached = true;
+    }
+  }
+  
+  // Shared function to position a single black key
+  function positionBlackKey(blackKey, whiteKeys, container) {
+    const index = parseInt(blackKey.dataset.index);
+    const whiteKeyIndices = blackKeyPositions[index];
+    
+    if (whiteKeyIndices) {
+      const [leftIdx, rightIdx] = whiteKeyIndices;
+      const leftKey = whiteKeys[leftIdx];
+      
+      if (leftKey) {
+        const leftRect = leftKey.getBoundingClientRect();
+        const containerRect = container.getBoundingClientRect();
+        const leftEdge = leftRect.right - containerRect.left;
+        const blackKeyWidth = blackKey.offsetWidth;
+        const centerPosition = leftEdge - (blackKeyWidth / 2);
+        
+        blackKey.style.left = `${centerPosition}px`;
+      }
+    }
+  }
+  
+  // Reposition all black keys (called on window resize)
+  function repositionBlackKeys() {
+    const container = document.getElementById('pianoKeysContainer');
+    if (!container) return;
+    
+    const whiteKeys = Array.from(container.querySelectorAll(WHITE_KEY_SELECTOR));
+    const blackKeys = Array.from(container.querySelectorAll(BLACK_KEY_SELECTOR));
+    
+    blackKeys.forEach(blackKey => {
+      positionBlackKey(blackKey, whiteKeys, container);
+    });
   }
   
   function createPianoKey(key, index) {
@@ -357,7 +395,7 @@ console.log('Piano interface script file loaded!    ');
     
     const label = document.createElement('span');
     label.textContent = key.note;
-    label.style.fontSize = key.type === 'black' ? '14px' : '14px';
+    // Font size is now handled by CSS clamp() for responsiveness
     keyElement.appendChild(label);
     
     // Click handler
