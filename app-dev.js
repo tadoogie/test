@@ -802,22 +802,67 @@ function applyLayerVolumes(xmlDoc, layers) {
 }
 
 // Helper functions for loading spinner
+let spinnerStartTime = null;
+const MIN_SPINNER_DISPLAY_TIME = 500; // Minimum time to show spinner in ms
+
 function showLoadingSpinner() {
+    console.log('🔄 [SPINNER] showLoadingSpinner() called');
     const container = document.getElementById("svg_output");
+    if (!container) {
+        console.error('❌ [SPINNER] ERROR: svg_output container not found!');
+        return;
+    }
+    
     container.innerHTML = `
         <div class="loading-spinner">
             <div class="spinner"></div>
             <div class="loading-text">Loading...</div>
         </div>
     `;
+    spinnerStartTime = Date.now();
+    console.log('✅ [SPINNER] Spinner HTML set, start time:', spinnerStartTime);
+    
+    // Force a reflow to ensure spinner is painted
+    container.offsetHeight;
+    console.log('🎨 [SPINNER] Forced reflow to ensure paint');
+}
+
+function ensureMinimumSpinnerTime(callback) {
+    if (!spinnerStartTime) {
+        console.log('⚠️ [SPINNER] No spinner start time, executing callback immediately');
+        callback();
+        return;
+    }
+    
+    const elapsed = Date.now() - spinnerStartTime;
+    const remaining = MIN_SPINNER_DISPLAY_TIME - elapsed;
+    
+    console.log(`⏱️ [SPINNER] Time elapsed: ${elapsed}ms, minimum: ${MIN_SPINNER_DISPLAY_TIME}ms`);
+    
+    if (remaining > 0) {
+        console.log(`⏳ [SPINNER] Waiting additional ${remaining}ms to meet minimum display time`);
+        setTimeout(() => {
+            console.log('✅ [SPINNER] Minimum display time met, executing callback');
+            callback();
+        }, remaining);
+    } else {
+        console.log('✅ [SPINNER] Minimum display time already met, executing callback immediately');
+        callback();
+    }
 }
 
 function loadDataWithLayerVolumes(data) {
+    console.log('📥 [LOAD] loadDataWithLayerVolumes() called, data length:', data?.length || 0);
+    
     // Show loading spinner immediately
     showLoadingSpinner();
     
+    console.log('⏰ [LOAD] Scheduling processing with setTimeout(50ms)');
     // Defer processing to allow browser to render the spinner
     setTimeout(() => {
+        console.log('🚀 [LOAD] setTimeout callback executing - starting Verovio processing');
+        const processingStartTime = Date.now();
+        
         try {
             // Parse the XML
             const parser = new DOMParser();
@@ -842,9 +887,18 @@ function loadDataWithLayerVolumes(data) {
             buildNoteIdToPageMap();
             buildMeasureIdToPageMap();
             page = 1;
-            loadPage();
+            
+            const processingTime = Date.now() - processingStartTime;
+            console.log(`⚡ [LOAD] Verovio processing completed in ${processingTime}ms`);
+            
+            // Ensure spinner shows for minimum time before replacing with content
+            ensureMinimumSpinnerTime(() => {
+                console.log('🖼️ [LOAD] Calling loadPage() to display rendered content');
+                loadPage();
+                console.log('✅ [LOAD] loadDataWithLayerVolumes() complete');
+            });
         } catch (error) {
-            console.error('Error loading data with layer volumes:', error);
+            console.error('❌ [LOAD] Error loading data with layer volumes:', error);
             // Show error message instead of spinner
             const container = document.getElementById("svg_output");
             container.innerHTML = `
@@ -903,11 +957,17 @@ function setOptions() {
 }
 
 function loadData(data) {
+    console.log('📥 [LOAD] loadData() called, data length:', data?.length || 0);
+    
     // Show loading spinner immediately
     showLoadingSpinner();
     
+    console.log('⏰ [LOAD] Scheduling processing with setTimeout(50ms)');
     // Defer processing to allow browser to render the spinner
     setTimeout(() => {
+        console.log('🚀 [LOAD] setTimeout callback executing - starting Verovio processing');
+        const processingStartTime = Date.now();
+        
         try {
             setOptions();
             vrvToolkit.loadData(data);
@@ -915,9 +975,18 @@ function loadData(data) {
             setTimemap(vrvToolkit.renderToTimemap({includeMeasures: true}));
             buildNoteIdToPageMap();
             page = 1;
-            loadPage();
+            
+            const processingTime = Date.now() - processingStartTime;
+            console.log(`⚡ [LOAD] Verovio processing completed in ${processingTime}ms`);
+            
+            // Ensure spinner shows for minimum time before replacing with content
+            ensureMinimumSpinnerTime(() => {
+                console.log('🖼️ [LOAD] Calling loadPage() to display rendered content');
+                loadPage();
+                console.log('✅ [LOAD] loadData() complete');
+            });
         } catch (error) {
-            console.error('Error loading data:', error);
+            console.error('❌ [LOAD] Error loading data:', error);
             // Show error message instead of spinner
             const container = document.getElementById("svg_output");
             container.innerHTML = `
@@ -1120,19 +1189,34 @@ async function loadAudioAndPlayHandler() {
 
 // --- When you load new MEI, update SVG, timemap, and clear highlights. ---
 function renderAndDisplayMEI(meiXML) {
+    console.log('📥 [RENDER] renderAndDisplayMEI() called, XML length:', meiXML?.length || 0);
+    
     // Show loading spinner immediately
     showLoadingSpinner();
     
+    console.log('⏰ [RENDER] Scheduling processing with setTimeout(50ms)');
     // Defer processing to allow browser to render the spinner
     setTimeout(() => {
+        console.log('🚀 [RENDER] setTimeout callback executing - starting Verovio processing');
+        const processingStartTime = Date.now();
+        
         try {
             vrvToolkit.loadData(meiXML);
             tk_pdf.loadData(meiXML);
             setTimemap(vrvToolkit.renderToTimemap({includeMeasures: true}));
-            document.getElementById("svg_output").innerHTML = vrvToolkit.renderToSVG(page);
-            unHighlightAllElements();
+            
+            const processingTime = Date.now() - processingStartTime;
+            console.log(`⚡ [RENDER] Verovio processing completed in ${processingTime}ms`);
+            
+            // Ensure spinner shows for minimum time before replacing with content
+            ensureMinimumSpinnerTime(() => {
+                console.log('🖼️ [RENDER] Setting SVG output and unhighlighting elements');
+                document.getElementById("svg_output").innerHTML = vrvToolkit.renderToSVG(page);
+                unHighlightAllElements();
+                console.log('✅ [RENDER] renderAndDisplayMEI() complete');
+            });
         } catch (error) {
-            console.error('Error rendering MEI:', error);
+            console.error('❌ [RENDER] Error rendering MEI:', error);
             // Show error message instead of spinner
             const container = document.getElementById("svg_output");
             container.innerHTML = `
