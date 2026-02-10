@@ -812,11 +812,6 @@ function showLoadingSpinner() {
     `;
 }
 
-function hideLoadingSpinner() {
-    // The spinner will be replaced by the actual content in loadPage()
-    // This function is here for clarity and potential future use
-}
-
 function loadDataWithLayerVolumes(data) {
     // Show loading spinner immediately
     showLoadingSpinner();
