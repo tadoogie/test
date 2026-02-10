@@ -816,7 +816,7 @@ function loadDataWithLayerVolumes(data) {
     // Show loading spinner immediately
     showLoadingSpinner();
     
-    // Use setTimeout to allow browser to render the spinner before processing
+    // Defer processing to allow browser to render the spinner
     setTimeout(() => {
         // Parse the XML
         const parser = new DOMParser();
@@ -842,7 +842,7 @@ function loadDataWithLayerVolumes(data) {
         buildMeasureIdToPageMap();
         page = 1;
         loadPage();
-    }, 10); // Small delay to allow browser to paint the spinner
+    }, 50); // Small delay to ensure spinner renders
 }
 
 function resetLayerVolumesToDefault() {
@@ -894,7 +894,7 @@ function loadData(data) {
     // Show loading spinner immediately
     showLoadingSpinner();
     
-    // Use setTimeout to allow browser to render the spinner before processing
+    // Defer processing to allow browser to render the spinner
     setTimeout(() => {
         setOptions();
         vrvToolkit.loadData(data);
@@ -903,7 +903,7 @@ function loadData(data) {
         buildNoteIdToPageMap();
         page = 1;
         loadPage();
-    }, 10); // Small delay to allow browser to paint the spinner
+    }, 50); // Small delay to ensure spinner renders
 }
 
 function loadPage() {
@@ -1099,14 +1099,14 @@ function renderAndDisplayMEI(meiXML) {
     // Show loading spinner immediately
     showLoadingSpinner();
     
-    // Use setTimeout to allow browser to render the spinner before processing
+    // Defer processing to allow browser to render the spinner
     setTimeout(() => {
         vrvToolkit.loadData(meiXML);
         tk_pdf.loadData(meiXML);
         setTimemap(vrvToolkit.renderToTimemap({includeMeasures: true}));
         document.getElementById("svg_output").innerHTML = vrvToolkit.renderToSVG(page);
         unHighlightAllElements();
-    }, 10); // Small delay to allow browser to paint the spinner
+    }, 50); // Small delay to ensure spinner renders
 }
 
 
