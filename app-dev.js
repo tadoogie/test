@@ -816,30 +816,33 @@ function loadDataWithLayerVolumes(data) {
     // Show loading spinner immediately
     showLoadingSpinner();
     
-    // Parse the XML
-    const parser = new DOMParser();
-    const xmlDoc = parser.parseFromString(data, 'text/xml');
-    
-    // Detect layers and create controls
-    const layers = detectLayers(xmlDoc);
-    createLayerVolumeControls(layers);
-    
-    // **DON'T apply velocities here - only on play**
-    
-    // Store the original and layers for later use
-    window.currentLayers = layers;
-    window.originalXmlData = data; // Store original without velocity modifications
-    currentXmlData = data; // Keep original for display
-    
-    // Proceed with normal Verovio loading (without velocities)
-    setOptions();
-    vrvToolkit.loadData(data);
-    tk_pdf.loadData(data);
-    setTimemap(vrvToolkit.renderToTimemap({includeMeasures: true}));
-    buildNoteIdToPageMap();
-    buildMeasureIdToPageMap();
-    page = 1;
-    loadPage();
+    // Use setTimeout to allow browser to render the spinner before processing
+    setTimeout(() => {
+        // Parse the XML
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(data, 'text/xml');
+        
+        // Detect layers and create controls
+        const layers = detectLayers(xmlDoc);
+        createLayerVolumeControls(layers);
+        
+        // **DON'T apply velocities here - only on play**
+        
+        // Store the original and layers for later use
+        window.currentLayers = layers;
+        window.originalXmlData = data; // Store original without velocity modifications
+        currentXmlData = data; // Keep original for display
+        
+        // Proceed with normal Verovio loading (without velocities)
+        setOptions();
+        vrvToolkit.loadData(data);
+        tk_pdf.loadData(data);
+        setTimemap(vrvToolkit.renderToTimemap({includeMeasures: true}));
+        buildNoteIdToPageMap();
+        buildMeasureIdToPageMap();
+        page = 1;
+        loadPage();
+    }, 10); // Small delay to allow browser to paint the spinner
 }
 
 function resetLayerVolumesToDefault() {
@@ -891,13 +894,16 @@ function loadData(data) {
     // Show loading spinner immediately
     showLoadingSpinner();
     
-    setOptions();
-    vrvToolkit.loadData(data);
-    tk_pdf.loadData(data);
-    setTimemap(vrvToolkit.renderToTimemap({includeMeasures: true}));
-    buildNoteIdToPageMap();
-    page = 1;
-    loadPage();
+    // Use setTimeout to allow browser to render the spinner before processing
+    setTimeout(() => {
+        setOptions();
+        vrvToolkit.loadData(data);
+        tk_pdf.loadData(data);
+        setTimemap(vrvToolkit.renderToTimemap({includeMeasures: true}));
+        buildNoteIdToPageMap();
+        page = 1;
+        loadPage();
+    }, 10); // Small delay to allow browser to paint the spinner
 }
 
 function loadPage() {
@@ -1093,11 +1099,14 @@ function renderAndDisplayMEI(meiXML) {
     // Show loading spinner immediately
     showLoadingSpinner();
     
-    vrvToolkit.loadData(meiXML);
-    tk_pdf.loadData(meiXML);
-    setTimemap(vrvToolkit.renderToTimemap({includeMeasures: true}));
-    document.getElementById("svg_output").innerHTML = vrvToolkit.renderToSVG(page);
-    unHighlightAllElements();
+    // Use setTimeout to allow browser to render the spinner before processing
+    setTimeout(() => {
+        vrvToolkit.loadData(meiXML);
+        tk_pdf.loadData(meiXML);
+        setTimemap(vrvToolkit.renderToTimemap({includeMeasures: true}));
+        document.getElementById("svg_output").innerHTML = vrvToolkit.renderToSVG(page);
+        unHighlightAllElements();
+    }, 10); // Small delay to allow browser to paint the spinner
 }
 
 
