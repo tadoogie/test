@@ -52,7 +52,15 @@ python3 process_mei_files.py
 
 ### 2. `remove-redundant-accidentals.xq` (XQuery)
 
-An XQuery script for use with XML databases like eXist-db or BaseX.
+A simple, straightforward XQuery script for use with XML databases like eXist-db or BaseX.
+
+**What it does:**
+1. Iterates through each MEI file in `/db/tunes/5.5.5.5/`
+2. Finds the `incipCode[@form="plaineAndEasie"]` element
+3. Extracts and evaluates the key signature
+4. Processes each note in the encoding
+5. Removes accidentals that are redundant (already in the key signature)
+6. Updates the file in place
 
 **Usage:**
 ```xquery
@@ -60,12 +68,7 @@ An XQuery script for use with XML databases like eXist-db or BaseX.
 (: The script processes all MEI documents in the /db/tunes/5.5.5.5/ collection :)
 ```
 
-**Behavior:**
-- If the collection `/db/tunes/5.5.5.5/` doesn't exist or is empty, the script returns a helpful message instead of failing
-- The script checks for collection availability before attempting to process files
-- Only processes documents that contain `incipCode[@form="plaineAndEasie"]` elements
-
-**Note:** Requires an XQuery 3.1 processor with update facility.
+**Note:** Requires an XQuery 3.1 processor with update facility. The collection must exist and contain MEI files.
 
 ### 3. `process-mei-file.xq` (XQuery)
 

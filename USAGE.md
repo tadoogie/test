@@ -121,13 +121,7 @@ Make sure:
 
 ## Using with eXist-db / eXide
 
-When using the XQuery scripts (`remove-redundant-accidentals.xq`) with eXist-db:
-
-### "Nothing to select" error in eXide
-This error occurs when the collection path doesn't exist or is empty. The script now handles this gracefully by:
-- Checking if the collection exists before processing
-- Returning a helpful message if no documents are found
-- Example message: "No documents found in collection: /db/tunes/5.5.5.5/"
+The XQuery script `remove-redundant-accidentals.xq` is designed for use with eXist-db or BaseX.
 
 ### Setup Required
 Before running the XQuery script:
@@ -138,8 +132,16 @@ Before running the XQuery script:
 ### Running in eXide
 1. Open the `remove-redundant-accidentals.xq` file in eXide
 2. Click the "Evaluate" button
-3. If successful, the script will update the files in place
-4. If the collection is empty, you'll see a helpful message instead of an error
+3. The script will process all MEI files in the collection
+4. Files with redundant accidentals will be updated in place
+5. Files without redundant accidentals remain unchanged
+
+### Simple and Direct
+The script is intentionally simple:
+- No error handling for missing collections
+- No status messages or results
+- Just processes files and updates them
+- Assumes the collection exists and contains valid MEI files
 
 ## Need Help?
 
