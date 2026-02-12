@@ -14,7 +14,6 @@ declare function local:is-flat-in-key($pitch as xs:string, $key-sig-code as xs:s
     else
         (: Parse key signature character by character :)
         (: Format: bBEA means B, E, and A are flat :)
-        let $chars := string-to-codepoints($key-sig-code)
         let $result := fold-left(
             1 to string-length($key-sig-code),
             map { "accid": "", "found": false() },
@@ -49,7 +48,6 @@ declare function local:is-sharp-in-key($pitch as xs:string, $key-sig-code as xs:
     else
         (: Parse key signature character by character :)
         (: Format: xFC means F and C are sharp :)
-        let $chars := string-to-codepoints($key-sig-code)
         let $result := fold-left(
             1 to string-length($key-sig-code),
             map { "accid": "", "found": false() },
