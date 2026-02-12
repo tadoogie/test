@@ -17,12 +17,55 @@ import sys
 from pathlib import Path
 
 def is_flat_in_key(pitch, key_sig_code):
-    """Check if a pitch has a flat in the key signature."""
-    return f"b{pitch}" in key_sig_code
+    """
+    Check if a pitch has a flat in the key signature.
+    Key signature format: bBEA means B, E, and A are flat.
+    The 'b' applies to all following letters until another accidental.
+    """
+    if not key_sig_code or pitch not in 'ABCDEFG':
+        return False
+    
+    # Find if pitch appears after a 'b' accidental
+    # Parse the key signature to find which notes have which accidentals
+    i = 0
+    current_accid = None
+    while i < len(key_sig_code):
+        char = key_sig_code[i]
+        if char == 'b':
+            current_accid = 'flat'
+        elif char == 'x':
+            current_accid = 'sharp'
+        elif char in 'ABCDEFG':
+            # This is a pitch name
+            if char == pitch and current_accid == 'flat':
+                return True
+        i += 1
+    return False
 
 def is_sharp_in_key(pitch, key_sig_code):
-    """Check if a pitch has a sharp in the key signature."""
-    return f"x{pitch}" in key_sig_code
+    """
+    Check if a pitch has a sharp in the key signature.
+    Key signature format: xFC means F and C are sharp.
+    The 'x' applies to all following letters until another accidental.
+    """
+    if not key_sig_code or pitch not in 'ABCDEFG':
+        return False
+    
+    # Find if pitch appears after an 'x' accidental
+    i = 0
+    current_accid = None
+    while i < len(key_sig_code):
+        char = key_sig_code[i]
+        if char == 'b':
+            current_accid = 'flat'
+        elif char == 'x':
+            current_accid = 'sharp'
+        elif char in 'ABCDEFG':
+            # This is a pitch name
+            if char == pitch and current_accid == 'sharp':
+                return True
+        i += 1
+    return False
 
 def process_plaine_easie(pae_code):
     """

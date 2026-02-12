@@ -9,7 +9,32 @@ declare namespace mei = "http://www.music-encoding.org/ns/mei";
  : @return true if the pitch is flat in the key signature
  :)
 declare function local:is-flat-in-key($pitch as xs:string, $key-sig-code as xs:string) as xs:boolean {
-    contains($key-sig-code, concat("b", $pitch))
+    if (not($key-sig-code) or $pitch = "") then
+        false()
+    else
+        (: Parse key signature character by character :)
+        (: Format: bBEA means B, E, and A are flat :)
+        let $chars := string-to-codepoints($key-sig-code)
+        let $result := fold-left(
+            1 to string-length($key-sig-code),
+            map { "accid": "", "found": false() },
+            function($acc, $pos) {
+                let $char := substring($key-sig-code, $pos, 1)
+                return
+                    if ($char = "b") then
+                        map { "accid": "flat", "found": $acc?found }
+                    else if ($char = "x") then
+                        map { "accid": "sharp", "found": $acc?found }
+                    else if (matches($char, "[A-G]")) then
+                        if ($char = $pitch and $acc?accid = "flat") then
+                            map { "accid": $acc?accid, "found": true() }
+                        else
+                            map { "accid": $acc?accid, "found": $acc?found }
+                    else
+                        $acc
+            }
+        )
+        return $result?found
 };
 
 (: ~
@@ -19,7 +44,32 @@ declare function local:is-flat-in-key($pitch as xs:string, $key-sig-code as xs:s
  : @return true if the pitch is sharp in the key signature
  :)
 declare function local:is-sharp-in-key($pitch as xs:string, $key-sig-code as xs:string) as xs:boolean {
-    contains($key-sig-code, concat("x", $pitch))
+    if (not($key-sig-code) or $pitch = "") then
+        false()
+    else
+        (: Parse key signature character by character :)
+        (: Format: xFC means F and C are sharp :)
+        let $chars := string-to-codepoints($key-sig-code)
+        let $result := fold-left(
+            1 to string-length($key-sig-code),
+            map { "accid": "", "found": false() },
+            function($acc, $pos) {
+                let $char := substring($key-sig-code, $pos, 1)
+                return
+                    if ($char = "b") then
+                        map { "accid": "flat", "found": $acc?found }
+                    else if ($char = "x") then
+                        map { "accid": "sharp", "found": $acc?found }
+                    else if (matches($char, "[A-G]")) then
+                        if ($char = $pitch and $acc?accid = "sharp") then
+                            map { "accid": $acc?accid, "found": true() }
+                        else
+                            map { "accid": $acc?accid, "found": $acc?found }
+                    else
+                        $acc
+            }
+        )
+        return $result?found
 };
 
 (: ~
