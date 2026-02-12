@@ -57,7 +57,7 @@ An XQuery script for use with XML databases like eXist-db or BaseX.
 **Usage:**
 ```xquery
 (: Load and execute the script in your XQuery processor :)
-(: The script processes all MEI documents in the /db/tunes/ collection :)
+(: The script processes all MEI documents in the /db/tunes/5.5.5.5/ collection :)
 ```
 
 **Note:** Requires an XQuery 3.1 processor with update facility.

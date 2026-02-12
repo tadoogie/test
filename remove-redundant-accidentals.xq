@@ -121,7 +121,7 @@ declare function local:process-plaine-easie($pae-code as xs:string) as xs:string
 };
 
 (: Main processing: Process all MEI documents with plaineAndEasie incipCode :)
-for $doc in collection("/db/tunes/")//mei:mei
+for $doc in collection("/db/tunes/5.5.5.5/")//mei:mei
 let $uri := document-uri(root($doc))
 
 (: Find the incipCode with plaineAndEasie :)
