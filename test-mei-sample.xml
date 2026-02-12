@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mei xmlns="http://www.music-encoding.org/ns/mei" meiversion="4.0.0">
+  <meiHead>
+    <fileDesc>
+      <titleStmt>
+        <title>Test MEI File</title>
+      </titleStmt>
+      <pubStmt/>
+    </fileDesc>
+    <workList>
+      <work>
+        <title>Test Melody</title>
+        <incip>
+          <!-- This will be populated by the XQuery script -->
+        </incip>
+      </work>
+    </workList>
+  </meiHead>
+  <music>
+    <body>
+      <mdiv>
+        <score>
+          <scoreDef>
+            <staffGrp>
+              <staffDef n="1" lines="5">
+                <clef shape="G" line="2"/>
+                <keySig sig="2s"/>
+                <meterSig count="4" unit="4"/>
+              </staffDef>
+            </staffGrp>
+          </scoreDef>
+          <section>
+            <measure n="1">
+              <staff n="1">
+                <layer n="1">
+                  <!-- D major scale with key signature 2s (F# and C#) -->
+                  <note pname="d" oct="4" dur="4"/>
+                  <note pname="e" oct="4" dur="4"/>
+                  <note pname="f" oct="4" dur="4" accid.ges="s"/>
+                  <note pname="g" oct="4" dur="4"/>
+                </layer>
+              </staff>
+            </measure>
+            <measure n="2">
+              <staff n="1">
+                <layer n="1">
+                  <note pname="a" oct="4" dur="4"/>
+                  <note pname="b" oct="4" dur="4"/>
+                  <note pname="c" oct="5" dur="4" accid.ges="s"/>
+                  <note pname="d" oct="5" dur="4"/>
+                </layer>
+              </staff>
+            </measure>
+            <measure n="3">
+              <staff n="1">
+                <layer n="1">
+                  <!-- G# is NOT in key signature, should be encoded -->
+                  <note pname="g" oct="4" dur="4" accid="s"/>
+                  <!-- F natural is NOT in key signature, should be encoded -->
+                  <note pname="f" oct="4" dur="4" accid="n"/>
+                  <note pname="e" oct="4" dur="4"/>
+                  <note pname="d" oct="4" dur="4"/>
+                </layer>
+              </staff>
+            </measure>
+          </section>
+        </score>
+      </mdiv>
+    </body>
+  </music>
+</mei>
