@@ -356,7 +356,9 @@ declare function local:generate-contour($doc as node()) as xs:string {
 };
 
 (: ~
- :  Main processing:  Add incipCode elements to each MEI document that doesn't have them
+ :  Main processing:  Update/add incipCode elements to each MEI document
+ :  - Always regenerates plaineAndEasie to apply corrected accidental logic
+ :  - Generates missing pitchclass, signedinterval, and contour codes
  :)
 for $doc in collection("/db/tunes/8.8.8.8/")//mei:mei
 let $uri := document-uri(root($doc))
@@ -371,19 +373,17 @@ let $has-pc := exists($incip/mei:incipCode[@form="pitchclass"])
 let $has-si := exists($incip/mei:incipCode[@form="signedinterval"])
 let $has-contour := exists($incip/mei:incipCode[@form="contour"])
 
-(: Only process if at least one is missing :)
-where not($has-pae) or not($has-pc) or not($has-si) or not($has-contour)
+(: Process all files to ensure plaineAndEasie uses corrected accidental logic :)
+(: Note: plaineAndEasie will always be regenerated, others only if missing :)
+where $incip
 
 return
     let $existing-incipCodes := $incip/mei:incipCode
     
-    (: Generate missing incipCodes :)
+    (: Always regenerate plaineAndEasie to apply corrected accidental logic :)
     let $pae-incipit := 
-        if (not($has-pae)) then
-            let $melody := local:extract-melody($doc)
-            return <incipCode xmlns="http://www.music-encoding.org/ns/mei" form="plaineAndEasie">{$melody}</incipCode>
-        else
-            $incip/mei:incipCode[@form="plaineAndEasie"]
+        let $melody := local:extract-melody($doc)
+        return <incipCode xmlns="http://www.music-encoding.org/ns/mei" form="plaineAndEasie">{$melody}</incipCode>
     
     let $pc-incipit : =
         if (not($has-pc)) then
