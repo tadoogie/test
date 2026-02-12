@@ -121,21 +121,35 @@ declare function local:process-plaine-easie($pae-code as xs:string) as xs:string
 };
 
 (: Main processing: Process all MEI documents with plaineAndEasie incipCode :)
-for $doc in collection("/db/tunes/5.5.5.5/")//mei:mei
-let $uri := document-uri(root($doc))
-
-(: Find the incipCode with plaineAndEasie :)
-let $incipCode := $doc//mei:workList/mei:work/mei:incip/mei:incipCode[@form="plaineAndEasie"]
-
-where exists($incipCode)
+let $collection-path := "/db/tunes/5.5.5.5/"
+let $docs := 
+    if (collection-available($collection-path)) then
+        collection($collection-path)//mei:mei
+    else
+        ()
 
 return
-    let $original := string($incipCode)
-    let $processed := local:process-plaine-easie($original)
-    
-    (: Update the incipCode :)
-    return
-        if ($original != $processed) then
-            update value $incipCode with $processed
-        else
-            ()
+    if (empty($docs)) then
+        <result>
+            <message>No documents found in collection: {$collection-path}</message>
+            <note>Please ensure the collection exists and contains MEI files.</note>
+        </result>
+    else
+        for $doc in $docs
+        let $uri := document-uri(root($doc))
+        
+        (: Find the incipCode with plaineAndEasie :)
+        let $incipCode := $doc//mei:workList/mei:work/mei:incip/mei:incipCode[@form="plaineAndEasie"]
+        
+        where exists($incipCode)
+        
+        return
+            let $original := string($incipCode)
+            let $processed := local:process-plaine-easie($original)
+            
+            (: Update the incipCode :)
+            return
+                if ($original != $processed) then
+                    update value $incipCode with $processed
+                else
+                    ()

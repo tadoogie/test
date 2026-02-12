@@ -60,6 +60,11 @@ An XQuery script for use with XML databases like eXist-db or BaseX.
 (: The script processes all MEI documents in the /db/tunes/5.5.5.5/ collection :)
 ```
 
+**Behavior:**
+- If the collection `/db/tunes/5.5.5.5/` doesn't exist or is empty, the script returns a helpful message instead of failing
+- The script checks for collection availability before attempting to process files
+- Only processes documents that contain `incipCode[@form="plaineAndEasie"]` elements
+
 **Note:** Requires an XQuery 3.1 processor with update facility.
 
 ### 3. `process-mei-file.xq` (XQuery)
