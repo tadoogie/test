@@ -1,5 +1,7 @@
 # Plaine and Easie IncipiCode Accidental Fix
 
+⚠️ **IMPORTANT**: If you're getting "Content is not allowed in prolog" error, see [TROUBLESHOOTING.md](TROUBLESHOOTING.md). You must use **eXide** (not REST API) to run these scripts.
+
 This repository contains an XQuery script to fix the encoding of accidentals in Plaine and Easie incipCode elements within MEI (Music Encoding Initiative) files.
 
 ## The Problem
@@ -35,34 +37,46 @@ This update includes:
 
 ## Quick Start
 
-### 1. Run Diagnostic (Recommended First Step)
+⚠️ **IMPORTANT**: Use eXide (the web-based IDE) to run these scripts, NOT the REST API or direct file access.
 
-Open `diagnostic-script.xq` in eXide and update the collection path:
-```xquery
-let $collection-path := "/db/tunes/8.8.8.8/"  (: Update this to your path :)
-```
+### Step 0: Access eXide
 
-Run it to see:
-- How many MEI documents are in your collection
-- How many have the required structure
-- Sample files that will be processed
-- Whether old vs new logic would process them
+1. Open your browser
+2. Go to: `http://localhost:8080/exist/apps/eXide/` (adjust host/port as needed)
+3. Or from eXist-db dashboard, click the "eXide" icon
 
-### 2. Update Main Script
+### Step 1: Run Simple Test (First Time Users)
 
-Open `add-plaine-easie-incipit.xq` in eXide and update line 363:
-```xquery
-for $doc in collection("/db/tunes/8.8.8.8/")//mei:mei
-```
-Change `/db/tunes/8.8.8.8/` to your actual collection path.
+1. Open `simple-test.xq` in eXide (File → Open or copy/paste content)
+2. Update line 11: `let $collection-path := "/db/tunes/8.8.8.8/"`
+3. Click "Eval" button (or press Ctrl+Enter)
+4. Review the test results to verify your setup
 
-### 3. Run Main Script
+### Step 2: Run Diagnostic (Optional but Recommended)
 
-Click Run in eXide. The script will:
-- Process ALL MEI files with `<incip>` elements
-- Regenerate plaineAndEasie with corrected accidental encoding
-- Generate missing pitchclass, signedinterval, and contour codes
-- Preserve existing pitchclass, signedinterval, and contour codes
+1. Open `diagnostic-script.xq` in eXide
+2. Update the collection path on line 9
+3. Click "Eval" to see:
+   - How many MEI documents are in your collection
+   - How many have the required structure
+   - Sample files that will be processed
+
+### Step 3: Update Main Script
+
+1. Open `add-plaine-easie-incipit.xq` in eXide
+2. Find line 363: `for $doc in collection("/db/tunes/8.8.8.8/")//mei:mei`
+3. Change `/db/tunes/8.8.8.8/` to your actual collection path
+4. Save (optional, can run without saving)
+
+### Step 4: Run Main Script
+
+1. Click "Eval" button in eXide
+2. The script will:
+   - Process ALL MEI files with `<incip>` elements
+   - Regenerate plaineAndEasie with corrected accidental encoding
+   - Generate missing pitchclass, signedinterval, and contour codes
+   - Preserve existing pitchclass, signedinterval, and contour codes
+3. Check the output panel for results
 
 ## What Gets Changed
 
@@ -105,9 +119,19 @@ The script correctly handles all standard key signatures:
 
 ## Troubleshooting
 
+### Getting "Content is not allowed in prolog" Error?
+
+This error occurs when trying to execute scripts via the REST API instead of eXide. **Solution**:
+
+1. ✅ **Use eXide**: Go to `http://localhost:8080/exist/apps/eXide/`
+2. ✅ **Copy/paste the script** into eXide's editor
+3. ✅ **Click "Eval"** to execute
+
+See [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for detailed instructions.
+
 ### Getting 0 Results?
 
-1. **Run diagnostic-script.xq** to verify:
+1. **Run simple-test.xq** to verify:
    - Collection path exists and contains MEI files
    - Files have the required structure (`<workList>` → `<work>` → `<incip>`)
    
