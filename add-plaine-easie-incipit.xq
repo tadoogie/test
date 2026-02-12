@@ -206,7 +206,7 @@ declare function local:pitch-to-midi($pname as xs:string, $oct as xs:string, $ac
             case "a" return 9
             case "b" return 11
             default return 0
-    let $accid-offset : =
+    let $accid-offset :=
         if ($accid = "s") then 1
         else if ($accid = "f") then -1
         else 0
@@ -238,7 +238,7 @@ declare function local:get-all-notes($doc as node()) as element()* {
  :)
 declare function local:generate-pitch-class($doc as node()) as xs:string {
     let $notes := local:get-all-notes($doc)
-    let $pitch-classes : =
+    let $pitch-classes :=
         for $note in $notes
         let $pname := string($note/@pname)
         let $oct := string($note/@oct)
@@ -351,7 +351,7 @@ return
         else
             $incip/mei:incipCode[@form="plaineAndEasie"]
     
-    let $pc-incipit : =
+    let $pc-incipit :=
         if (not($has-pc)) then
             let $pc-data := local:generate-pitch-class($doc)
             return <incipCode xmlns="http://www.music-encoding.org/ns/mei" form="pitchclass">{$pc-data}</incipCode>
@@ -365,7 +365,7 @@ return
         else
             $incip/mei:incipCode[@form="signedinterval"]
     
-    let $contour-incipit : =
+    let $contour-incipit :=
         if (not($has-contour)) then
             let $contour-data := local:generate-contour($doc)
             return <incipCode xmlns="http://www.music-encoding.org/ns/mei" form="contour">{$contour-data}</incipCode>
