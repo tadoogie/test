@@ -403,13 +403,17 @@ function ensurePstuneSearchUI(tuneLabels, tuneListObjs, initialValue, suggTune) 
     return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
   }
 
-  function renderTuneButtons(filter) {
+  function renderTuneButtons(filter, excludeLabel) {
      tuneButtonsContainer.innerHTML = '';
     filter = (filter || '').toLowerCase().trim();
+    excludeLabel = excludeLabel || null;
 
     const sourceList = Array.isArray(tuneLabels) && tuneLabels.length ? tuneLabels : Object.keys(window._pstuneMap || {});
 
     const matches = sourceList.filter(function(lbl) {
+        // Exclude the specified label if provided
+        if (excludeLabel && lbl === excludeLabel) return false;
+        
         if (!filter) return true;
         return normalizeString(lbl).indexOf(normalizeString(filter)) !== -1;
     });
@@ -620,9 +624,10 @@ function getTunes(tuneLabel) {
             // Update global variable
             window.globalPsTune = mappingId;
             
-            // Filter to show only this tune button (hides all others)
+            // Filter to show only this tune button, but exclude it from tuneButtons div
+            // since it's already shown in the pstuneSuggestion area
             if (typeof window._renderTuneButtons === 'function') {
-              window._renderTuneButtons(lbl);
+              window._renderTuneButtons(lbl, lbl);  // Pass lbl twice: filter and exclude
             }
           }
 
