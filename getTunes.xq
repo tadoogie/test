@@ -72,4 +72,5 @@ return
          placeholder="[Type here to filter tunes]"
          autocomplete="off" />
   <span id="pstuneSuggestion" style="display:block;margin-top:6px;color:#ddd;">{ if (string-length(normalize-space($suggLabel)) > 0) then concat('Suggested tune: ', $suggLabel) else '' }</span>
+
 </span>
