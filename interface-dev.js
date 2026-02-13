@@ -2142,8 +2142,9 @@ function maybeShowNextForTune() {
       }
       
       // Re-run getTunes to restore the original filtered list by metre
+      // Pass empty string so suggTune falls back to psData[2] (the actual suggested tune)
       try {
-        getTunes(currentMetre);  // ← Pass currentMetre to show all tunes for that metre
+        getTunes('');  // ← Pass empty string to preserve suggested tune from psData[2]
       } catch(e) {
         console.warn('Error calling getTunes:', e);
       }
