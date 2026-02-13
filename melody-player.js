@@ -120,6 +120,31 @@ class MelodyPlayer {
         this.currentButton = null;
     }
 
+    // Wait for MIDI player to be ready for playback
+    async waitForPlayerReady(player) {
+        return new Promise((resolve) => {
+            let attempts = 0;
+            const maxAttempts = 50; // 50 attempts * 100ms = 5 seconds max
+            
+            const checkReady = () => {
+                attempts++;
+                
+                // Check if player has duration (indicates MIDI is loaded)
+                if (player.duration && player.duration > 0) {
+                    console.log('Player is ready, duration:', player.duration);
+                    resolve();
+                } else if (attempts >= maxAttempts) {
+                    console.warn('Player load timeout - proceeding anyway');
+                    resolve();
+                } else {
+                    setTimeout(checkReady, 100);
+                }
+            };
+            
+            checkReady();
+        });
+    }
+
     // Play melody from Plain and Easy code
     async play(paeCode, tuneName, button) {
         console.log('=== Melody Player Debug ===');
@@ -227,32 +252,7 @@ class MelodyPlayer {
             // The player needs time to parse MIDI and prepare audio buffers
             console.log('Waiting for MIDI to load...');
             
-            // Create a promise that checks if player is ready
-            const waitForPlayerReady = () => {
-                return new Promise((resolve) => {
-                    let attempts = 0;
-                    const maxAttempts = 50; // 50 attempts * 100ms = 5 seconds max
-                    
-                    const checkReady = () => {
-                        attempts++;
-                        
-                        // Check if player has duration (indicates MIDI is loaded)
-                        if (player.duration && player.duration > 0) {
-                            console.log('Player is ready, duration:', player.duration);
-                            resolve();
-                        } else if (attempts >= maxAttempts) {
-                            console.warn('Player load timeout - proceeding anyway');
-                            resolve();
-                        } else {
-                            setTimeout(checkReady, 100);
-                        }
-                    };
-                    
-                    checkReady();
-                });
-            };
-            
-            await waitForPlayerReady();
+            await this.waitForPlayerReady(player);
 
             // Additional small delay to ensure audio buffer is fully ready
             await new Promise(resolve => setTimeout(resolve, 200));
