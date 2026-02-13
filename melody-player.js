@@ -23,46 +23,6 @@ class MelodyPlayer {
         return true;
     }
 
-    // Create MEI with Plain and Easy incipit
-    createMEIWithIncipit(paeCode, tuneName = 'Melody') {
-        const mei = `<?xml version="1.0" encoding="UTF-8"?>
-<mei xmlns="http://www.music-encoding.org/ns/mei" meiversion="5.1">
-    <meiHead>
-        <fileDesc>
-            <titleStmt>
-                <title>${this.escapeXml(tuneName)}</title>
-            </titleStmt>
-            <pubStmt></pubStmt>
-        </fileDesc>
-        <workList>
-            <work>
-                <title>${this.escapeXml(tuneName)}</title>
-                <incip>
-                    <incipCode form="plaineAndEasie">${this.escapeXml(paeCode)}</incipCode>
-                </incip>
-            </work>
-        </workList>
-    </meiHead>
-    <music>
-        <body></body>
-    </music>
-</mei>`;
-        return mei;
-    }
-
-    escapeXml(unsafe) {
-        if (! unsafe) return '';
-        return unsafe. replace(/[<>&'"]/g, function (c) {
-            switch (c) {
-                case '<': return '&lt;';
-                case '>': return '&gt;';
-                case '&': return '&amp;';
-                case '\'': return '&apos;';
-                case '"': return '&quot;';
-            }
-        });
-    }
-
     // Create circular progress play button
     createPlayButton() {
         const button = document.createElement('button');
@@ -203,33 +163,29 @@ class MelodyPlayer {
                 console.log('Tone.js started');
             }
 
-            // Create MEI with the PAE incipit code
-            console.log('Creating MEI from PAE code...');
-            const meiXML = this.createMEIWithIncipit(paeCode, tuneName);
-            console.log('MEI created, length:', meiXML.length);
-            console.log('First 500 chars:', meiXML.substring(0, 500));
-            
-            // Enable incip option to tell Verovio to process the incipit
+            // Set Verovio to accept PAE input directly (no MEI wrapper needed)
+            console.log('Setting Verovio options for PAE input...');
             this.verovioToolkit.setOptions({
-                incip: true,        // Process the <incipCode> in the MEI
+                inputFrom: 'pae',   // Tell Verovio to expect Plain and Easy code directly
                 scale: 40,
                 pageHeight: 500,
                 pageWidth: 500,
                 adjustPageHeight: true
             });
             
-            console.log('Verovio options set with incip: true');
-            console.log('Loading MEI into Verovio...');
+            console.log('Verovio options set with inputFrom: pae');
+            console.log('Loading PAE code directly into Verovio...');
+            console.log('PAE code to load:', paeCode);
 
-            const loaded = this.verovioToolkit.loadData(meiXML);
+            const loaded = this.verovioToolkit.loadData(paeCode);
             console.log('loadData returned:', loaded);
             
             if (loaded === 0 || !loaded) {
                 console.error('❌ Verovio loadData failed - returned:', loaded);
-                throw new Error('Verovio failed to load MEI data');
+                throw new Error('Verovio failed to load PAE data');
             }
             
-            console.log('✓ MEI loaded successfully');
+            console.log('✓ PAE loaded successfully');
             
             console.log('Rendering to MIDI...');
             const base64midi = this.verovioToolkit.renderToMIDI();
