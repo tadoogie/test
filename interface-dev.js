@@ -494,8 +494,20 @@ function ensurePstuneSearchUI(tuneLabels, tuneListObjs, initialValue, suggTune) 
           
           // Mark button as active (including in main tune buttons if present)
           tuneButtonsContainer.querySelectorAll('.verse-btn, .tune-btn').forEach(b => b.classList.remove('active'));
-          const allSuggBtns = document.querySelectorAll('[data-label="' + suggTuneLabel.replace(/"/g, '\\"') + '"]');
-          allSuggBtns.forEach(b => b.classList.add('active'));
+          // Mark all buttons with matching label as active (both suggested and in list)
+          try {
+            const selector = '[data-label="' + CSS.escape(suggTuneLabel) + '"]';
+            const allSuggBtns = document.querySelectorAll(selector);
+            allSuggBtns.forEach(b => b.classList.add('active'));
+          } catch (e) {
+            // Fallback if CSS.escape is not available
+            const allButtons = document.querySelectorAll('.verse-btn, .tune-btn');
+            allButtons.forEach(b => {
+              if (b.dataset.label === suggTuneLabel) {
+                b.classList.add('active');
+              }
+            });
+          }
 
           // Update global variable
           window.globalPsTune = suggTuneId || '';
