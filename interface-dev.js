@@ -403,13 +403,17 @@ function ensurePstuneSearchUI(tuneLabels, tuneListObjs, initialValue, suggTune) 
     return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
   }
 
-  function renderTuneButtons(filter) {
+  function renderTuneButtons(filter, excludeLabel) {
      tuneButtonsContainer.innerHTML = '';
     filter = (filter || '').toLowerCase().trim();
+    excludeLabel = excludeLabel || null;
 
     const sourceList = Array.isArray(tuneLabels) && tuneLabels.length ? tuneLabels : Object.keys(window._pstuneMap || {});
 
     const matches = sourceList.filter(function(lbl) {
+        // Exclude the specified label if provided
+        if (excludeLabel && lbl === excludeLabel) return false;
+        
         if (!filter) return true;
         return normalizeString(lbl).indexOf(normalizeString(filter)) !== -1;
     });
@@ -542,6 +546,9 @@ function ensurePstuneSearchUI(tuneLabels, tuneListObjs, initialValue, suggTune) 
   tuneInput.value = '';
   renderTuneButtons('');
 
+  // Expose renderTuneButtons for use by suggested tune button
+  window._renderTuneButtons = renderTuneButtons;
+
   try { maybeShowNextForTune(); } catch (_) {}
 }
 
@@ -580,6 +587,58 @@ function getTunes(tuneLabel) {
         ensurePstuneSearchUI(tuneLabels, tuneList, tuneLabel || '', suggTune);
       } catch (e) {
         console.warn('ensurePstuneSearchUI failed', e);
+      }
+
+      // Attach click handler to suggested tune button if it exists
+      const suggTuneBtn = document.querySelector('#pstuneSuggestion .tune-btn');
+      if (suggTuneBtn) {
+        suggTuneBtn.addEventListener('mousedown', function(e) {
+          // Set flag to prevent blur event from interfering
+          if (window.isClickingButton !== undefined) {
+            window.isClickingButton = true;
+          }
+        });
+
+        suggTuneBtn.addEventListener('click', function(e) {
+          const input = document.getElementById('pstune');
+          const tuneButtonsContainer = document.getElementById('tuneButtons');
+          const lbl = suggTuneBtn.dataset.label || '';
+          const mappingId = suggTuneBtn.dataset.tuneid || '';
+
+          if (input) {
+            // Store selection in dataset
+            input.dataset.tuneid = mappingId;
+            input.dataset.tunelabel = lbl;
+            
+            // Show the tune name in the input field
+            input.value = lbl;
+            
+            // Mark button as active and deactivate all others
+            if (tuneButtonsContainer) {
+              tuneButtonsContainer.querySelectorAll('.verse-btn, .tune-btn').forEach(b => {
+                b.classList.remove('active');
+              });
+            }
+            suggTuneBtn.classList.add('active');
+
+            // Update global variable
+            window.globalPsTune = mappingId;
+            
+            // Filter to show only this tune button, but exclude it from tuneButtons div
+            // since it's already shown in the pstuneSuggestion area
+            if (typeof window._renderTuneButtons === 'function') {
+              window._renderTuneButtons(lbl, lbl);  // Pass lbl twice: filter and exclude
+            }
+          }
+
+          // Reset flag
+          if (window.isClickingButton !== undefined) {
+            window.isClickingButton = false;
+          }
+
+          try { updateSelectionSummary(); } catch(e) {}
+          try { maybeShowNextForTune(); } catch(e) {}
+        });
       }
 
       const optionsSpacer = document.getElementById("optionsSpacer");
@@ -2142,8 +2201,9 @@ function maybeShowNextForTune() {
       }
       
       // Re-run getTunes to restore the original filtered list by metre
+      // Pass empty string so suggTune falls back to psData[2] (the actual suggested tune)
       try {
-        getTunes(currentMetre);  // ← Pass currentMetre to show all tunes for that metre
+        getTunes('');  // ← Pass empty string to preserve suggested tune from psData[2]
       } catch(e) {
         console.warn('Error calling getTunes:', e);
       }
