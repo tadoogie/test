@@ -7,6 +7,10 @@ class MelodyPlayer {
         this.animationFrame = null;
         this.verovioToolkit = null;
         this.isPlaying = false;
+        
+        // Constants for timing
+        this.PLAYER_INIT_DELAY_MS = 500;  // Time to wait after creating new player element
+        this.AUDIO_BUFFER_DELAY_MS = 200; // Additional delay to ensure audio buffer is ready
     }
 
     async initialize() {
@@ -231,8 +235,8 @@ class MelodyPlayer {
                 player.style.display = 'none';
                 document.body.appendChild(player);
                 
-                // Wait for player to be ready after initial creation
-                await new Promise(resolve => setTimeout(resolve, 500));
+                // Wait for player element to initialize (Web Component registration, etc.)
+                await new Promise(resolve => setTimeout(resolve, this.PLAYER_INIT_DELAY_MS));
             }
 
             this.currentPlayer = player;
@@ -254,8 +258,9 @@ class MelodyPlayer {
             
             await this.waitForPlayerReady(player);
 
-            // Additional small delay to ensure audio buffer is fully ready
-            await new Promise(resolve => setTimeout(resolve, 200));
+            // Additional delay to ensure Web Audio API buffers are fully ready
+            // This helps prevent cutting off the first notes during playback
+            await new Promise(resolve => setTimeout(resolve, this.AUDIO_BUFFER_DELAY_MS));
 
             if (typeof player.start === 'function') {
                 console.log('Calling player.start()...');
