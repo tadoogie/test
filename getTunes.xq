@@ -54,23 +54,46 @@ let $tuneLabelsJs := concat(
   "]"
 )
 
-(: Find suggested tune label :)
-let $suggLabel :=
-  let $sugg :=
-    for $tune in collection("/db/tunes")
-    where $tune//mei:identifier/text() = $suggTune
-    return concat($tune//mei:work/mei:title/text(), " (", $tune//mei:edition/mei:date/text(), ")")
-  return $sugg[1]
+(: Find suggested tune label and ID :)
+let $suggData :=
+  for $tune in collection("/db/tunes")
+  where $tune//mei:identifier/text() = $suggTune
+  return map {
+    "label": concat($tune//mei:work/mei:title/text(), " (", $tune//mei:edition/mei:date/text(), ")"),
+    "title": $tune//mei:work/mei:title/text(),
+    "date": $tune//mei:edition/mei:date/text(),
+    "id": $tune//mei:identifier/text()
+  }
+
+let $suggInfo := $suggData[1]
 
 return
 <span>
   <textarea id="pstuneListData" style="display:none;">{$tuneListJs}</textarea>
   <textarea id="pstuneLabelsData" style="display:none;">{$tuneLabelsJs}</textarea>
+  
+  {
+    (: Output suggested tune button if available :)
+    if (exists($suggInfo) and string-length(normalize-space($suggInfo("label"))) > 0) then
+      <span id="pstuneSuggestion">
+        <span style="display: block; margin-bottom: 4px;">Suggested tune:</span>
+        <button type="button" class="verse-btn tune-btn" data-label="{$suggInfo("label")}" data-tuneid="{$suggInfo("id")}" style="width: 100%; display: block;">
+          <span class="tune-title" style="display: block;">{$suggInfo("title")}</span>
+          <span class="tune-date" style="display: block;">{$suggInfo("date")}</span>
+        </button>
+      </span>
+    else ()
+  }
+  
+  {
+    (: Output "Select a different tune:" label :)
+    <span id="pstuneFilterLabel" style="display: block; margin-bottom: 4px; margin-top: 10px; margin-left: 8px;">Select a different tune:</span>
+  }
+  
   <input type="text"
          title="Psalm Tune"
          id="pstune"
          placeholder="[Type here to filter tunes]"
          autocomplete="off" />
-  <span id="pstuneSuggestion" style="display:block;margin-top:6px;color:#ddd;">{ if (string-length(normalize-space($suggLabel)) > 0) then concat('Suggested tune: ', $suggLabel) else '' }</span>
 
 </span>
