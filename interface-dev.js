@@ -577,7 +577,7 @@ function getTunes(tuneLabel) {
 
       // Initialize our persistent filter UI (input placeholder + buttons)
       try {
-        ensurePstuneSearchUI(tuneLabels, tuneList, tuneLabel || '');
+        ensurePstuneSearchUI(tuneLabels, tuneList, '');
       } catch (e) {
         console.warn('ensurePstuneSearchUI failed', e);
       }
