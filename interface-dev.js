@@ -301,13 +301,21 @@ function syncTuneInputDataset() {
   }
 }
 
-function ensurePstuneSearchUI(tuneLabels, tuneListObjs, initialValue) {
+function ensurePstuneSearchUI(tuneLabels, tuneListObjs, initialValue, suggTune) {
   const tunesContainer = document.getElementById('tunes');
   let tuneButtonsContainer = document.getElementById('tuneButtons');
 
   if (!tunesContainer) {
     console.warn('#tunes container missing; cannot render tune search UI');
     return;
+  }
+
+  // Create or reuse suggested tune container (before clearing innerHTML)
+  let suggestedTuneContainer = document.getElementById('suggestedTuneContainer');
+  if (!suggestedTuneContainer) {
+    suggestedTuneContainer = document.createElement('div');
+    suggestedTuneContainer.id = 'suggestedTuneContainer';
+    suggestedTuneContainer.style.cssText = 'margin-bottom: 10px;';
   }
 
   // Create or reuse search input
@@ -320,9 +328,14 @@ function ensurePstuneSearchUI(tuneLabels, tuneListObjs, initialValue) {
     tuneInput.autocomplete = 'off';
     tuneInput.className = 'tune-search-input';
     tunesContainer.innerHTML = '';
+    tunesContainer.appendChild(suggestedTuneContainer); // Add suggested tune container first
     tunesContainer.appendChild(tuneInput);
   } else {
     try { tuneInput.placeholder = tuneInput.placeholder || '[Type here to filter tunes]'; } catch(e) {}
+    // Ensure suggestedTuneContainer is in the DOM
+    if (!suggestedTuneContainer.parentNode) {
+      tunesContainer.insertBefore(suggestedTuneContainer, tuneInput);
+    }
   }
 
   // Create or reuse melody search link
@@ -401,6 +414,108 @@ function ensurePstuneSearchUI(tuneLabels, tuneListObjs, initialValue) {
   // Uses Unicode NFD normalization to separate base characters from combining marks
   function normalizeString(str) {
     return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  }
+
+  // Display suggested tune button if available
+  function displaySuggestedTune() {
+    if (!suggTune || !suggestedTuneContainer) return;
+    
+    // Find the tune label that matches the suggested tune ID
+    let suggTuneLabel = '';
+    let suggTuneId = '';
+    
+    // Search in tuneListObjs first
+    if (Array.isArray(tuneListObjs) && tuneListObjs.length) {
+      const suggTuneObj = tuneListObjs.find(function(o) {
+        return o && (o.id === suggTune || o.label === suggTune);
+      });
+      if (suggTuneObj) {
+        suggTuneLabel = suggTuneObj.label || '';
+        suggTuneId = suggTuneObj.id || '';
+      }
+    }
+    
+    // If not found, check if suggTune is in tuneLabels
+    if (!suggTuneLabel && Array.isArray(tuneLabels) && tuneLabels.length) {
+      if (tuneLabels.includes(suggTune)) {
+        suggTuneLabel = suggTune;
+        suggTuneId = window._pstuneMap[suggTune] || '';
+      }
+    }
+    
+    // If we found a matching tune, display it
+    if (suggTuneLabel) {
+      suggestedTuneContainer.innerHTML = '';
+      
+      // Create label text
+      const labelSpan = document.createElement('span');
+      labelSpan.textContent = 'Suggested tune:';
+      labelSpan.style.cssText = 'display: block; margin-bottom: 4px; margin-left: 8px; color: #fff;';
+      suggestedTuneContainer.appendChild(labelSpan);
+      
+      // Create the suggested tune button
+      const suggBtn = document.createElement('button');
+      suggBtn.type = 'button';
+      suggBtn.className = 'verse-btn tune-btn';
+      suggBtn.dataset.label = suggTuneLabel;
+      suggBtn.dataset.tuneid = suggTuneId;
+      
+      // Parse the label to extract title and paren content (like other tune buttons)
+      const m = suggTuneLabel.trim().match(/^(.*?)(?:\s*\(([^)]+)\))?$/);
+      const title = (m && m[1]) ? m[1].trim() : suggTuneLabel;
+      const paren = (m && m[2]) ? m[2].trim() : '';
+
+      const titleSpan = document.createElement('span');
+      titleSpan.className = 'tune-title';
+      titleSpan.textContent = title;
+      suggBtn.appendChild(titleSpan);
+
+      if (paren) {
+        const dateSpan = document.createElement('span');
+        dateSpan.className = 'tune-date';
+        dateSpan.textContent = paren;
+        suggBtn.appendChild(dateSpan);
+      }
+      
+      // Add click handler to select the suggested tune
+      suggBtn.addEventListener('mousedown', function() {
+        isClickingButton = true;
+      });
+      
+      suggBtn.addEventListener('click', function(e) {
+        const input = document.getElementById('pstune');
+        if (input) {
+          // Store selection in dataset
+          input.dataset.tuneid = suggTuneId || '';
+          input.dataset.tunelabel = suggTuneLabel || '';
+          
+          // Show the tune name in the input field
+          input.value = suggTuneLabel;
+          
+          // Mark button as active (including in main tune buttons if present)
+          tuneButtonsContainer.querySelectorAll('.verse-btn, .tune-btn').forEach(b => b.classList.remove('active'));
+          const allSuggBtns = document.querySelectorAll('[data-label="' + suggTuneLabel.replace(/"/g, '\\"') + '"]');
+          allSuggBtns.forEach(b => b.classList.add('active'));
+
+          // Update global variable
+          window.globalPsTune = suggTuneId || '';
+          
+          // Filter to show only this tune button
+          renderTuneButtons(suggTuneLabel);
+        }
+
+        // Reset flag after click completes
+        isClickingButton = false;
+
+        try { updateSelectionSummary(); } catch(e) {}
+        try { maybeShowNextForTune(); } catch(e) {}
+      });
+      
+      suggestedTuneContainer.appendChild(suggBtn);
+    } else {
+      // Clear the container if no suggested tune found
+      suggestedTuneContainer.innerHTML = '';
+    }
   }
 
   function renderTuneButtons(filter) {
@@ -541,6 +656,7 @@ function ensurePstuneSearchUI(tuneLabels, tuneListObjs, initialValue) {
   // Always keep input empty and show all tunes on initial load
   tuneInput.value = '';
   renderTuneButtons('');
+  displaySuggestedTune();
 
   try { maybeShowNextForTune(); } catch (_) {}
 }
@@ -577,7 +693,7 @@ function getTunes(tuneLabel) {
 
       // Initialize our persistent filter UI (input placeholder + buttons)
       try {
-        ensurePstuneSearchUI(tuneLabels, tuneList, tuneLabel || '');
+        ensurePstuneSearchUI(tuneLabels, tuneList, tuneLabel || '', suggTune);
       } catch (e) {
         console.warn('ensurePstuneSearchUI failed', e);
       }
