@@ -320,9 +320,27 @@ function ensurePstuneSearchUI(tuneLabels, tuneListObjs, initialValue, suggTune) 
     tuneInput.placeholder = '[Type here to filter tunes]';
     tuneInput.autocomplete = 'off';
     tuneInput.className = 'tune-search-input';
-    tunesContainer.appendChild(tuneInput);
   } else {
     try { tuneInput.placeholder = tuneInput.placeholder || '[Type here to filter tunes]'; } catch(e) {}
+  }
+
+  // Create or reuse label for tune filter input (must be before the input)
+  let tuneFilterLabel = document.getElementById('pstuneFilterLabel');
+  if (!tuneFilterLabel) {
+    tuneFilterLabel = document.createElement('span');
+    tuneFilterLabel.id = 'pstuneFilterLabel';
+    tuneFilterLabel.textContent = 'Select a different tune:';
+    tuneFilterLabel.style.cssText = 'display: block; margin-bottom: 4px; margin-top: 10px; margin-left: 8px;';
+  }
+
+  // Ensure label appears before input in DOM
+  if (!tuneInput.parentNode) {
+    // Input not yet in DOM, add label then input
+    tunesContainer.appendChild(tuneFilterLabel);
+    tunesContainer.appendChild(tuneInput);
+  } else if (!tuneFilterLabel.parentNode || tuneFilterLabel.nextElementSibling !== tuneInput) {
+    // Label not in DOM or not positioned correctly, insert before input
+    tuneInput.parentNode.insertBefore(tuneFilterLabel, tuneInput);
   }
 
   // Create or reuse melody search link
