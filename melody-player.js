@@ -206,22 +206,56 @@ class MelodyPlayer {
                 player.style.display = 'none';
                 document.body.appendChild(player);
                 
+                // Wait for player to be ready after initial creation
                 await new Promise(resolve => setTimeout(resolve, 500));
             }
 
             this.currentPlayer = player;
             
             console.log('Loading MIDI into player...');
+            
+            // Set the MIDI source
             player.src = 'data:audio/midi;base64,' + base64midi;
             
-            await new Promise(resolve => setTimeout(resolve, 100));
-
+            // Call load if available
             if (typeof player.load === 'function') {
                 console.log('Calling player.load()...');
                 player.load();
             }
+            
+            // Wait for the player to fully load the MIDI data
+            // The player needs time to parse MIDI and prepare audio buffers
+            console.log('Waiting for MIDI to load...');
+            
+            // Create a promise that checks if player is ready
+            const waitForPlayerReady = () => {
+                return new Promise((resolve) => {
+                    let attempts = 0;
+                    const maxAttempts = 50; // 50 attempts * 100ms = 5 seconds max
+                    
+                    const checkReady = () => {
+                        attempts++;
+                        
+                        // Check if player has duration (indicates MIDI is loaded)
+                        if (player.duration && player.duration > 0) {
+                            console.log('Player is ready, duration:', player.duration);
+                            resolve();
+                        } else if (attempts >= maxAttempts) {
+                            console.warn('Player load timeout - proceeding anyway');
+                            resolve();
+                        } else {
+                            setTimeout(checkReady, 100);
+                        }
+                    };
+                    
+                    checkReady();
+                });
+            };
+            
+            await waitForPlayerReady();
 
-            await new Promise(resolve => setTimeout(resolve, 300));
+            // Additional small delay to ensure audio buffer is fully ready
+            await new Promise(resolve => setTimeout(resolve, 200));
 
             if (typeof player.start === 'function') {
                 console.log('Calling player.start()...');
