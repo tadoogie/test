@@ -6,7 +6,7 @@ class MelodyPlayer {
         this.currentButton = null;
         this.animationFrame = null;
         this.verovioToolkit = null;
-        this. isPlaying = false;
+        this.isPlaying = false;
     }
 
     async initialize() {
