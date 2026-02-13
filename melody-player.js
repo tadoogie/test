@@ -136,7 +136,6 @@ class MelodyPlayer {
                 
                 // Check if player has duration (indicates MIDI is loaded)
                 if (player.duration > 0) {
-                    console.log('Player is ready, duration:', player.duration);
                     resolve();
                 } else if (attempts >= this.maxPollAttempts) {
                     console.warn('Player load timeout - proceeding anyway');
@@ -152,10 +151,6 @@ class MelodyPlayer {
 
     // Play melody from Plain and Easy code
     async play(paeCode, tuneName, button) {
-        console.log('=== Melody Player Debug ===');
-        console.log('PAE Code:', paeCode);
-        console.log('Tune Name:', tuneName);
-        
         // Validate inputs
         if (!paeCode || typeof paeCode !== 'string') {
             console.error('Invalid PAE code:', paeCode);
@@ -188,13 +183,10 @@ class MelodyPlayer {
         try {
             // Start Tone.js if needed
             if (typeof Tone !== 'undefined') {
-                console.log('Starting Tone.js...');
                 await Tone.start();
-                console.log('Tone.js started');
             }
 
             // Set Verovio to accept PAE input directly (no MEI wrapper needed)
-            console.log('Setting Verovio options for PAE input...');
             this.verovioToolkit.setOptions({
                 inputFrom: 'pae',   // Tell Verovio to expect Plain and Easy code directly
                 scale: 40,
@@ -202,24 +194,15 @@ class MelodyPlayer {
                 pageWidth: 500,
                 adjustPageHeight: true
             });
-            
-            console.log('Verovio options set with inputFrom: pae');
-            console.log('Loading PAE code directly into Verovio...');
-            console.log('PAE code to load:', paeCode);
 
             const loaded = this.verovioToolkit.loadData(paeCode);
-            console.log('loadData returned:', loaded);
             
             if (loaded === 0 || !loaded) {
-                console.error('❌ Verovio loadData failed - returned:', loaded);
+                console.error('Verovio failed to load PAE data');
                 throw new Error('Verovio failed to load PAE data');
             }
             
-            console.log('✓ PAE loaded successfully');
-            
-            console.log('Rendering to MIDI...');
             const base64midi = this.verovioToolkit.renderToMIDI();
-            console.log('MIDI rendered, base64 length:', base64midi.length);
 
             if (!base64midi || base64midi.length < 100) {
                 console.error('MIDI data seems too short or empty');
@@ -229,7 +212,6 @@ class MelodyPlayer {
             // Get or create MIDI player
             let player = document.getElementById('melody-midi-player');
             if (!player) {
-                console.log('Creating new MIDI player element...');
                 player = document.createElement('midi-player');
                 player.id = 'melody-midi-player';
                 player.setAttribute('sound-font', 'https://storage.googleapis.com/magentadata/js/soundfonts/salamander');
@@ -242,31 +224,22 @@ class MelodyPlayer {
 
             this.currentPlayer = player;
             
-            console.log('Loading MIDI into player...');
-            
             // Set the MIDI source
             player.src = 'data:audio/midi;base64,' + base64midi;
             
             // Call load if available
             if (typeof player.load === 'function') {
-                console.log('Calling player.load()...');
                 player.load();
             }
             
             // Wait for the player to fully load the MIDI data
-            // The player needs time to parse MIDI and prepare audio buffers
-            console.log('Waiting for MIDI to load...');
-            
             await this.waitForPlayerReady(player);
 
             // Additional delay to ensure Web Audio API buffers are fully ready
-            // This helps prevent cutting off the first notes during playback
             await new Promise(resolve => setTimeout(resolve, this.audioBufferDelayMs));
 
             if (typeof player.start === 'function') {
-                console.log('Calling player.start()...');
                 player.start();
-                console.log('Player started');
                 
                 // Estimate duration - assume ~30 notes average for an incipit
                 const estimatedDuration = 15000; // 15 seconds default
@@ -276,7 +249,6 @@ class MelodyPlayer {
 
             // Listen for player end event
             player.addEventListener('ended', () => {
-                console.log('Playback ended');
                 if (this.currentPlayer === player) {
                     this.stop();
                 }
