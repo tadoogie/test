@@ -3510,8 +3510,9 @@ function normalizeMetreForComparison(metre) {
         playBtn.addEventListener('click', function(e) {
             e.stopPropagation();
             
+            // Pass the plaineAndEasie code directly instead of fetching the MEI file
             window.melodyPlayer.play(
-                result.meiFilePath,
+                result.plaineAndEasie,
                 result.title,
                 playBtn
             );
