@@ -19,7 +19,7 @@ function applyURLParametersToForm() {
     const psSourceInput = document.getElementById('pssource');
     if (psSourceInput) {
       psSourceInput.value = psSourceParam;
-      console.log(`URL parameter 'psSource' applied: ${psSourceParam}`);
+
     } else {
       window._initialPsSourceParam = psSourceParam;
     }
@@ -31,7 +31,7 @@ function applyURLParametersToForm() {
     const psTextSelect = document.getElementById('pstext');
     if (psTextSelect) {
       psTextSelect.value = psTextParam;
-      console.log(`URL parameter 'pstext' applied: ${psTextParam}`);
+
     } else {
       window._initialPsTextParam = psTextParam;
     }
@@ -216,7 +216,7 @@ function resetAllAudioSettings() {
       }
     });
   }
-  console.log('All audio settings reset to defaults');
+
 }
 
 /* ----------------------------- Metre sorting helper ----------------------------- */
@@ -2140,27 +2140,22 @@ document.addEventListener('input', function (e) {
 });
 
 function maybeShowNextForTune() {
-  console.log('=== maybeShowNextForTune called ===');
-  
+
   const tuneInput = document.getElementById('pstune');
   const anchor = document. getElementById('tunes');
-  
-  console.log('tuneInput:', tuneInput);
-  console.log('anchor:', anchor);
-  
+
+
   if (!tuneInput || !anchor) {
     console.warn('Missing required elements');
     return;
   }
   
   const chosen = (tuneInput.dataset && tuneInput. dataset.tuneid) || tuneInput.value.trim();
-  console.log('chosen:', chosen);
-  console.log('tuneInput.dataset.tuneid:', tuneInput.dataset.tuneid);
-  console.log('tuneInput.value:', tuneInput. value);
-  
+
+
+
   if (chosen) {
-    console.log('✓ Tune is selected - showing buttons');
-    
+
     // Create or get the row with the clear-next-btn-row class
     let btnRow = anchor.nextElementSibling;
     if (!btnRow || !btnRow.classList.contains('clear-next-btn-row')) {
@@ -2168,12 +2163,10 @@ function maybeShowNextForTune() {
       btnRow.className = 'clear-next-btn-row';
       anchor.parentElement.insertBefore(btnRow, anchor.nextSibling);
     }
-    console.log('Button row:', btnRow);
-    
+
     // Show Clear button first (goes to left)
     ensureClearButton(btnRow, 'clear-btn-tune', () => {
-      console.log('Clearing tune selection');
-      
+
       // Clear the tune selection
       if (tuneInput) {
         tuneInput.value = '';
@@ -2189,9 +2182,7 @@ function maybeShowNextForTune() {
         const psdata = psTextInput.dataset.psdata. split(';');
         currentMetre = psdata[1] || '';
       }
-      
-      console.log('Restoring tune list filtered by metre:', currentMetre);
-      
+
       // Deactivate all tune buttons
       const tuneButtonsContainer = document. getElementById('tuneButtons');
       if (tuneButtonsContainer) {
@@ -2221,8 +2212,7 @@ function maybeShowNextForTune() {
       // Re-run maybeShowNextForTune to ensure buttons are hidden
       setTimeout(() => maybeShowNextForTune(), 100);
     });
-    console.log('Clear button created/shown');
-    
+
     // Create Next button directly in the btnRow
     let nextBtn = document.getElementById('next-btn-tune');
     if (!nextBtn) {
@@ -2244,10 +2234,9 @@ function maybeShowNextForTune() {
       }
     }
     nextBtn.onclick = () => switchToTab('options');
-    console.log('Next button created/shown');
-    
+
   } else {
-    console.log('✗ No tune selected - hiding buttons');
+
     hideNextButton('next-btn-tune');
     hideClearButton('clear-btn-tune');
     // Clean up the row
@@ -2256,8 +2245,7 @@ function maybeShowNextForTune() {
       btnRow.parentElement.removeChild(btnRow);
     }
   }
-  
-  console.log('=== maybeShowNextForTune end ===');
+
 }
 
 document.addEventListener('awesomplete-selectcomplete', function (e) {
@@ -2422,8 +2410,7 @@ function initializeTextAccordion() {
       toggleTextAccordion(e);
     }
   });
-  
-  console.log('Text accordion initialized');
+
 }
 
 function initializeVerseAccordion() {
@@ -2553,8 +2540,7 @@ function domContentLoadedHandler1980() {
     searchSourcesList.innerHTML = '';
     
     const availableSources = Object.keys(window.sourceMap || {});
-    console.log('populateSearchModalSourceList: availableSources =', availableSources);
-    
+
     if (availableSources.length === 0) {
       // Show message if no sources available yet
       const msgDiv = document.createElement('div');
@@ -2825,8 +2811,7 @@ function domContentLoadedHandler1980() {
 
   // Select psalm from search results
   function selectPsalmFromSearch(label, psdata, source, sourceShort, verseNum) {
-    console.log('selectPsalmFromSearch called:', { label, psdata, source, sourceShort, verseNum });
-    
+
     // Close modal
     if (searchModal) {
       searchModal.style.display = "none";
@@ -2837,16 +2822,16 @@ function domContentLoadedHandler1980() {
     // First, select the source if provided
     // Use sourceShort to match the button's data-source-label (which is the short title)
     if (sourceShort) {
-      console.log('Selecting source by short title:', sourceShort);
+
       const sourceContainer = document.getElementById('sourceButtonContainer');
       if (sourceContainer) {
         const sourceButtons = sourceContainer.querySelectorAll('.source-button');
         let sourceFound = false;
         sourceButtons.forEach(btn => {
           const btnLabel = btn.getAttribute('data-source-label');
-          console.log('Checking button with label:', btnLabel, 'against:', sourceShort);
+
           if (btnLabel === sourceShort) {
-            console.log('Found source button, clicking it');
+
             sourceFound = true;
             // Always click to ensure it's selected (single-select now)
             btn.click();
@@ -2862,21 +2847,21 @@ function domContentLoadedHandler1980() {
 
     // Wait a moment for the source selection to populate texts, then find and click the psalm
     setTimeout(function() {
-      console.log('Looking for psalm button with label:', label);
+
       const textsContainer = document.getElementById('texts');
       if (textsContainer) {
         const psalms = textsContainer.querySelectorAll('.psalm-btn');
-        console.log('Found', psalms.length, 'psalm buttons');
+
         let psalmFound = false;
         psalms.forEach(btn => {
           if (btn.dataset.label === label) {
-            console.log('Found matching psalm button, clicking it');
+
             psalmFound = true;
             btn.click();
             
             // After selecting the psalm, switch to TEXT tab and select only the matching verse
             setTimeout(function() {
-              console.log('Switching to TEXT tab');
+
               // Switch to TEXT tab
               switchToTab('text');
               
@@ -2903,7 +2888,7 @@ function domContentLoadedHandler1980() {
 
   // Select only the verse with the given verse number
   function selectVerseByNumber(verseNum) {
-    console.log('Selecting verse by number:', verseNum);
+
     const verses = document.getElementById('verses');
     if (!verses) {
       console.warn('verses element not found');
@@ -2942,7 +2927,7 @@ function domContentLoadedHandler1980() {
       // Look for patterns like: digit(s), optionally followed by letter or hyphen+digit(s)
       const match = verseText.match(/\b(\d+(?:[a-z]|-\d+)?)\b/i);
       if (match && match[1] === verseNum) {
-        console.log('Found matching verse button for verse', verseNum, ':', verseText);
+
         // Select this verse (let CSS handle the styling via .active class)
         btn.dataset.selected = 'true';
         btn.classList.add('active');
@@ -3045,9 +3030,9 @@ function domContentLoadedHandlerMelodySearch() {
             e.stopPropagation();
             
             // Stop any playing melody FIRST
-            console.log('Clicking outside modal - stopping playback');
+
             if (window.melodyPlayer && window.melodyPlayer.isPlaying) {
-                console.log('Stopping melody player');
+
                 window.melodyPlayer.stop();
             }
             
@@ -3099,9 +3084,9 @@ function domContentLoadedHandlerMelodySearch() {
                 e.preventDefault();
                 
                 // Stop any playing melody
-                console.log('Escape pressed - stopping playback');
+
                 if (window.melodyPlayer && window.melodyPlayer.isPlaying) {
-                    console.log('Stopping melody player');
+
                     window.melodyPlayer. stop();
                 }
                 
@@ -3184,8 +3169,7 @@ function domContentLoadedHandlerMelodySearch() {
     
     // Find the first matching note position
     const firstMatchPos = Math.min(...matchPositions);
-    console.log('[Note Extraction] First match position:', firstMatchPos);
-    
+
     // Extract maxNotes notes starting from firstMatchPos
     return extractFirstNNotes(paeCode, maxNotes, firstMatchPos);
   }
@@ -3212,10 +3196,8 @@ function domContentLoadedHandlerMelodySearch() {
         notePositions.push(i);
       }
     }
-    
-    console.log('[Note Extraction] Total notes found:', notePositions.length);
-    console.log('[Note Extraction] Requested start from note:', startFromNote, 'max notes:', maxNotes);
-    
+
+
     if (notePositions.length === 0) {
       console.warn('[Note Extraction] No notes found in PAE content');
       return { paeCode: paeCode, noteOffset: 0 };
@@ -3231,11 +3213,10 @@ function domContentLoadedHandlerMelodySearch() {
     const endNoteIndex = Math.min(startFromNote + maxNotes, notePositions.length);
     const actualNotesExtracted = endNoteIndex - startNoteIndex;
     
-    console.log('[Note Extraction] Extracting notes', startNoteIndex, 'to', endNoteIndex - 1, '(', actualNotesExtracted, 'notes)');
     
     if (startNoteIndex === 0 && endNoteIndex >= notePositions.length) {
       // Using entire melody, no extraction needed
-      console.log('[Note Extraction] Using entire melody');
+
       return { paeCode: paeCode, noteOffset: 0 };
     }
     
@@ -3266,10 +3247,8 @@ function domContentLoadedHandlerMelodySearch() {
     
     const extractedContent = content.substring(actualStartPos, endCharPos);
     const extractedPAE = header + extractedContent;
-    
-    console.log('[Note Extraction] Extracted PAE:', extractedPAE);
-    console.log('[Note Extraction] Note offset for highlighting:', startNoteIndex);
-    
+
+
     return {
       paeCode: extractedPAE,
       noteOffset: startNoteIndex
@@ -3281,20 +3260,16 @@ function domContentLoadedHandlerMelodySearch() {
     if (!svgElement || !matchPositions || matchPositions.length === 0) {
       return;
     }
-    
-    console.log('[Note Highlighting] Match positions:', matchPositions, 'Note offset:', noteOffset);
-    
+
     // Find all note elements in the SVG
     // Verovio uses <g class="note"> for note groups
     const noteElements = svgElement.querySelectorAll('g.note');
-    console.log('[Note Highlighting] Found', noteElements.length, 'note elements in SVG');
-    
+
     // Highlight each matching note position
     // Adjust positions by the note offset since we may not be showing the first bar
     matchPositions.forEach(absolutePosition => {
       const relativePosition = absolutePosition - noteOffset;
-      console.log('[Note Highlighting] Absolute position', absolutePosition, '-> relative position', relativePosition);
-      
+
       // Only highlight if within the displayed range
       if (relativePosition >= 0 && relativePosition < noteElements.length) {
         const noteGroup = noteElements[relativePosition];
@@ -3306,7 +3281,7 @@ function domContentLoadedHandlerMelodySearch() {
           notehead.setAttribute('fill', '#ff6b6b'); // Red highlight
           notehead.setAttribute('stroke', '#ff0000');
           notehead.setAttribute('stroke-width', '2');
-          console.log('[Note Highlighting] Highlighted note at relative position', relativePosition);
+
         } else {
           console.warn('[Note Highlighting] No notehead found in note group at position', relativePosition);
         }
@@ -3342,8 +3317,7 @@ function displayMelodySearchResults(results, searchIntervals, searchPitchClasses
         const psdata = psTextInput.dataset.psdata. split(';');
         currentMetre = psdata[1] || ''; // metre is the second element
     }
-    console.log('Current text metre:', currentMetre);
-    
+
     // Helper function to normalize metres for comparison
     // Helper function to normalize metres for comparison
 function normalizeMetreForComparison(metre) {
@@ -3395,17 +3369,15 @@ function normalizeMetreForComparison(metre) {
     
     // Initialize Verovio toolkit if needed
     let verovioTk = null;
-    console.log('[Verovio Check] window.melodyPlayer:', window.melodyPlayer);
-    console.log('[Verovio Check] typeof verovio:', typeof verovio);
-    
+
+
     if (window.melodyPlayer && window.melodyPlayer.verovioToolkit) {
         verovioTk = window.melodyPlayer.verovioToolkit;
-        console.log('[Verovio Check] Using melodyPlayer.verovioToolkit');
+
     } else if (typeof verovio !== 'undefined' && verovio.toolkit) {
         // Create a toolkit instance for rendering notations
         try {
             verovioTk = new verovio.toolkit();
-            console.log('[Verovio Check] Created new verovio.toolkit()');
         } catch (e) {
             console.error('[Verovio Check] Error creating toolkit:', e);
         }
@@ -3427,16 +3399,7 @@ function normalizeMetreForComparison(metre) {
         
         // Create full label with date (to match button labels)
         const fullLabel = result.date ? `${result.title} (${result.date})` : result.title;
-        
-        console.log('Metre comparison:', {
-            current: currentMetre,
-            currentNormalized: normalizedCurrentMetre,
-            result: result.metre,
-            resultNormalized: normalizedResultMetre,
-            matches: metreMatches,
-            fullLabel: fullLabel
-        });
-        
+
         // Column 1: Create play button
         const playBtn = window.melodyPlayer.createPlayButton();
         playBtn.style.cssText = 'flex-shrink:0;width:40px;';
@@ -3479,27 +3442,22 @@ function normalizeMetreForComparison(metre) {
         const notationContainer = document.createElement('div');
         notationContainer.className = 'melody-notation-container';
         notationContainer.style.cssText = 'width:250px;height:70px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:white;border:1px solid #ddd;border-radius:4px;overflow:hidden;';
-        
-        console.log('[Notation Render] Processing result:', result.title);
-        console.log('[Notation Render] PAE code:', result.plaineAndEasie);
-        console.log('[Notation Render] verovioTk available:', !!verovioTk);
-        
+
+
+
         // Generate SVG from PAE code using Verovio
         if (result.plaineAndEasie && verovioTk) {
             try {
                 let paeCode = result.plaineAndEasie.trim();
-                console.log('[Notation Render] Original PAE:', paeCode);
-                
+
                 // Extract exactly 9 notes starting from the first match position
                 const extractionResult = extractNotesForDisplay(paeCode, result.matchPositions || [], 9);
                 paeCode = extractionResult.paeCode;
                 const noteOffset = extractionResult.noteOffset;
-                
-                console.log('[Notation Render] Extracted PAE:', paeCode);
-                console.log('[Notation Render] Note offset:', noteOffset);
-                
+
+
                 // Set Verovio options before loading data
-                console.log('[Notation Render] Setting Verovio options');
+
                 verovioTk.setOptions({
                     inputFrom: 'pae',
                     scale: 40,
@@ -3516,20 +3474,17 @@ function normalizeMetreForComparison(metre) {
                 });
                 
                 // Load PAE data directly (no MEI wrapper needed with inputFrom: 'pae')
-                console.log('[Notation Render] Loading PAE data into Verovio');
+
                 verovioTk.loadData(paeCode);
-                
-                console.log('[Notation Render] Rendering to SVG');
+
                 const svg = verovioTk.renderToSVG(1);
-                console.log('[Notation Render] SVG rendered, length:', svg ? svg.length : 0);
-                
+
                 if (svg) {
                     notationContainer.innerHTML = svg;
                     const svgElement = notationContainer.querySelector('svg');
                     if (svgElement) {
                         svgElement.style.cssText = 'max-width:100%;max-height:100%;';
-                        console.log('[Notation Render] SVG element inserted successfully');
-                        
+
                         // Highlight matching notes if we have search query information and match positions
                         if (result.matchPositions && result.matchPositions.length > 0) {
                             if (searchQuery.intervals && searchQuery.intervals.length > 0) {
@@ -3587,7 +3542,7 @@ function normalizeMetreForComparison(metre) {
             
             // If metre matches, auto-select the tune and close modal
             if (metreMatches) {
-                console.log('Metre matches - auto-selecting tune with full label:', fullLabel);
+
                 selectTuneFromMelodySearch(fullLabel, result.meiFilePath);  // Use fullLabel here
                 
                 // Close the search modal
@@ -3597,7 +3552,7 @@ function normalizeMetreForComparison(metre) {
                 }
             } else {
                 // Metre doesn't match - just show a warning, don't auto-select
-                console.log('Metre mismatch - not auto-selecting');
+
                 alert(`This tune (${result.metre || 'unknown metre'}) does not match your text's metre (${currentMetre}). Please select a matching tune or change your text selection.`);
             }
         });
@@ -3665,23 +3620,19 @@ function normalizeMetreForComparison(metre) {
 
   // Select tune from melody search results
   function selectTuneFromMelodySearch(tuneTitle, meiFilePath) {
-    console.log('=== selectTuneFromMelodySearch START ===');
-    console.log('tuneTitle:', tuneTitle);
-    console.log('meiFilePath:', meiFilePath);
-    
+
+
+
     // Switch to TUNE tab
     switchToTab('tune');
     
     // Wait for tune UI to be ready
     setTimeout(function() {
-        console.log('Step 1: Looking for tune input and buttons container');
-        
+
         const tuneInput = document. getElementById('pstune');
         const tuneButtonsContainer = document. getElementById('tuneButtons');
-        
-        console.log('tuneInput found:', !!tuneInput);
-        console.log('tuneButtonsContainer found:', !!tuneButtonsContainer);
-        
+
+
         if (! tuneInput || !tuneButtonsContainer) {
             console.error('Required elements not found');
             return;
@@ -3690,15 +3641,13 @@ function normalizeMetreForComparison(metre) {
         // Extract tune ID from file path
         const fileName = meiFilePath. split('/').pop();
         const tuneId = fileName.replace('. xml', '');
-        console.log('Extracted tuneId from path:', tuneId);
-        
+
         // Check if renderTuneButtons function exists
-        console.log('renderTuneButtons function exists:', typeof renderTuneButtons);
-        console.log('window._pstuneMap exists:', typeof window._pstuneMap);
-        console.log('window._pstuneMap contents:', window._pstuneMap);
-        
+
+
+
         // First, ensure all tune buttons are visible
-        console.log('Step 2: Rendering all tune buttons');
+
         if (typeof renderTuneButtons === 'function') {
             renderTuneButtons('');
         }
@@ -3709,16 +3658,9 @@ function normalizeMetreForComparison(metre) {
             
             // Find all tune buttons
             const allButtons = tuneButtonsContainer.querySelectorAll('button');
-            console.log('Total buttons in container:', allButtons.length);
-            
+
             // Log details about each button
             allButtons. forEach((btn, index) => {
-                console.log(`Button ${index}:`, {
-                    className: btn.className,
-                    label: btn.dataset.label,
-                    tuneid: btn.dataset.tuneid,
-                    textContent: btn.textContent. substring(0, 50)
-                });
             });
             
             // Try to find the matching button
@@ -3727,7 +3669,7 @@ function normalizeMetreForComparison(metre) {
             allButtons.forEach(btn => {
                 if (btn.dataset.label === tuneTitle) {
                     foundButton = btn;
-                    console.log('✓ FOUND MATCH by label:', tuneTitle);
+
                 }
             });
             
@@ -3736,11 +3678,9 @@ function normalizeMetreForComparison(metre) {
                 console.error('Searched among labels:', Array.from(allButtons).map(b => b.dataset.label));
                 return;
             }
-            
-            console.log('Step 4: Applying selection');
+
             const mappingId = foundButton.dataset.tuneid || '';
-            console.log('Using tuneid:', mappingId);
-            
+
             // Apply the selection
             tuneInput.dataset. tuneid = mappingId;
             tuneInput.dataset.tunelabel = tuneTitle;
@@ -3748,25 +3688,23 @@ function normalizeMetreForComparison(metre) {
             window.globalPsTune = mappingId;
             
             console. log('tuneInput.dataset after update:', tuneInput.dataset);
-            console.log('tuneInput.value after update:', tuneInput.value);
-            console.log('window.globalPsTune after update:', window.globalPsTune);
-            
+
+
             // Mark button as active
-            console.log('Step 5: Marking button as active');
+
             allButtons.forEach(b => {
                 if (b.classList.contains('active')) {
-                    console.log('Removing active from:', b.dataset.label);
+
                 }
                 b.classList.remove('active');
             });
             foundButton.classList.add('active');
-            console.log('Added active class to:', foundButton.dataset.label);
-            
+
             // Filter to show only this tune
-            console.log('Step 6: Filtering to show only selected tune');
+
             if (typeof renderTuneButtons === 'function') {
                 renderTuneButtons(tuneTitle);
-                console.log('Called renderTuneButtons with:', tuneTitle);
+
             }
             
             // Scroll into view
@@ -3775,9 +3713,7 @@ function normalizeMetreForComparison(metre) {
             // Update UI
             try { updateSelectionSummary(); } catch(e) { console.warn('updateSelectionSummary error:', e); }
             try { maybeShowNextForTune(); } catch(e) { console.warn('maybeShowNextForTune error:', e); }
-            
-            console.log('=== selectTuneFromMelodySearch END ===');
-            
+
         }, 300);
     }, 200);
     
