@@ -198,7 +198,7 @@ class MelodyPlayer {
             const loaded = this.verovioToolkit.loadData(paeCode);
             
             if (loaded === 0 || !loaded) {
-                console.error('Verovio failed to load PAE data');
+                console.error('Verovio failed to load PAE data (returned:', loaded + ')');
                 throw new Error('Verovio failed to load PAE data');
             }
             
