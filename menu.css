@@ -56,8 +56,8 @@ hr { display: block; height: 1px; border: 0; border-top: 1px solid #ccc; margin:
 iframe { border: 0; }
 
 *, :before, :after { box-sizing: border-box; }
-html { font-size: 1em; height: 100%; }
-body { font-family: 'Open Sans', Verdana, Tahoma, Arial, sans-serif; line-height: 1.6; text-align: left; color: #555555; background-color: #ffffff; height: 100%; text-rendering: optimizeLegibility !important; }
+html { font-size: 1em; height: 100%; overflow-x: hidden; min-width: 100%; background-color: #ffffff; }
+body { font-family: 'Open Sans', Verdana, Tahoma, Arial, sans-serif; line-height: 1.6; text-align: left; color: #555555; background-color: #ffffff; height: 100%; text-rendering: optimizeLegibility !important; overflow-x: hidden; min-width: 100%; position: relative; }
 nav ul, nav ol, #nav ul, #navbar ul, #nav ol { list-style: none; list-style-image: none; margin: 0; padding: 0; }
 
 .cfix:after { content: ""; display: table; clear: both; }
@@ -398,6 +398,10 @@ nav ul, nav li, #nav ul, #nav li {
               box-shadow: -2px 0 8px rgba(0,0,0,0.2);
               overflow-y: auto;
               height: 100vh;
+              visibility: hidden;
+            }
+            #sidenav.open {
+              visibility: visible;
             }
             #sidenav .closebtn {
               position: absolute;
@@ -1661,7 +1665,7 @@ div #tuneButtons button, .source-button {
 @media (orientation: landscape) and (max-width: 900px) {
   body, html {
     overflow-x: hidden;
-    max-width: 100vw;
+    min-width: 100% !important;
   }
   
   #controls {
@@ -1670,7 +1674,7 @@ div #tuneButtons button, .source-button {
   }
   
   .container, .row {
-    max-width: 100vw;
+    max-width: 100%;
     overflow-x: hidden;
   }
 }
@@ -1682,26 +1686,30 @@ div #tuneButtons button, .source-button {
   }
 }
 
+/* iPhone landscape fix - prevent sidenav from exceeding viewport */
 @media (orientation: landscape) and (max-height: 500px) {
+  html, body {
+    overflow-x: hidden !important;
+    min-width: 100% !important;
+  }
+  
   #sidenav {
     max-width: 90vw !important;
   }
   
   #sidenav.open {
     width: min(360px, 90vw) !important;
+    max-width: 90vw !important;
   }
   
   .sidenav-container {
-    max-width: 90vw;
+    width: 100% !important;
+    max-width: 90vw !important;
   }
   
   .menuPanel {
-    max-width: calc(90vw - 60px); /* Account for tab bar */
-  }
-  
-  body, html {
-    overflow-x: hidden;
-    max-width: 100vw;
+    width: 100% !important;
+    max-width: calc(90vw - 60px) !important;
   }
 }
 
