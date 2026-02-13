@@ -587,12 +587,14 @@ function transformSuggestionToButton(suggestionSpan, suggTuneId) {
   var titleSpan = document.createElement('span');
   titleSpan.className = 'tune-title';
   titleSpan.textContent = title;
+  titleSpan.style.display = 'block'; // Display title on its own line
   tuneButton.appendChild(titleSpan);
   
   if (paren) {
     var dateSpan = document.createElement('span');
     dateSpan.className = 'tune-date';
     dateSpan.textContent = paren;
+    dateSpan.style.display = 'block'; // Display date on its own line
     tuneButton.appendChild(dateSpan);
   }
   
@@ -626,6 +628,13 @@ function transformSuggestionToButton(suggestionSpan, suggTuneId) {
   });
   
   suggestionSpan.appendChild(tuneButton);
+  
+  // Move the suggestion span to appear before the pstune input box
+  var tuneInput = document.getElementById('pstune');
+  if (tuneInput && suggestionSpan.parentNode) {
+    // Insert suggestionSpan before the input element
+    suggestionSpan.parentNode.insertBefore(suggestionSpan, tuneInput);
+  }
 }
 
 function getTunes(tuneLabel) {
