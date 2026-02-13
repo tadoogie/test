@@ -460,7 +460,7 @@ nav ul, nav li, #nav ul, #nav li {
               height: 35px;
             }
             input.initial, .menuSpan input, #tunes input, .awesomplete input, .awesomplete input {
-              width: 310px;
+              width: 270px;
               height: 35px;
               background-color: #555555;
               color: white;
@@ -470,6 +470,13 @@ nav ul, nav li, #nav ul, #nav li {
               transition: background 0.2s linear 0s;
               padding: 5px 10px;
             }
+            
+            input#pstune::placeholder {
+               color: #fff; 
+               opacity: 1;
+               font-size: 0.9em;
+            }
+            
             input:focus { outline: 2px solid #89cb72; }
             .submenu { color: white; text-transform: none; margin-left: 0px; margin-top: 3px; }
             #selectVerses, #psTextList {
