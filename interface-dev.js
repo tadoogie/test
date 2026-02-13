@@ -301,7 +301,7 @@ function syncTuneInputDataset() {
   }
 }
 
-function ensurePstuneSearchUI(tuneLabels, tuneListObjs, initialValue) {
+function ensurePstuneSearchUI(tuneLabels, tuneListObjs, initialValue, suggTune) {
   const tunesContainer = document.getElementById('tunes');
   let tuneButtonsContainer = document.getElementById('tuneButtons');
 
@@ -313,13 +313,13 @@ function ensurePstuneSearchUI(tuneLabels, tuneListObjs, initialValue) {
   // Create or reuse search input
   let tuneInput = document.getElementById('pstune');
   if (!tuneInput) {
+    // Don't clear innerHTML - preserve any existing content like pstuneSuggestion
     tuneInput = document.createElement('input');
     tuneInput.type = 'text';
     tuneInput.id = 'pstune';
     tuneInput.placeholder = '[Type here to filter tunes]';
     tuneInput.autocomplete = 'off';
     tuneInput.className = 'tune-search-input';
-    tunesContainer.innerHTML = '';
     tunesContainer.appendChild(tuneInput);
   } else {
     try { tuneInput.placeholder = tuneInput.placeholder || '[Type here to filter tunes]'; } catch(e) {}
@@ -577,7 +577,7 @@ function getTunes(tuneLabel) {
 
       // Initialize our persistent filter UI (input placeholder + buttons)
       try {
-        ensurePstuneSearchUI(tuneLabels, tuneList, tuneLabel || '');
+        ensurePstuneSearchUI(tuneLabels, tuneList, tuneLabel || '', suggTune);
       } catch (e) {
         console.warn('ensurePstuneSearchUI failed', e);
       }
