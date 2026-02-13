@@ -310,32 +310,19 @@ function ensurePstuneSearchUI(tuneLabels, tuneListObjs, initialValue, suggTune) 
     return;
   }
 
-  // Create or reuse suggested tune container (before clearing innerHTML)
-  let suggestedTuneContainer = document.getElementById('suggestedTuneContainer');
-  if (!suggestedTuneContainer) {
-    suggestedTuneContainer = document.createElement('div');
-    suggestedTuneContainer.id = 'suggestedTuneContainer';
-    suggestedTuneContainer.style.cssText = 'margin-bottom: 10px;';
-  }
-
   // Create or reuse search input
   let tuneInput = document.getElementById('pstune');
   if (!tuneInput) {
+    // Don't clear innerHTML - preserve any existing content like pstuneSuggestion
     tuneInput = document.createElement('input');
     tuneInput.type = 'text';
     tuneInput.id = 'pstune';
     tuneInput.placeholder = '[Type here to filter tunes]';
     tuneInput.autocomplete = 'off';
     tuneInput.className = 'tune-search-input';
-    tunesContainer.innerHTML = '';
-    tunesContainer.appendChild(suggestedTuneContainer); // Add suggested tune container first
     tunesContainer.appendChild(tuneInput);
   } else {
     try { tuneInput.placeholder = tuneInput.placeholder || '[Type here to filter tunes]'; } catch(e) {}
-    // Ensure suggestedTuneContainer is in the DOM
-    if (!suggestedTuneContainer.parentNode) {
-      tunesContainer.insertBefore(suggestedTuneContainer, tuneInput);
-    }
   }
 
   // Create or reuse melody search link
@@ -414,120 +401,6 @@ function ensurePstuneSearchUI(tuneLabels, tuneListObjs, initialValue, suggTune) 
   // Uses Unicode NFD normalization to separate base characters from combining marks
   function normalizeString(str) {
     return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-  }
-
-  // Display suggested tune button if available
-  function displaySuggestedTune() {
-    if (!suggTune || !suggestedTuneContainer) return;
-    
-    // Find the tune label that matches the suggested tune ID
-    let suggTuneLabel = '';
-    let suggTuneId = '';
-    
-    // Search in tuneListObjs first
-    if (Array.isArray(tuneListObjs) && tuneListObjs.length) {
-      const suggTuneObj = tuneListObjs.find(function(o) {
-        return o && (o.id === suggTune || o.label === suggTune);
-      });
-      if (suggTuneObj) {
-        suggTuneLabel = suggTuneObj.label || '';
-        suggTuneId = suggTuneObj.id || '';
-      }
-    }
-    
-    // If not found, check if suggTune is in tuneLabels
-    if (!suggTuneLabel && Array.isArray(tuneLabels) && tuneLabels.length) {
-      if (tuneLabels.includes(suggTune)) {
-        suggTuneLabel = suggTune;
-        suggTuneId = window._pstuneMap[suggTune] || '';
-      }
-    }
-    
-    // If we found a matching tune, display it
-    if (suggTuneLabel) {
-      suggestedTuneContainer.innerHTML = '';
-      
-      // Create label text
-      const labelSpan = document.createElement('span');
-      labelSpan.textContent = 'Suggested tune:';
-      labelSpan.style.cssText = 'display: block; margin-bottom: 4px; margin-left: 8px; color: #fff;';
-      suggestedTuneContainer.appendChild(labelSpan);
-      
-      // Create the suggested tune button
-      const suggBtn = document.createElement('button');
-      suggBtn.type = 'button';
-      suggBtn.className = 'verse-btn tune-btn';
-      suggBtn.dataset.label = suggTuneLabel;
-      suggBtn.dataset.tuneid = suggTuneId;
-      
-      // Parse the label to extract title and paren content (like other tune buttons)
-      const m = suggTuneLabel.trim().match(/^(.*?)(?:\s*\(([^)]+)\))?$/);
-      const title = (m && m[1]) ? m[1].trim() : suggTuneLabel;
-      const paren = (m && m[2]) ? m[2].trim() : '';
-
-      const titleSpan = document.createElement('span');
-      titleSpan.className = 'tune-title';
-      titleSpan.textContent = title;
-      suggBtn.appendChild(titleSpan);
-
-      if (paren) {
-        const dateSpan = document.createElement('span');
-        dateSpan.className = 'tune-date';
-        dateSpan.textContent = paren;
-        suggBtn.appendChild(dateSpan);
-      }
-      
-      // Add click handler to select the suggested tune
-      suggBtn.addEventListener('mousedown', function() {
-        isClickingButton = true;
-      });
-      
-      suggBtn.addEventListener('click', function(e) {
-        const input = document.getElementById('pstune');
-        if (input) {
-          // Store selection in dataset
-          input.dataset.tuneid = suggTuneId || '';
-          input.dataset.tunelabel = suggTuneLabel || '';
-          
-          // Show the tune name in the input field
-          input.value = suggTuneLabel;
-          
-          // Mark button as active (including in main tune buttons if present)
-          tuneButtonsContainer.querySelectorAll('.verse-btn, .tune-btn').forEach(b => b.classList.remove('active'));
-          // Mark all buttons with matching label as active (both suggested and in list)
-          try {
-            const selector = '[data-label="' + CSS.escape(suggTuneLabel) + '"]';
-            const allSuggBtns = document.querySelectorAll(selector);
-            allSuggBtns.forEach(b => b.classList.add('active'));
-          } catch (e) {
-            // Fallback if CSS.escape is not available
-            const allButtons = document.querySelectorAll('.verse-btn, .tune-btn');
-            allButtons.forEach(b => {
-              if (b.dataset.label === suggTuneLabel) {
-                b.classList.add('active');
-              }
-            });
-          }
-
-          // Update global variable
-          window.globalPsTune = suggTuneId || '';
-          
-          // Filter to show only this tune button
-          renderTuneButtons(suggTuneLabel);
-        }
-
-        // Reset flag after click completes
-        isClickingButton = false;
-
-        try { updateSelectionSummary(); } catch(e) {}
-        try { maybeShowNextForTune(); } catch(e) {}
-      });
-      
-      suggestedTuneContainer.appendChild(suggBtn);
-    } else {
-      // Clear the container if no suggested tune found
-      suggestedTuneContainer.innerHTML = '';
-    }
   }
 
   function renderTuneButtons(filter) {
@@ -668,9 +541,91 @@ function ensurePstuneSearchUI(tuneLabels, tuneListObjs, initialValue, suggTune) 
   // Always keep input empty and show all tunes on initial load
   tuneInput.value = '';
   renderTuneButtons('');
-  displaySuggestedTune();
 
   try { maybeShowNextForTune(); } catch (_) {}
+}
+
+// Transform the pstuneSuggestion span from plain text to a button
+function transformSuggestionToButton(suggestionSpan, suggTuneId) {
+  if (!suggestionSpan) return;
+  
+  // Get the current text content
+  var fullText = suggestionSpan.textContent || suggestionSpan.innerText || '';
+  
+  // Expected format: "Suggested tune: TUNE_NAME" or similar
+  // Extract the label and tune name parts
+  var match = fullText.match(/^(.*?Suggested tune:\s*)(.+)$/i);
+  if (!match) {
+    // If format doesn't match, just leave it as is
+    return;
+  }
+  
+  var labelText = match[1]; // "Suggested tune: "
+  var tuneName = match[2].trim(); // The actual tune name
+  
+  // Clear the span
+  suggestionSpan.innerHTML = '';
+  
+  // Add the label text
+  var labelSpan = document.createElement('span');
+  labelSpan.textContent = labelText;
+  labelSpan.style.cssText = 'display: block; margin-bottom: 4px;';
+  suggestionSpan.appendChild(labelSpan);
+  
+  // Create the button for the tune name
+  var tuneButton = document.createElement('button');
+  tuneButton.type = 'button';
+  tuneButton.className = 'verse-btn tune-btn';
+  tuneButton.dataset.suggTune = suggTuneId || '';
+  tuneButton.style.cssText = 'width: 100%; display: block;';
+  
+  // Parse the tune name to extract title and any parenthetical info
+  var m = tuneName.trim().match(/^(.*?)(?:\s*\(([^)]+)\))?$/);
+  var title = (m && m[1]) ? m[1].trim() : tuneName;
+  var paren = (m && m[2]) ? m[2].trim() : '';
+  
+  var titleSpan = document.createElement('span');
+  titleSpan.className = 'tune-title';
+  titleSpan.textContent = title;
+  tuneButton.appendChild(titleSpan);
+  
+  if (paren) {
+    var dateSpan = document.createElement('span');
+    dateSpan.className = 'tune-date';
+    dateSpan.textContent = paren;
+    tuneButton.appendChild(dateSpan);
+  }
+  
+  // Add click handler to select this tune
+  tuneButton.addEventListener('click', function(e) {
+    var input = document.getElementById('pstune');
+    if (input) {
+      // Store the tune name
+      input.value = tuneName;
+      input.dataset.tunelabel = tuneName;
+      input.dataset.tuneid = suggTuneId || '';
+      
+      // Mark this button as active
+      tuneButton.classList.add('active');
+      
+      // Update global variable
+      window.globalPsTune = suggTuneId || '';
+      
+      // Try to filter/render tune buttons if the function exists
+      if (typeof renderTuneButtons !== 'undefined') {
+        try {
+          renderTuneButtons(tuneName);
+        } catch (err) {
+          console.warn('renderTuneButtons not available yet', err);
+        }
+      }
+      
+      try { updateSelectionSummary(); } catch(e) {}
+      try { maybeShowNextForTune(); } catch(e) {}
+    }
+  });
+  
+  suggestionSpan.appendChild(tuneButton);
 }
 
 function getTunes(tuneLabel) {
@@ -697,6 +652,16 @@ function getTunes(tuneLabel) {
   tuneQuery.onreadystatechange = function() {
     if (this.readyState == 4 && this.status == 200) {
       document.getElementById("tunes").innerHTML = tuneQuery.responseText;
+
+      // Transform pstuneSuggestion span into a button if it exists
+      var pstuneSuggestionSpan = document.getElementById("pstuneSuggestion");
+      if (pstuneSuggestionSpan) {
+        try {
+          transformSuggestionToButton(pstuneSuggestionSpan, suggTune);
+        } catch (e) {
+          console.warn('transformSuggestionToButton failed', e);
+        }
+      }
 
       var tuneListText = document.getElementById("pstuneListData");
       var tuneLabelsText = document.getElementById("pstuneLabelsData");
