@@ -1466,6 +1466,11 @@
                   observer.disconnect();
                   observer = null;
                 }
+                // Remove both event listeners to prevent unnecessary firing
+                if (closeBtn) {
+                  closeBtn.removeEventListener('touchend', closeTooltip);
+                  closeBtn.removeEventListener('click', closeTooltip);
+                }
               };
               
               if (closeBtn) {
@@ -1478,7 +1483,7 @@
           document.querySelectorAll('#controls a, .tooltip').forEach(function(el) {
             el.addEventListener('touchend', function() {
               el.blur();
-              var tooltip = el.querySelector('.tooltiptext:not(.ios-unmute-tooltip)');
+              const tooltip = el.querySelector('.tooltiptext:not(.ios-unmute-tooltip)');
               if (tooltip) {
                 tooltip.style.display = 'none';
                 tooltip.style.visibility = 'hidden';
