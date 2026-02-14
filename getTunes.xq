@@ -62,7 +62,7 @@ let $suggData :=
     "label": concat($tune//mei:work/mei:title/text(), " (", $tune//mei:edition/mei:date/text(), ")"),
     "title": $tune//mei:work/mei:title/text(),
     "date": $tune//mei:edition/mei:date/text(),
-    "id": $tune//mei:identifier/text()
+    "id": concat("/exist/rest", base-uri($tune))
   }
 
 let $suggInfo := $suggData[1]
@@ -76,7 +76,7 @@ return
     (: Output suggested tune button if available :)
     if (exists($suggInfo) and string-length(normalize-space($suggInfo("label"))) > 0) then
       <span id="pstuneSuggestion">
-        <span style="display: block; margin-bottom: 4px;">Suggested tune:</span>
+        <span style="display: block; margin-bottom: 4px; margin-left:8px; margin-top: 10px; font-size:1.1em">Suggested tune:</span>
         <button type="button" class="verse-btn tune-btn" data-label="{$suggInfo("label")}" data-tuneid="{$suggInfo("id")}" style="width: 100%; display: block;">
           <span class="tune-title" style="display: block;">{$suggInfo("title")}</span>
           <span class="tune-date" style="display: block;">{$suggInfo("date")}</span>
@@ -87,13 +87,14 @@ return
   
   {
     (: Output "Select a different tune:" label :)
-    <span id="pstuneFilterLabel" style="display: block; margin-bottom: 4px; margin-top: 10px; margin-left: 8px;">Select a different tune:</span>
+    <span id="pstuneFilterLabel" style="display: block; margin-bottom: 4px; margin-top: 20px; margin-left: 8px; font-size: 1.1em">Select a different tune:</span>
   }
   
   <input type="text"
          title="Psalm Tune"
          id="pstune"
          placeholder="[Type here to filter tunes]"
-         autocomplete="off" />
+         autocomplete="off"
+         style="margin-left: 2px"/>
 
 </span>
