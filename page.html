@@ -889,12 +889,18 @@
                                     </div>
                       <div class="menu-item">
                         <div id="optionsSpacer"/>
-                        <span class="displayGroup" style="margin-left:8px; font-size: 1.2em; font-weight: 600; margin-bottom: 10px;">Presentation Mode
-                          <label class="switch">
-                            <input id="psMode" name="presentation" type="checkbox"/>
-                            <span class="slider round"/>
-                          </label>
-                        </span>
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-left:8px; margin-bottom: 10px;">
+                          <span class="displayGroup" style="font-size: 1.2em; font-weight: 600;">Presentation Mode</span>
+                          <div style="display: flex; gap: 0; width: 120px; border: 2px solid #6fc252; border-radius: 8px; overflow: hidden;">
+                            <button id="psModeOff" class="search-mode-btn active" style="flex: 1; background: #6fc252; color: white; border: none; cursor: pointer; font-size: 0.9em; font-weight: 600; padding: 8px; transition: all 0.2s;">
+                              Off
+                            </button>
+                            <button id="psModeOn" class="search-mode-btn" style="flex: 1; background: white; color: #6fc252; border: none; cursor: pointer; font-size: 0.9em; font-weight: 600; padding: 8px; transition: all 0.2s;">
+                              On
+                            </button>
+                          </div>
+                        </div>
+                        <input id="psMode" name="presentation" type="checkbox" style="display: none;"/>
                         <div style="margin-left:8px;">By default, all stanzas are displayed together as a single block beneath the music, just like a traditional hymnal. To show each stanza on its own line with the music repeated for every stanza, turn Presentation Mode on.</div>
                       </div>
                       <div class="menu-item right">
@@ -1359,6 +1365,33 @@
            document.addEventListener("keydown", function(e) {
              if (e.key === "Escape") closeNav();
            });
+           
+           // Presentation Mode toggle buttons
+           var psModeOff = document.getElementById("psModeOff");
+           var psModeOn = document.getElementById("psModeOn");
+           var psModeCheckbox = document.getElementById("psMode");
+           
+           if (psModeOff && psModeOn && psModeCheckbox) {
+             psModeOff.addEventListener("click", function() {
+               psModeCheckbox.checked = false;
+               psModeOff.classList.add("active");
+               psModeOn.classList.remove("active");
+               psModeOff.style.background = "#6fc252";
+               psModeOff.style.color = "white";
+               psModeOn.style.background = "white";
+               psModeOn.style.color = "#6fc252";
+             });
+             
+             psModeOn.addEventListener("click", function() {
+               psModeCheckbox.checked = true;
+               psModeOn.classList.add("active");
+               psModeOff.classList.remove("active");
+               psModeOn.style.background = "#6fc252";
+               psModeOn.style.color = "white";
+               psModeOff.style.background = "white";
+               psModeOff.style.color = "#6fc252";
+             });
+           }
           });
 
         document.addEventListener('DOMContentLoaded', function() {
