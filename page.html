@@ -721,6 +721,12 @@
                 color: #555;
                 font-weight: 600;
             }
+            
+            .contourBtnSub {
+                font-weight: normal;
+                text-transform: uppercase;
+                font-size: 18px;
+            }
         </style>
     </head>
     <body>
@@ -1116,11 +1122,31 @@
       <div style="max-width: 700px;">
         <!--<h2 style="margin-top: 0">Melody Search</h2>-->
         <!-- Search Mode Toggle Buttons -->
-        <div style="display: flex; gap: 0; width: 90%; max-width: 400px; border: 2px solid #6fc252; border-radius: 8px; overflow: hidden; margin: 0 auto;">
+        <div style="display: flex; gap: 0; width: 90%; border: 2px solid #6fc252; border-radius: 8px; overflow: hidden; margin: 0 auto;">
           <button id="pitchSearchModeBtn" class="search-mode-btn active" style="flex: 1; background: #6fc252; color: white; border: none; cursor: pointer; font-size: 1.3em; font-weight: 600; transition: all 0.2s;">
+          <svg fill="#fff" height="30px" width="30px" version="1.1" id="Icons" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
+	 viewBox="0 0 32 32" xml:space="preserve" style="margin-bottom: -7px">
+<g>
+	<path d="M29,3h-2v14c0,0.6-0.4,1-1,1h-2v11h5c0.6,0,1-0.4,1-1V4C30,3.4,29.6,3,29,3z"/>
+	<path d="M15,29V18h-1c-0.6,0-1-0.4-1-1V3h-2v14c0,0.6-0.4,1-1,1v11H15z"/>
+	<path d="M19,3v14c0,0.6-0.4,1-1,1h-1v11h5V18c-0.6,0-1-0.4-1-1V3H19z"/>
+	<path d="M8,18H6c-0.6,0-1-0.4-1-1V3H3C2.4,3,2,3.4,2,4v24c0,0.6,0.4,1,1,1h5V18z"/>
+</g>
+</svg>
             Pitch Search
           </button>
           <button id="contourSearchModeBtn" class="search-mode-btn" style="flex: 1; background: white; color: #6fc252; border: none; cursor: pointer; font-size: 1.3em; font-weight: 600; transition: all 0.2s;">
+          <svg width="30px" height="30px" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-bottom: -6px">
+<g clip-path="url(#clip0_429_10973)">
+<path d="M3 17L9 11L13 15L21 7" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M17 7H21V11" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_429_10973">
+<rect width="24" height="24" fill="white"/>
+</clipPath>
+</defs>
+</svg>
             Contour Search
           </button>
         </div>
@@ -1156,13 +1182,16 @@
           <!-- Contour Input Buttons -->
           <div style="width: 90%; max-width: 400px; display: flex; justify-content: center; gap: 20px; margin: 20px auto;">
             <button title="Upward motion" id="contourUpBtn" class="contour-input-btn" style="width: 80px; height: 80px; background: #6fc252; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 2.5em; font-weight: bold; transition: all 0.2s;">
-              +
+              +<br/>
+              <div class="contourBtnSub">Up</div>
             </button>
             <button title="Downward motion" id="contourDownBtn" class="contour-input-btn" style="width: 80px; height: 80px; background: #6fc252; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 2.5em; font-weight: bold; transition: all 0.2s;">
-              −
+              −<br/>
+              <div class="contourBtnSub">Down</div>
             </button>
             <button title="Same pitch" id="contourSameBtn" class="contour-input-btn" style="width: 80px; height: 80px; background: #6fc252; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 2.5em; font-weight: bold; transition: all 0.2s;">
-              =
+              =<br/>
+              <div class="contourBtnSub">Unison</div>
             </button>
           </div>
           
