@@ -175,6 +175,25 @@
               font-weight: 500 !important;
             }
             
+            .ios-tooltip-close-btn {
+              position: absolute;
+              top: 2px;
+              right: 2px;
+              background: transparent;
+              border: none;
+              color: #000;
+              cursor: pointer;
+              padding: 2px;
+              width: 20px;
+              height: 20px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              font-size: 16px;
+              line-height: 1;
+              font-weight: bold;
+            }
+            
             #closeIosTooltip:hover {
               opacity: 0.7;
             }
@@ -973,7 +992,7 @@
                         <span class="tooltiptext">Play</span>
                         <span class="tooltiptext ios-unmute-tooltip" id="iosUnmuteTooltip" style="display: none;">
                             You may need to unmute your device to hear playback
-                            <button id="closeIosTooltip" style="position: absolute; top: 2px; right: 2px; background: transparent; border: none; color: #000; cursor: pointer; padding: 2px; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; font-size: 16px; line-height: 1; font-weight: bold;" title="Close" aria-label="Close tooltip">×</button>
+                            <button id="closeIosTooltip" class="ios-tooltip-close-btn" title="Close" aria-label="Close tooltip">×</button>
                         </span>
                     </a>
                     <a class="tooltip" id="pauseMIDI">
@@ -1406,16 +1425,16 @@
           
           // Show iOS unmute tooltip if on iOS device and controls are visible
           if (isIOS()) {
-            var iosTooltip = document.getElementById('iosUnmuteTooltip');
-            var controlsDiv = document.getElementById('controls');
-            var closeBtn = document.getElementById('closeIosTooltip');
+            const iosTooltip = document.getElementById('iosUnmuteTooltip');
+            const controlsDiv = document.getElementById('controls');
+            const closeBtn = document.getElementById('closeIosTooltip');
             
             // Check if tooltip was previously closed (stored in localStorage)
-            var tooltipClosed = localStorage.getItem('iosUnmuteTooltipClosed');
+            const tooltipClosed = localStorage.getItem('iosUnmuteTooltipClosed');
             
             if (iosTooltip && !tooltipClosed) {
               // Check if controls are visible
-              var checkControlsVisibility = function() {
+              const checkControlsVisibility = function() {
                 if (controlsDiv && window.getComputedStyle(controlsDiv).display !== 'none') {
                   iosTooltip.style.display = 'block';
                 } else {
@@ -1427,13 +1446,17 @@
               checkControlsVisibility();
               
               // Observe controls visibility changes
-              var observer = new MutationObserver(checkControlsVisibility);
+              let observer = new MutationObserver(checkControlsVisibility);
               if (controlsDiv) {
                 observer.observe(controlsDiv, { attributes: true, attributeFilter: ['style', 'class'] });
               }
               
-              // Handle close button click - shared logic
-              var closeTooltip = function(e) {
+              // Handle close button - use touchend for better touch responsiveness on iOS
+              let tooltipDismissed = false;
+              const closeTooltip = function(e) {
+                if (tooltipDismissed) return; // Prevent double-firing
+                tooltipDismissed = true;
+                
                 e.preventDefault();
                 e.stopPropagation();
                 iosTooltip.style.display = 'none';
@@ -1441,12 +1464,13 @@
                 // Disconnect observer to prevent memory leaks
                 if (observer) {
                   observer.disconnect();
+                  observer = null;
                 }
               };
               
               if (closeBtn) {
-                closeBtn.addEventListener('click', closeTooltip);
                 closeBtn.addEventListener('touchend', closeTooltip);
+                closeBtn.addEventListener('click', closeTooltip);
               }
             }
           }
