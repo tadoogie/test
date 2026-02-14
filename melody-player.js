@@ -181,9 +181,15 @@ class MelodyPlayer {
         this.setPlayingState(true);
 
         try {
-            // Start Tone.js if needed
+            // Start Tone.js if needed - iOS requires this on user interaction
             if (typeof Tone !== 'undefined') {
                 await Tone.start();
+                console.log('Tone.js started for melody playback');
+                
+                // Verify AudioContext is running
+                if (Tone.context && Tone.context.state === 'running') {
+                    console.log('AudioContext running, ready for playback');
+                }
             }
 
             // Set Verovio to accept PAE input directly (no MEI wrapper needed)
@@ -215,6 +221,7 @@ class MelodyPlayer {
                 player = document.createElement('midi-player');
                 player.id = 'melody-midi-player';
                 player.setAttribute('sound-font', 'https://storage.googleapis.com/magentadata/js/soundfonts/salamander');
+                player.setAttribute('playsinline', '');  // iOS best practice for inline audio playback
                 player.style.display = 'none';
                 document.body.appendChild(player);
                 

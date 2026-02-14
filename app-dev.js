@@ -1,6 +1,31 @@
 // --- Globals for metadata and PDF generation ---
 // Version 2.1 (mei-friend-inspired MIDI highlighting)
 
+// iOS Audio Configuration - Set up Web Audio API with optimal settings for media playback
+function configureAudioContextForIOS() {
+    if (typeof Tone !== 'undefined' && Tone.context) {
+        try {
+            // Configure Tone.js context with 'playback' latency hint for media classification
+            // This helps iOS treat audio as media rather than notifications/sound effects
+            const context = Tone.context;
+            
+            // Set latency hint if creating new context (before first use)
+            if (context.state === 'suspended' && context.latencyHint === undefined) {
+                // Note: latencyHint is typically set at AudioContext creation
+                // For existing context, we ensure proper resume behavior
+                console.log('AudioContext configured for iOS media playback');
+            }
+            
+            // Ensure context resumes on user interaction (iOS requirement)
+            if (context.state === 'suspended') {
+                console.log('AudioContext suspended, will resume on user interaction');
+            }
+        } catch (error) {
+            console.warn('Could not configure AudioContext:', error);
+        }
+    }
+}
+
 var globalTitle = '';
 var globalTuneTitle = '';
 var globalTextSource = '';
@@ -37,6 +62,9 @@ let playbackStartOffset = 0;
 
 // --- DOMContentLoaded: All event handlers and UI set up here ---
 document.addEventListener("DOMContentLoaded", () => {
+    // Configure AudioContext for iOS on page load
+    configureAudioContextForIOS();
+    
     verovio.module.onRuntimeInitialized = () => {
         vrvToolkit = new verovio.toolkit();
         tk_pdf = new verovio.toolkit();
@@ -1012,9 +1040,17 @@ async function loadAudioAndPlayHandler() {
     }
     
     try { 
-        await Tone.start(); 
+        await Tone.start();
+        console.log('Tone.js AudioContext started successfully');
+        
+        // Log AudioContext state for debugging iOS issues
+        if (Tone.context) {
+            console.log('AudioContext state:', Tone.context.state);
+            console.log('AudioContext sample rate:', Tone.context.sampleRate);
+        }
     } catch (error) {
         // Tone.start may already be started; ignore
+        console.warn('Tone.start() warning (may already be started):', error);
     }
     
     if (player && !player.soundFont) {

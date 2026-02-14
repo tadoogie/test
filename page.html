@@ -1090,7 +1090,12 @@
                 </div>
             </div>
              <div style="height: 0px">
-            <midi-player id="verovio-midi-player" preload="auto" sound-font="https://storage.googleapis.com/magentadata/js/soundfonts/salamander" style="display: none;">
+            <!-- MIDI Player with iOS optimization:
+                 - playsinline: Ensures inline playback on iOS (similar to video playback)
+                 - Uses Web Audio API via Tone.js with proper AudioContext initialization
+                 - Tone.start() is called on user interaction (Play button click)
+                 - This follows iOS best practices for media audio classification -->
+            <midi-player id="verovio-midi-player" preload="auto" playsinline sound-font="https://storage.googleapis.com/magentadata/js/soundfonts/salamander" style="display: none;">
             </midi-player>
             </div>
         </div>
