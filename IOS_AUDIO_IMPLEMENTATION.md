@@ -113,6 +113,13 @@ A: The iOS unmute tooltip (implemented separately) helps users understand they m
 - Increase system volume
 - Check that "Silent Mode" is off
 
+**Q: Is the iOS unmute tooltip still necessary after the audio optimization?**
+A: **YES - They address different issues:**
+- **Audio Optimization**: Ensures Web Audio API works correctly (software layer)
+- **Unmute Tooltip**: Reminds users about hardware mute switch (physical layer)
+
+The Web Audio API cannot detect or control the hardware mute switch on iOS devices. Even with perfect API implementation, audio won't play if the device is physically muted. The tooltip provides user awareness of this physical setting, while the optimization ensures the software stack works correctly. See `TOOLTIP_VS_OPTIMIZATION_ANALYSIS.md` for detailed analysis.
+
 ## References
 - [Web Audio API - MDN](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API)
 - [AudioContext - MDN](https://developer.mozilla.org/en-US/docs/Web/API/AudioContext)

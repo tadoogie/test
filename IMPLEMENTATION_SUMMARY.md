@@ -145,6 +145,27 @@ On iOS device (iPhone/iPad):
 
 ## Maintenance Notes
 
+### Relationship with iOS Unmute Tooltip
+
+This branch contains TWO complementary iOS features:
+
+1. **iOS Unmute Tooltip** (earlier implementation)
+   - Warns users about hardware mute switch
+   - Dismissible, stores preference in localStorage
+   - Addresses physical device layer
+
+2. **iOS Audio Optimization** (this implementation)  
+   - Ensures Web Audio API works correctly
+   - Adds playsinline, monitors AudioContext
+   - Addresses software API layer
+
+**Both are necessary** because they solve different problems:
+- Web Audio API cannot detect hardware mute state
+- Tooltip provides user awareness
+- Optimization ensures technical correctness
+
+See `TOOLTIP_VS_OPTIMIZATION_ANALYSIS.md` for detailed analysis.
+
 ### Future Considerations
 1. Monitor console logs in production for AudioContext issues
 2. Test on new iOS versions as they release
