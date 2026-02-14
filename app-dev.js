@@ -15,11 +15,22 @@ function configureAudioContextForIOS() {
             console.log('  State:', context.state);
             console.log('  Sample rate:', context.sampleRate);
             
-            // Ensure context will resume on user interaction (iOS requirement)
-            if (context.state === 'suspended') {
-                console.log('  AudioContext suspended, will resume on user interaction (Play button)');
-            } else if (context.state === 'running') {
-                console.log('  AudioContext already running');
+            // Handle all possible AudioContext states
+            switch (context.state) {
+                case 'suspended':
+                    console.log('  AudioContext suspended, will resume on user interaction (Play button)');
+                    break;
+                case 'running':
+                    console.log('  AudioContext already running');
+                    break;
+                case 'closed':
+                    console.warn('  AudioContext is closed - may need to recreate');
+                    break;
+                case 'interrupted':
+                    console.warn('  AudioContext interrupted (iOS specific) - will resume when possible');
+                    break;
+                default:
+                    console.log('  AudioContext state:', context.state);
             }
         } catch (error) {
             console.warn('Could not check AudioContext:', error);

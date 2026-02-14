@@ -184,11 +184,13 @@ class MelodyPlayer {
             // Start Tone.js if needed - iOS requires this on user interaction
             if (typeof Tone !== 'undefined') {
                 await Tone.start();
-                console.log('Tone.js started for melody playback');
                 
                 // Verify AudioContext is running
                 if (Tone.context && Tone.context.state === 'running') {
+                    console.log('Tone.js started for melody playback');
                     console.log('AudioContext running, ready for playback');
+                } else {
+                    console.warn('Tone.js started but AudioContext not running:', Tone.context?.state);
                 }
             }
 

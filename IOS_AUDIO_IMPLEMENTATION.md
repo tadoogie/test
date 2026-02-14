@@ -114,7 +114,8 @@ A: The iOS unmute tooltip (implemented separately) helps users understand they m
 - Check that "Silent Mode" is off
 
 ## References
-- [Web Audio API Best Practices](https://developers.google.com/web/updates/2017/09/autoplay-policy-changes)
+- [Web Audio API - MDN](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API)
+- [AudioContext - MDN](https://developer.mozilla.org/en-US/docs/Web/API/AudioContext)
 - [iOS Audio Guidelines](https://developer.apple.com/documentation/webkit/delivering_video_content_for_safari)
 - [Tone.js Documentation](https://tonejs.github.io/)
 - [html-midi-player](https://github.com/cifkao/html-midi-player)
