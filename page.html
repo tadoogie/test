@@ -1392,6 +1392,13 @@
                psModeCheckbox.dispatchEvent(new Event('change'));
                updateToggleState(psModeOn, psModeOff);
              });
+             
+             // Initialize button state based on checkbox
+             if (psModeCheckbox.checked) {
+               updateToggleState(psModeOn, psModeOff);
+             } else {
+               updateToggleState(psModeOff, psModeOn);
+             }
            }
           });
 
