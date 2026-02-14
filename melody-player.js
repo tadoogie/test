@@ -6,7 +6,13 @@ class MelodyPlayer {
         this.currentButton = null;
         this.animationFrame = null;
         this.verovioToolkit = null;
-        this. isPlaying = false;
+        this.isPlaying = false;
+        
+        // Timing constants for player initialization and loading
+        this.playerInitDelayMs = 500;    // Wait after creating new player element
+        this.audioBufferDelayMs = 200;   // Ensure Web Audio API buffers are ready
+        this.pollIntervalMs = 100;       // How often to check if player is ready
+        this.maxPollAttempts = 50;       // Maximum polling attempts (5 seconds)
     }
 
     async initialize() {
@@ -21,46 +27,6 @@ class MelodyPlayer {
             this.verovioToolkit = new verovio.toolkit();
         }
         return true;
-    }
-
-    // Create MEI with Plain and Easy incipit
-    createMEIWithIncipit(paeCode, tuneName = 'Melody') {
-        const mei = `<?xml version="1.0" encoding="UTF-8"?>
-<mei xmlns="http://www.music-encoding.org/ns/mei" meiversion="5.1">
-    <meiHead>
-        <fileDesc>
-            <titleStmt>
-                <title>${this.escapeXml(tuneName)}</title>
-            </titleStmt>
-            <pubStmt></pubStmt>
-        </fileDesc>
-        <workList>
-            <work>
-                <title>${this.escapeXml(tuneName)}</title>
-                <incip>
-                    <incipCode form="plaineAndEasie">${this.escapeXml(paeCode)}</incipCode>
-                </incip>
-            </work>
-        </workList>
-    </meiHead>
-    <music>
-        <body></body>
-    </music>
-</mei>`;
-        return mei;
-    }
-
-    escapeXml(unsafe) {
-        if (! unsafe) return '';
-        return unsafe. replace(/[<>&'"]/g, function (c) {
-            switch (c) {
-                case '<': return '&lt;';
-                case '>': return '&gt;';
-                case '&': return '&amp;';
-                case '\'': return '&apos;';
-                case '"': return '&quot;';
-            }
-        });
     }
 
     // Create circular progress play button
@@ -160,197 +126,141 @@ class MelodyPlayer {
         this.currentButton = null;
     }
 
+    // Wait for MIDI player to be ready for playback
+    async waitForPlayerReady(player) {
+        return new Promise((resolve) => {
+            let attempts = 0;
+            
+            const checkReady = () => {
+                attempts++;
+                
+                // Check if player has duration (indicates MIDI is loaded)
+                if (player.duration > 0) {
+                    resolve();
+                } else if (attempts >= this.maxPollAttempts) {
+                    console.warn('Player load timeout - proceeding anyway');
+                    resolve();
+                } else {
+                    setTimeout(checkReady, this.pollIntervalMs);
+                }
+            };
+            
+            checkReady();
+        });
+    }
+
     // Play melody from Plain and Easy code
-   // Replace the play method in melody-player.js:
-async play(meiFilePath, tuneName, button) {
-    console.log('=== Melody Player Debug ===');
-    console.log('MEI File Path:', meiFilePath);
-    console.log('Tune Name:', tuneName);
-    
-    // Validate inputs
-    if (!meiFilePath || typeof meiFilePath !== 'string') {
-        console.error('Invalid MEI file path:', meiFilePath);
-        alert('Unable to play melody:  Invalid file path');
-        return;
-    }
-
-    // If already playing this button, stop it
-    if (this.isPlaying && this.currentButton === button) {
-        this.stop();
-        return;
-    }
-
-    // Stop any other playing melody
-    if (this.isPlaying) {
-        this.stop();
-    }
-
-    // Initialize if needed
-    const initialized = await this.initialize();
-    if (!initialized) {
-        console.error('Failed to initialize Verovio');
-        return;
-    }
-
-    this.currentButton = button;
-    this. isPlaying = true;
-    this.setPlayingState(true);
-
-    try {
-        // Start Tone.js if needed
-        if (typeof Tone !== 'undefined') {
-            console.log('Starting Tone.js...');
-            await Tone. start();
-            console.log('Tone.js started');
+    async play(paeCode, tuneName, button) {
+        // Validate inputs
+        if (!paeCode || typeof paeCode !== 'string') {
+            console.error('Invalid PAE code:', paeCode);
+            alert('Unable to play melody: Invalid PAE code');
+            return;
         }
 
-        // Fetch the full MEI file using the full path from the database
-        console.log('Fetching MEI file.. .');
-        const response = await fetch(meiFilePath); // Use the full path directly
-        if (!response.ok) {
-            throw new Error(`Failed to fetch MEI file: ${response.statusText}`);
+        // If already playing this button, stop it
+        if (this.isPlaying && this.currentButton === button) {
+            this.stop();
+            return;
         }
-        
-        const meiXML = await response.text();
-        console.log('MEI file loaded, length:', meiXML.length);
-        console.log('First 500 chars:', meiXML.substring(0, 500));
-        
-        // Check for XML parsing errors first
-        const parser = new DOMParser();
-        const xmlDoc = parser. parseFromString(meiXML, 'text/xml');
-        const parseError = xmlDoc.querySelector('parsererror');
-        if (parseError) {
-            console.error('XML parsing error:', parseError. textContent);
-            throw new Error('Invalid XML in MEI file');
-        }
-        console.log('✓ XML is well-formed');
-        
-        // Check for incipCode
-        const incipCode = xmlDoc. querySelector('incipCode[form="plaineAndEasie"], incipCode[form="pae"]');
-        if (incipCode) {
-            console.log('✓ Found incipCode element');
-            console.log('  form attribute:', incipCode.getAttribute('form'));
-            console.log('  content:', incipCode.textContent);
-        } else {
-            console. warn('✗ No incipCode found in document');
-        }
-        
-        // Enable incip option to tell Verovio to process the incipit
-        this.verovioToolkit.setOptions({
-            incip: true,        // Process the <incipCode> in the MEI
-            scale: 40,
-            pageHeight: 500,
-            pageWidth: 500,
-            adjustPageHeight: true
-        });
-        
-        console.log('Verovio options set:', {
-            incip: true,
-            scale: 40
-        });
-        
-        console.log('Loading full MEI file into Verovio with incip:  true.. .');
-        console.log('Calling loadData with MEI of length:', meiXML.length);
 
-        const loaded = this.verovioToolkit.loadData(meiXML);
-        console.log('loadData returned:', loaded);
-        
-        if (loaded === 0 || ! loaded) {
-            console.error('❌ Verovio loadData failed - returned:', loaded);
-            // Try to get error messages from Verovio
-            console.log('Checking Verovio log.. .');
-            throw new Error('Verovio failed to load MEI data');
+        // Stop any other playing melody
+        if (this.isPlaying) {
+            this.stop();
         }
-        
-        console.log('✓ MEI loaded successfully');
-        
-        console.log('=== Verovio Debug ===');
-        console.log('Getting MEI back from Verovio: ');
-        const verovioMEI = this.verovioToolkit.getMEI();
-        console.log('Verovio MEI length:', verovioMEI. length);
-        console.log('Verovio MEI first 2000 chars:', verovioMEI.substring(0, 2000));
-        
-        // Check if incipCode is still present
-        if (verovioMEI.includes('<incipCode')) {
-            console.log('✓ incipCode element found in Verovio output');
-            const incipMatch = verovioMEI. match(/<incipCode[^>]*>([^<]*)<\/incipCode>/);
-            if (incipMatch) {
-                console.log('incipCode content:', incipMatch[0]);
+
+        // Initialize if needed
+        const initialized = await this.initialize();
+        if (!initialized) {
+            console.error('Failed to initialize Verovio');
+            return;
+        }
+
+        this.currentButton = button;
+        this.isPlaying = true;
+        this.setPlayingState(true);
+
+        try {
+            // Start Tone.js if needed
+            if (typeof Tone !== 'undefined') {
+                await Tone.start();
             }
-        } else {
-            console. log('✗ incipCode element NOT found in Verovio output');
-        }
-        
-        // Check if Verovio generated any music from the incipit
-        if (verovioMEI.includes('<measure')) {
-            console.log('✓ Verovio generated measure elements');
-        } else {
-            console.log('✗ No measure elements - Verovio did not process incipit');
-        }
-        console.log('=== End Verovio Debug ===');
-        
-        console.log('Rendering to MIDI...');
-        const base64midi = this.verovioToolkit.renderToMIDI();
-        console.log('MIDI rendered, base64 length:', base64midi.length);
 
-        if (! base64midi || base64midi. length < 100) {
-            console.error('MIDI data seems too short or empty');
-            throw new Error('Failed to generate MIDI from melody');
-        }
+            // Set Verovio to accept PAE input directly (no MEI wrapper needed)
+            this.verovioToolkit.setOptions({
+                inputFrom: 'pae',   // Tell Verovio to expect Plain and Easy code directly
+                scale: 40,
+                pageHeight: 500,
+                pageWidth: 500,
+                adjustPageHeight: true
+            });
 
-        // Get or create MIDI player
-        let player = document.getElementById('melody-midi-player');
-        if (!player) {
-            console.log('Creating new MIDI player element...');
-            player = document. createElement('midi-player');
-            player.id = 'melody-midi-player';
-            player.setAttribute('sound-font', 'https://storage.googleapis.com/magentadata/js/soundfonts/salamander');
-            player.style.display = 'none';
-            document.body.appendChild(player);
+            const loaded = this.verovioToolkit.loadData(paeCode);
             
-            await new Promise(resolve => setTimeout(resolve, 500));
-        }
-
-        this.currentPlayer = player;
-        
-        console.log('Loading MIDI into player...');
-        player.src = 'data:audio/midi;base64,' + base64midi;
-        
-        await new Promise(resolve => setTimeout(resolve, 100));
-
-        if (typeof player.load === 'function') {
-            console.log('Calling player. load()...');
-            player. load();
-        }
-
-        await new Promise(resolve => setTimeout(resolve, 300));
-
-        if (typeof player.start === 'function') {
-            console.log('Calling player. start()...');
-            player. start();
-            console.log('Player started');
-            
-            // Estimate duration - assume ~30 notes average for an incipit
-            const estimatedDuration = 15000; // 15 seconds default
-            
-            this.startProgressAnimation(estimatedDuration);
-        }
-
-        // Listen for player end event
-        player.addEventListener('ended', () => {
-            console. log('Playback ended');
-            if (this.currentPlayer === player) {
-                this.stop();
+            if (loaded === 0 || !loaded) {
+                console.error('Verovio failed to load PAE data (returned:', loaded + ')');
+                throw new Error('Verovio failed to load PAE data');
             }
-        }, { once: true });
+            
+            const base64midi = this.verovioToolkit.renderToMIDI();
 
-    } catch (error) {
-        console.error('Error playing melody:', error);
-        console.error('Stack:', error.stack);
-        this.stop();
-        alert('Unable to play melody.  Check console for details.');
+            if (!base64midi || base64midi.length < 100) {
+                console.error('MIDI data seems too short or empty');
+                throw new Error('Failed to generate MIDI from melody');
+            }
+
+            // Get or create MIDI player
+            let player = document.getElementById('melody-midi-player');
+            if (!player) {
+                player = document.createElement('midi-player');
+                player.id = 'melody-midi-player';
+                player.setAttribute('sound-font', 'https://storage.googleapis.com/magentadata/js/soundfonts/salamander');
+                player.style.display = 'none';
+                document.body.appendChild(player);
+                
+                // Wait for player element to initialize (Web Component registration, etc.)
+                await new Promise(resolve => setTimeout(resolve, this.playerInitDelayMs));
+            }
+
+            this.currentPlayer = player;
+            
+            // Set the MIDI source
+            player.src = 'data:audio/midi;base64,' + base64midi;
+            
+            // Call load if available
+            if (typeof player.load === 'function') {
+                player.load();
+            }
+            
+            // Wait for the player to fully load the MIDI data
+            await this.waitForPlayerReady(player);
+
+            // Additional delay to ensure Web Audio API buffers are fully ready
+            await new Promise(resolve => setTimeout(resolve, this.audioBufferDelayMs));
+
+            if (typeof player.start === 'function') {
+                player.start();
+                
+                // Estimate duration - assume ~30 notes average for an incipit
+                const estimatedDuration = 15000; // 15 seconds default
+                
+                this.startProgressAnimation(estimatedDuration);
+            }
+
+            // Listen for player end event
+            player.addEventListener('ended', () => {
+                if (this.currentPlayer === player) {
+                    this.stop();
+                }
+            }, { once: true });
+
+        } catch (error) {
+            console.error('Error playing melody:', error);
+            console.error('Stack:', error.stack);
+            this.stop();
+            alert('Unable to play melody. Check console for details.');
+        }
     }
-}
 }
 
 // Create global instance
