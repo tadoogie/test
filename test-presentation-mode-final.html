@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Presentation Mode Toggle Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #333;
+        }
+        .test-container {
+            background: #555;
+            padding: 20px;
+            border-radius: 8px;
+            max-width: 600px;
+            margin: 0 auto;
+            color: white;
+        }
+        .toggle-demo {
+            margin: 20px 0;
+            background: #444;
+            padding: 15px;
+            border-radius: 5px;
+        }
+        
+        h1 { color: #6fc252; }
+        h2 { color: #fff; font-size: 1.2em; }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>Presentation Mode Toggle - Verification</h1>
+        
+        <div class="toggle-demo">
+            <h2>Initial State (Off selected):</h2>
+            <div style="display: flex; align-items: center; justify-content: space-between; margin: 10px 0;">
+                <span style="font-size: 1.1em; font-weight: 600;">Presentation Mode</span>
+                <div style="display: flex; gap: 0; width: 120px; border: 2px solid #6fc252; border-radius: 8px; overflow: hidden;">
+                    <button id="demo1Off" class="demo-btn active" style="flex: 1; background: #6fc252; color: white; border: none; cursor: pointer; font-size: 0.9em; font-weight: 600; padding: 8px;">
+                        Off
+                    </button>
+                    <button id="demo1On" class="demo-btn" style="flex: 1; background: #666; color: #6fc252; border: none; cursor: pointer; font-size: 0.9em; font-weight: 600; padding: 8px;">
+                        On
+                    </button>
+                </div>
+            </div>
+            <p style="color: #ccc; font-size: 0.9em; margin-top: 10px;">✓ The "On" button shows #666 background (dark gray)</p>
+        </div>
+        
+        <div class="toggle-demo">
+            <h2>After Clicking "On":</h2>
+            <div style="display: flex; align-items: center; justify-content: space-between; margin: 10px 0;">
+                <span style="font-size: 1.1em; font-weight: 600;">Presentation Mode</span>
+                <div style="display: flex; gap: 0; width: 120px; border: 2px solid #6fc252; border-radius: 8px; overflow: hidden;">
+                    <button id="demo2Off" class="demo-btn" style="flex: 1; background: #666; color: #6fc252; border: none; cursor: pointer; font-size: 0.9em; font-weight: 600; padding: 8px;">
+                        Off
+                    </button>
+                    <button id="demo2On" class="demo-btn active" style="flex: 1; background: #6fc252; color: white; border: none; cursor: pointer; font-size: 0.9em; font-weight: 600; padding: 8px;">
+                        On
+                    </button>
+                </div>
+            </div>
+            <p style="color: #ccc; font-size: 0.9em; margin-top: 10px;">✓ The "Off" button now shows #666 background (dark gray)</p>
+        </div>
+        
+        <div class="toggle-demo">
+            <h2>Comparison - Other Toggles (unchanged):</h2>
+            <div style="display: flex; align-items: center; justify-content: space-between; margin: 10px 0;">
+                <span style="font-size: 1.1em; font-weight: 600;">Search Type:</span>
+                <div style="display: flex; gap: 0; width: 160px; border: 2px solid #6fc252; border-radius: 8px; overflow: hidden;">
+                    <button style="flex: 1; background: #6fc252; color: white; border: none; cursor: pointer; font-size: 0.9em; font-weight: 600; padding: 8px;">
+                        Fuzzy
+                    </button>
+                    <button style="flex: 1; background: white; color: #6fc252; border: none; cursor: pointer; font-size: 0.9em; font-weight: 600; padding: 8px;">
+                        Exact
+                    </button>
+                </div>
+            </div>
+            <p style="color: #ccc; font-size: 0.9em; margin-top: 10px;">✓ Melody search modal toggles still use white background</p>
+        </div>
+    </div>
+</body>
+</html>
