@@ -1432,21 +1432,21 @@
                 observer.observe(controlsDiv, { attributes: true, attributeFilter: ['style', 'class'] });
               }
               
-              // Handle close button click
+              // Handle close button click - shared logic
+              var closeTooltip = function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                iosTooltip.style.display = 'none';
+                localStorage.setItem('iosUnmuteTooltipClosed', 'true');
+                // Disconnect observer to prevent memory leaks
+                if (observer) {
+                  observer.disconnect();
+                }
+              };
+              
               if (closeBtn) {
-                closeBtn.addEventListener('click', function(e) {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  iosTooltip.style.display = 'none';
-                  localStorage.setItem('iosUnmuteTooltipClosed', 'true');
-                });
-                
-                closeBtn.addEventListener('touchend', function(e) {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  iosTooltip.style.display = 'none';
-                  localStorage.setItem('iosUnmuteTooltipClosed', 'true');
-                });
+                closeBtn.addEventListener('click', closeTooltip);
+                closeBtn.addEventListener('touchend', closeTooltip);
               }
             }
           }
