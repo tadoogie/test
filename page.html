@@ -464,6 +464,7 @@
             }
             #psMetreList {
                 margin-bottom: 15px;
+                margin-top: 8px;
             }
             #tunes { padding-top: 4px; } 
             #tuneButtons { margin-top: 6px; }
@@ -814,7 +815,7 @@
                           <input type="hidden" id="pssource"/>
                         </div>
                         <div id="searchPhraseContainer" style="margin-top:10px;margin-bottom:10px;margin-left:25px;display:block;">
-                          <a href="#" id="searchPhraseLink" style="color:#6fc252;text-decoration:none;font-size:1em;display:inline-flex;align-items:center;gap:10px;">
+                          <a href="#" id="searchPhraseLink" style="color:white;text-decoration:none;font-size:1em;display:inline-flex;align-items:center;gap:10px;">
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="18" height="18" aria-hidden="true" focusable="false" style="display:inline-block;vertical-align:middle;fill:currentColor;">
                               <path d="M480 272C480 317.9 465.1 360.3 440 394.7L566.6 521.4C579.1 533.9 579.1 554.2 566.6 566.7C554.1 579.2 533.8 579.2 521.3 566.7L394.7 440C360.3 465.1 317.9 480 272 480C157.1 480 64 386.9 64 272C64 157.1 157.1 64 272 64C386.9 64 480 157.1 480 272zM272 416C351.5 416 416 351.5 416 272C416 192.5 351.5 128 272 128C192.5 128 128 192.5 128 272C128 351.5 192.5 416 272 416z"/>
                             </svg>
@@ -870,8 +871,8 @@
                           Select a Tune:
                         </span>
                         <br/>
-                        <div id="searchMelodyContainer" style="margin-top:20px;margin-bottom:0px;margin-left:8px;display:block;">
-                        <a href="#" id="searchMelodyLink" style="color:#6fc252;text-decoration:none;font-size:1em;display:inline-flex;align-items:center;gap:10px;">
+                        <div id="searchMelodyContainer" style="margin-top:8px;margin-bottom:0px;margin-left:8px;display:block;">
+                        <a href="#" id="searchMelodyLink" style="color:white;text-decoration:none;font-size:1em;display:inline-flex;align-items:center;gap:10px;">
                           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="18" height="18" aria-hidden="true" focusable="false" style="display:inline-block;vertical-align:middle;fill:currentColor;">
                             <path d="M532 71C539.6 77.1 544 86.3 544 96L544 400C544 444.2 501 480 448 480C395 480 352 444.2 352 400C352 355.8 395 320 448 320C459.2 320 470 321.6 480 324.6L480 207.9L256 257.7L256 464C256 508.2 213 544 160 544C107 544 64 508.2 64 464C64 419.8 107 384 160 384C171.2 384 182 385.6 192 388.6L192 160C192 145 202.4 132 217.1 128.8L505.1 64.8C514.6 62.7 524.5 65 532.1 71.1z"/>
                           </svg>
@@ -889,13 +890,19 @@
                                     </div>
                       <div class="menu-item">
                         <div id="optionsSpacer"/>
-                        <span class="displayGroup" style="margin-left:8px; font-size: 1.2em; font-weight: 600; margin-bottom: 10px;">Presentation Mode
-                          <label class="switch">
-                            <input id="psMode" name="presentation" type="checkbox"/>
-                            <span class="slider round"/>
-                          </label>
-                        </span>
-                        <div style="margin-left:8px;">By default, all stanzas are displayed together as a single block beneath the music, just like a traditional hymnal. To show each stanza on its own line with the music repeated for every stanza, turn Presentation Mode on.</div>
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-left:8px; margin-bottom: 15px;">
+                          <span class="displayGroup" style="font-size: 1.2em; font-weight: 600;">Presentation Mode</span>
+                          <div style="display: flex; gap: 0; width: 120px; border-radius: 8px; overflow: hidden;">
+                            <button id="psModeOff" class="search-mode-btn active" style="flex: 1; background: #6fc252; color: white; border: none; cursor: pointer; font-size: 0.9em; font-weight: 600; padding: 8px; transition: all 0.2s;">
+                              Off
+                            </button>
+                            <button id="psModeOn" class="search-mode-btn" style="flex: 1; background: #666; color: white; border: none; cursor: pointer; font-size: 0.9em; font-weight: 600; padding: 8px; transition: all 0.2s;">
+                              On
+                            </button>
+                          </div>
+                        </div>
+                        <input id="psMode" name="presentation" type="checkbox" style="display: none;"/>
+                        <div style="margin-left: 8px; font-size: 0.9em">By default, all stanzas are displayed together as a block within the music, just like a traditional hymnal. To show each stanza on its own line with the music repeated for every stanza, turn Presentation Mode <strong>On</strong>.</div>
                       </div>
                       <div class="menu-item right">
                         <div id="submit" class="goBtn"/>
@@ -1060,7 +1067,7 @@
             <li>All the tunes using the your text's metre are available, and you can type in the box to filter those tunes according to title. Either click "NEXT" to set the display options or click "GO" in the "Current Selections" section.</li>
             <li>Select which options you wish and click "GO" to show your text and tune selections.</li>
         </ol>
-         <div style="color: red;"><strong>Important:</strong> iOS users may need unmute their device in order to hear playback.</div>
+         <div style="color: red;"><strong>Important:</strong> iOS users may need unmute their device in order to hear audio playback.</div>
     </div>
 </div>
 </section>
@@ -1359,6 +1366,39 @@
            document.addEventListener("keydown", function(e) {
              if (e.key === "Escape") closeNav();
            });
+           
+           // Presentation Mode toggle buttons
+           var psModeOff = document.getElementById("psModeOff");
+           var psModeOn = document.getElementById("psModeOn");
+           var psModeCheckbox = document.getElementById("psMode");
+           
+           function updateToggleState(activeButton, inactiveButton) {
+             activeButton.classList.add("active");
+             inactiveButton.classList.remove("active");
+             activeButton.style.background = "#6fc252";
+             inactiveButton.style.background = "#666";
+           }
+           
+           if (psModeOff &amp;&amp; psModeOn &amp;&amp; psModeCheckbox) {
+             psModeOff.addEventListener("click", function() {
+               psModeCheckbox.checked = false;
+               psModeCheckbox.dispatchEvent(new Event('change'));
+               updateToggleState(psModeOff, psModeOn);
+             });
+             
+             psModeOn.addEventListener("click", function() {
+               psModeCheckbox.checked = true;
+               psModeCheckbox.dispatchEvent(new Event('change'));
+               updateToggleState(psModeOn, psModeOff);
+             });
+             
+             // Initialize button state based on checkbox
+             if (psModeCheckbox.checked) {
+               updateToggleState(psModeOn, psModeOff);
+             } else {
+               updateToggleState(psModeOff, psModeOn);
+             }
+           }
           });
 
         document.addEventListener('DOMContentLoaded', function() {
