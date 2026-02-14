@@ -1371,25 +1371,26 @@
            var psModeOn = document.getElementById("psModeOn");
            var psModeCheckbox = document.getElementById("psMode");
            
+           function updateToggleState(activeButton, inactiveButton) {
+             activeButton.classList.add("active");
+             inactiveButton.classList.remove("active");
+             activeButton.style.background = "#6fc252";
+             activeButton.style.color = "white";
+             inactiveButton.style.background = "white";
+             inactiveButton.style.color = "#6fc252";
+           }
+           
            if (psModeOff && psModeOn && psModeCheckbox) {
              psModeOff.addEventListener("click", function() {
                psModeCheckbox.checked = false;
-               psModeOff.classList.add("active");
-               psModeOn.classList.remove("active");
-               psModeOff.style.background = "#6fc252";
-               psModeOff.style.color = "white";
-               psModeOn.style.background = "white";
-               psModeOn.style.color = "#6fc252";
+               psModeCheckbox.dispatchEvent(new Event('change'));
+               updateToggleState(psModeOff, psModeOn);
              });
              
              psModeOn.addEventListener("click", function() {
                psModeCheckbox.checked = true;
-               psModeOn.classList.add("active");
-               psModeOff.classList.remove("active");
-               psModeOn.style.background = "#6fc252";
-               psModeOn.style.color = "white";
-               psModeOff.style.background = "white";
-               psModeOff.style.color = "#6fc252";
+               psModeCheckbox.dispatchEvent(new Event('change'));
+               updateToggleState(psModeOn, psModeOff);
              });
            }
           });
