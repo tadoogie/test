@@ -889,12 +889,13 @@
                                     </div>
                       <div class="menu-item">
                         <div id="optionsSpacer"/>
-                        <span class="displayGroup" style="margin-left:8px">Presentation Mode
+                        <span class="displayGroup" style="margin-left:8px; font-size: 1.2em; font-weight: 600; margin-bottom: 10px;">Presentation Mode
                           <label class="switch">
                             <input id="psMode" name="presentation" type="checkbox"/>
                             <span class="slider round"/>
                           </label>
                         </span>
+                        <div style="margin-left:8px;">By default, all stanzas are displayed together as a single block beneath the music, just like a traditional hymnal. To show each stanza on its own line with the music repeated for every stanza, turn Presentation Mode on.</div>
                       </div>
                       <div class="menu-item right">
                         <div id="submit" class="goBtn"/>
@@ -1059,6 +1060,7 @@
             <li>All the tunes using the your text's metre are available, and you can type in the box to filter those tunes according to title. Either click "NEXT" to set the display options or click "GO" in the "Current Selections" section.</li>
             <li>Select which options you wish and click "GO" to show your text and tune selections.</li>
         </ol>
+         <div style="color: red;"><strong>Important:</strong> iOS users may need unmute their device in order to hear playback.</div>
     </div>
 </div>
 </section>
@@ -1143,8 +1145,7 @@
         <!-- Search Mode Toggle Buttons -->
         <div style="display: flex; gap: 0; width: 90%; border: 2px solid #6fc252; border-radius: 8px; overflow: hidden; margin: 0 auto;">
           <button id="pitchSearchModeBtn" class="search-mode-btn active" style="flex: 1; background: #6fc252; color: white; border: none; cursor: pointer; font-size: 1.3em; font-weight: 600; transition: all 0.2s;">
-          <svg height="30px" width="30px" version="1.1" id="Icons" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
-	 viewBox="0 0 32 32" xml:space="preserve" style="margin-bottom: -7px">
+          <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" height="30px" width="30px" version="1.1" id="Icons" viewBox="0 0 32 32" xml:space="preserve" style="margin-bottom: -7px">
 <g>
 	<path d="M29,3h-2v14c0,0.6-0.4,1-1,1h-2v11h5c0.6,0,1-0.4,1-1V4C30,3.4,29.6,3,29,3z"/>
 	<path d="M15,29V18h-1c-0.6,0-1-0.4-1-1V3h-2v14c0,0.6-0.4,1-1,1v11H15z"/>
@@ -1155,7 +1156,7 @@
             Pitch Search
           </button>
           <button id="contourSearchModeBtn" class="search-mode-btn" style="flex: 1; background: white; color: #6fc252; border: none; cursor: pointer; font-size: 1.3em; font-weight: 600; transition: all 0.2s;">
-          <svg width="30px" height="30px" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-bottom: -6px">
+          <svg xmlns="http://www.w3.org/2000/svg" width="30px" height="30px" viewBox="0 0 24 24" fill="none" style="margin-bottom: -6px">
 <g clip-path="url(#clip0_429_10973)">
 <path d="M3 17L9 11L13 15L21 7" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M17 7H21V11" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
