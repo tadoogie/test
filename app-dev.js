@@ -1,27 +1,28 @@
 // --- Globals for metadata and PDF generation ---
 // Version 2.1 (mei-friend-inspired MIDI highlighting)
 
-// iOS Audio Configuration - Set up Web Audio API with optimal settings for media playback
+// iOS Audio Configuration - Monitor Web Audio API state for optimal iOS playback
 function configureAudioContextForIOS() {
     if (typeof Tone !== 'undefined' && Tone.context) {
         try {
-            // Configure Tone.js context with 'playback' latency hint for media classification
-            // This helps iOS treat audio as media rather than notifications/sound effects
+            // Monitor Tone.js AudioContext state for iOS compatibility
+            // Note: latencyHint and other AudioContext options are set at creation time
+            // This function verifies the state and logs useful debugging information
             const context = Tone.context;
             
-            // Set latency hint if creating new context (before first use)
-            if (context.state === 'suspended' && context.latencyHint === undefined) {
-                // Note: latencyHint is typically set at AudioContext creation
-                // For existing context, we ensure proper resume behavior
-                console.log('AudioContext configured for iOS media playback');
-            }
+            // Log current state for debugging iOS audio issues
+            console.log('AudioContext status checked for iOS compatibility');
+            console.log('  State:', context.state);
+            console.log('  Sample rate:', context.sampleRate);
             
-            // Ensure context resumes on user interaction (iOS requirement)
+            // Ensure context will resume on user interaction (iOS requirement)
             if (context.state === 'suspended') {
-                console.log('AudioContext suspended, will resume on user interaction');
+                console.log('  AudioContext suspended, will resume on user interaction (Play button)');
+            } else if (context.state === 'running') {
+                console.log('  AudioContext already running');
             }
         } catch (error) {
-            console.warn('Could not configure AudioContext:', error);
+            console.warn('Could not check AudioContext:', error);
         }
     }
 }
