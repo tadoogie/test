@@ -850,13 +850,42 @@ function ensureMinimumSpinnerTime(callback) {
     
     if (remaining > 0) {
         console.log(`⏳ [SPINNER] Waiting additional ${remaining}ms to meet minimum display time`);
-        setTimeout(() => {
+        
+        // Use requestAnimationFrame for better iOS compatibility, fallback to setTimeout
+        const executeCallback = () => {
             console.log('✅ [SPINNER] Minimum display time met, executing callback');
-            callback();
-        }, remaining);
+            try {
+                callback();
+            } catch (error) {
+                console.error('❌ [SPINNER] Error in callback:', error);
+                // Force remove spinner on error
+                const container = document.getElementById("svg_output");
+                if (container) {
+                    container.innerHTML = '<div style="padding: 20px; color: #d32f2f;"><h3>Error Loading Score</h3><p>An error occurred. Please refresh and try again.</p></div>';
+                }
+            }
+        };
+        
+        // Use requestAnimationFrame for smoother execution on iOS, then setTimeout
+        if (typeof requestAnimationFrame !== 'undefined') {
+            requestAnimationFrame(() => {
+                setTimeout(executeCallback, Math.max(0, remaining - 16)); // Subtract one frame time
+            });
+        } else {
+            setTimeout(executeCallback, remaining);
+        }
     } else {
         console.log('✅ [SPINNER] Minimum display time already met, executing callback immediately');
-        callback();
+        try {
+            callback();
+        } catch (error) {
+            console.error('❌ [SPINNER] Error in callback:', error);
+            // Force remove spinner on error
+            const container = document.getElementById("svg_output");
+            if (container) {
+                container.innerHTML = '<div style="padding: 20px; color: #d32f2f;"><h3>Error Loading Score</h3><p>An error occurred. Please refresh and try again.</p></div>';
+            }
+        }
     }
 }
 
@@ -865,6 +894,20 @@ function loadDataWithLayerVolumes(data) {
     
     // Show loading spinner immediately
     showLoadingSpinner();
+    
+    // Failsafe: force remove spinner after 10 seconds if nothing else does
+    const failsafeTimeout = setTimeout(() => {
+        console.error('⚠️ [LOAD] FAILSAFE: Forcing spinner removal after 10 seconds');
+        const container = document.getElementById("svg_output");
+        if (container && container.innerHTML.includes('loading-spinner')) {
+            container.innerHTML = `
+                <div style="padding: 20px; color: #ff9800;">
+                    <h3>Loading Timeout</h3>
+                    <p>The score took too long to load. Please refresh the page and try again.</p>
+                </div>
+            `;
+        }
+    }, 10000); // 10 second failsafe
     
     console.log('⏰ [LOAD] Scheduling processing with setTimeout(50ms)');
     // Defer processing to allow browser to render the spinner
@@ -902,11 +945,13 @@ function loadDataWithLayerVolumes(data) {
             
             // Ensure spinner shows for minimum time before replacing with content
             ensureMinimumSpinnerTime(() => {
+                clearTimeout(failsafeTimeout); // Clear the failsafe timer
                 console.log('🖼️ [LOAD] Calling loadPage() to display rendered content');
                 loadPage();
                 console.log('✅ [LOAD] loadDataWithLayerVolumes() complete');
             });
         } catch (error) {
+            clearTimeout(failsafeTimeout); // Clear the failsafe timer
             console.error('❌ [LOAD] Error loading data with layer volumes:', error);
             // Show error message instead of spinner
             const container = document.getElementById("svg_output");
@@ -971,6 +1016,20 @@ function loadData(data) {
     // Show loading spinner immediately
     showLoadingSpinner();
     
+    // Failsafe: force remove spinner after 10 seconds if nothing else does
+    const failsafeTimeout = setTimeout(() => {
+        console.error('⚠️ [LOAD] FAILSAFE: Forcing spinner removal after 10 seconds');
+        const container = document.getElementById("svg_output");
+        if (container && container.innerHTML.includes('loading-spinner')) {
+            container.innerHTML = `
+                <div style="padding: 20px; color: #ff9800;">
+                    <h3>Loading Timeout</h3>
+                    <p>The score took too long to load. Please refresh the page and try again.</p>
+                </div>
+            `;
+        }
+    }, 10000); // 10 second failsafe
+    
     console.log('⏰ [LOAD] Scheduling processing with setTimeout(50ms)');
     // Defer processing to allow browser to render the spinner
     setTimeout(() => {
@@ -990,11 +1049,13 @@ function loadData(data) {
             
             // Ensure spinner shows for minimum time before replacing with content
             ensureMinimumSpinnerTime(() => {
+                clearTimeout(failsafeTimeout); // Clear the failsafe timer
                 console.log('🖼️ [LOAD] Calling loadPage() to display rendered content');
                 loadPage();
                 console.log('✅ [LOAD] loadData() complete');
             });
         } catch (error) {
+            clearTimeout(failsafeTimeout); // Clear the failsafe timer
             console.error('❌ [LOAD] Error loading data:', error);
             // Show error message instead of spinner
             const container = document.getElementById("svg_output");
@@ -1203,6 +1264,20 @@ function renderAndDisplayMEI(meiXML) {
     // Show loading spinner immediately
     showLoadingSpinner();
     
+    // Failsafe: force remove spinner after 10 seconds if nothing else does
+    const failsafeTimeout = setTimeout(() => {
+        console.error('⚠️ [RENDER] FAILSAFE: Forcing spinner removal after 10 seconds');
+        const container = document.getElementById("svg_output");
+        if (container && container.innerHTML.includes('loading-spinner')) {
+            container.innerHTML = `
+                <div style="padding: 20px; color: #ff9800;">
+                    <h3>Loading Timeout</h3>
+                    <p>The score took too long to load. Please refresh the page and try again.</p>
+                </div>
+            `;
+        }
+    }, 10000); // 10 second failsafe
+    
     console.log('⏰ [RENDER] Scheduling processing with setTimeout(50ms)');
     // Defer processing to allow browser to render the spinner
     setTimeout(() => {
@@ -1219,12 +1294,14 @@ function renderAndDisplayMEI(meiXML) {
             
             // Ensure spinner shows for minimum time before replacing with content
             ensureMinimumSpinnerTime(() => {
+                clearTimeout(failsafeTimeout); // Clear the failsafe timer
                 console.log('🖼️ [RENDER] Setting SVG output and unhighlighting elements');
                 document.getElementById("svg_output").innerHTML = vrvToolkit.renderToSVG(page);
                 unHighlightAllElements();
                 console.log('✅ [RENDER] renderAndDisplayMEI() complete');
             });
         } catch (error) {
+            clearTimeout(failsafeTimeout); // Clear the failsafe timer
             console.error('❌ [RENDER] Error rendering MEI:', error);
             // Show error message instead of spinner
             const container = document.getElementById("svg_output");
