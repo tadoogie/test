@@ -44,6 +44,90 @@ let debugInterval = null;
 let playbackStartTime = null;
 let playbackStartOffset = 0;
 
+// --- iOS Detection ---
+function isIOSDevice() {
+    return /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+           (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+
+// --- Comprehensive State Reset Function ---
+function resetAppState() {
+    console.log('🔄 [RESET] Resetting application state...');
+    
+    // Stop any ongoing playback
+    try {
+        const player = document.getElementById('verovio-midi-player');
+        if (player && typeof player.stop === "function") {
+            player.stop();
+        }
+    } catch (e) {
+        console.error('❌ [RESET] Error stopping player:', e);
+    }
+    
+    // Clear MIDI highlighting
+    try {
+        stopMidiHighlighting();
+    } catch (e) {
+        console.error('❌ [RESET] Error stopping highlighting:', e);
+    }
+    
+    // Clear animation frames and intervals
+    if (typeof highlightRAF !== 'undefined' && highlightRAF) {
+        cancelAnimationFrame(highlightRAF);
+        highlightRAF = null;
+    }
+    if (typeof pageTurnRAF !== 'undefined' && pageTurnRAF) {
+        cancelAnimationFrame(pageTurnRAF);
+        pageTurnRAF = null;
+    }
+    if (typeof debugInterval !== 'undefined' && debugInterval) {
+        clearInterval(debugInterval);
+        debugInterval = null;
+    }
+    
+    // Reset timemap and playback state
+    timemapIdx = 0;
+    lastReportedTime = 0;
+    playbackStartTime = null;
+    playbackStartOffset = 0;
+    pageLoadInProgress = false;
+    
+    // Clear highlight elements
+    try {
+        unHighlightAllElements();
+    } catch (e) {
+        console.error('❌ [RESET] Error unhighlighting elements:', e);
+    }
+    
+    // Reset page to 1
+    if (typeof page !== 'undefined' && page !== 1) {
+        page = 1;
+    }
+    
+    // Clear failsafe timeouts (they will be recreated)
+    // Note: Individual failsafe timeouts are cleared in their respective functions
+    
+    console.log('✅ [RESET] State reset complete');
+}
+
+// --- iOS AudioContext Resume Helper ---
+async function ensureAudioContextResumed() {
+    if (!isIOSDevice()) return true;
+    
+    try {
+        const audioContext = Tone.context.rawContext || Tone.context._context;
+        if (audioContext && audioContext.state === 'suspended') {
+            console.log('🔊 [iOS] AudioContext suspended, attempting to resume...');
+            await audioContext.resume();
+            console.log('✅ [iOS] AudioContext resumed');
+        }
+        return true;
+    } catch (error) {
+        console.error('❌ [iOS] Failed to resume AudioContext:', error);
+        return false;
+    }
+}
+
 // --- DOMContentLoaded: All event handlers and UI set up here ---
 document.addEventListener("DOMContentLoaded", () => {
     verovio.module.onRuntimeInitialized = () => {
@@ -892,6 +976,13 @@ function ensureMinimumSpinnerTime(callback) {
 function loadDataWithLayerVolumes(data) {
     console.log('📥 [LOAD] loadDataWithLayerVolumes() called, data length:', data?.length || 0);
     
+    // Reset app state before loading to prevent state corruption from previous errors
+    try {
+        resetAppState();
+    } catch (error) {
+        console.error('❌ [LOAD] Error resetting state:', error);
+    }
+    
     // Show loading spinner immediately
     showLoadingSpinner();
     
@@ -903,9 +994,11 @@ function loadDataWithLayerVolumes(data) {
             container.innerHTML = `
                 <div style="padding: 20px; color: #ff9800;">
                     <h3>Loading Timeout</h3>
-                    <p>The score took too long to load. Please refresh the page and try again.</p>
+                    <p>The score took too long to load. Please try a different selection or refresh the page.</p>
                 </div>
             `;
+            // Reset state on timeout
+            resetAppState();
         }
     }, 10000); // 10 second failsafe
     
@@ -953,12 +1046,30 @@ function loadDataWithLayerVolumes(data) {
         } catch (error) {
             clearTimeout(failsafeTimeout); // Clear the failsafe timer
             console.error('❌ [LOAD] Error loading data with layer volumes:', error);
+            console.error('❌ [LOAD] Error stack:', error.stack);
+            
+            // Reset state to prevent error persistence
+            try {
+                resetAppState();
+            } catch (resetError) {
+                console.error('❌ [LOAD] Error during state reset:', resetError);
+            }
+            
             // Show error message instead of spinner
             const container = document.getElementById("svg_output");
+            const errorDetail = isIOSDevice() ? 
+                '<p style="font-size: 14px; color: #666;">iOS-specific issue detected. Try selecting a different score or refreshing the page.</p>' :
+                '';
             container.innerHTML = `
                 <div style="padding: 20px; color: #d32f2f;">
                     <h3>Error Loading Score</h3>
-                    <p>An error occurred while processing the music data. Please try again.</p>
+                    <p>An error occurred while processing the music data.</p>
+                    ${errorDetail}
+                    <p style="margin-top: 15px;">
+                        <button onclick="location.reload()" style="padding: 10px 20px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                            Reload Page
+                        </button>
+                    </p>
                 </div>
             `;
         }
@@ -1013,6 +1124,13 @@ function setOptions() {
 function loadData(data) {
     console.log('📥 [LOAD] loadData() called, data length:', data?.length || 0);
     
+    // Reset app state before loading
+    try {
+        resetAppState();
+    } catch (error) {
+        console.error('❌ [LOAD] Error resetting state:', error);
+    }
+    
     // Show loading spinner immediately
     showLoadingSpinner();
     
@@ -1024,9 +1142,10 @@ function loadData(data) {
             container.innerHTML = `
                 <div style="padding: 20px; color: #ff9800;">
                     <h3>Loading Timeout</h3>
-                    <p>The score took too long to load. Please refresh the page and try again.</p>
+                    <p>The score took too long to load. Please try a different selection or refresh the page.</p>
                 </div>
             `;
+            resetAppState();
         }
     }, 10000); // 10 second failsafe
     
@@ -1057,12 +1176,30 @@ function loadData(data) {
         } catch (error) {
             clearTimeout(failsafeTimeout); // Clear the failsafe timer
             console.error('❌ [LOAD] Error loading data:', error);
+            console.error('❌ [LOAD] Error stack:', error.stack);
+            
+            // Reset state to prevent error persistence
+            try {
+                resetAppState();
+            } catch (resetError) {
+                console.error('❌ [LOAD] Error during state reset:', resetError);
+            }
+            
             // Show error message instead of spinner
             const container = document.getElementById("svg_output");
+            const errorDetail = isIOSDevice() ? 
+                '<p style="font-size: 14px; color: #666;">iOS-specific issue detected. Try selecting a different score or refreshing the page.</p>' :
+                '';
             container.innerHTML = `
                 <div style="padding: 20px; color: #d32f2f;">
                     <h3>Error Loading Score</h3>
-                    <p>An error occurred while processing the music data. Please try again.</p>
+                    <p>An error occurred while processing the music data.</p>
+                    ${errorDetail}
+                    <p style="margin-top: 15px;">
+                        <button onclick="location.reload()" style="padding: 10px 20px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                            Reload Page
+                        </button>
+                    </p>
                 </div>
             `;
         }
@@ -1188,7 +1325,23 @@ function stopMIDIHandler() {
 }
 
 async function loadAudioAndPlayHandler() {
+    console.log('🎵 [MIDI] loadAudioAndPlayHandler() called');
     const player = document.getElementById('verovio-midi-player');
+    
+    if (!player) {
+        console.error('❌ [MIDI] Player element not found');
+        alert('MIDI player not available.');
+        return;
+    }
+    
+    // Stop any existing playback and reset state
+    console.log('🛑 [MIDI] Stopping existing playback and resetting state');
+    try {
+        if (typeof player.stop === "function") player.stop();
+        stopMidiHighlighting();
+    } catch (error) {
+        console.error('❌ [MIDI] Error stopping player:', error);
+    }
     
     // Reset to first page before playback starts
     if (page !== 1) {
@@ -1196,17 +1349,45 @@ async function loadAudioAndPlayHandler() {
         loadPage();
     }
     
-    try { 
-        await Tone.start(); 
-    } catch (error) {
-        // Tone.start may already be started; ignore
+    // Reset playback state
+    timemapIdx = 0;
+    lastReportedTime = 0;
+    playbackStartTime = null;
+    playbackStartOffset = 0;
+    
+    // iOS AudioContext handling
+    if (isIOSDevice()) {
+        console.log('📱 [iOS] Detected iOS device, ensuring AudioContext is resumed');
+        const contextResumed = await ensureAudioContextResumed();
+        if (!contextResumed) {
+            console.error('❌ [iOS] Failed to resume AudioContext');
+            alert('Audio playback requires user interaction on iOS. Please try again.');
+            return;
+        }
     }
     
+    // Start Tone.js AudioContext
+    try { 
+        console.log('🔊 [MIDI] Starting Tone.js AudioContext');
+        await Tone.start();
+        console.log('✅ [MIDI] Tone.js AudioContext started');
+    } catch (error) {
+        console.error('❌ [MIDI] Error starting Tone.js:', error);
+        if (isIOSDevice()) {
+            alert('Audio initialization failed on iOS. Please refresh the page and try again.');
+            return;
+        }
+    }
+    
+    // Ensure soundfont is loaded
     if (player && !player.soundFont) {
         try {
+            console.log('🎹 [MIDI] Loading soundfont...');
             await player.ensureSoundfontLoaded();
+            console.log('✅ [MIDI] Soundfont loaded');
         } catch (error) {
-            // ignore soundfont loading issues
+            console.error('❌ [MIDI] Soundfont loading failed:', error);
+            // Continue anyway, player might work without explicit soundfont load
         }
     }
     
@@ -1217,28 +1398,39 @@ async function loadAudioAndPlayHandler() {
     
     const baseMei = getBaseMeiForPlayback();
     
-    if (window.currentLayers && baseMei) {
-        const parser = new DOMParser();
-        const xmlDoc = parser.parseFromString(baseMei, 'text/xml');
-        applyLayerVolumes(xmlDoc, window.currentLayers);
-        const serializer = new XMLSerializer();
-        const modifiedData = serializer.serializeToString(xmlDoc);
-        
-        vrvToolkit.loadData(modifiedData);
-    } else if (baseMei) {
-        vrvToolkit.loadData(baseMei);
-    } else {
+    if (!baseMei) {
+        console.error('❌ [MIDI] No score data available');
         alert('No score loaded to play.');
         return;
     }
     
-    vrvToolkit.redoLayout();
-    setTimemap(vrvToolkit.renderToTimemap({includeMeasures: true}));
-    buildNoteIdToPageMap();
-    buildMeasureIdToPageMap();
-    
-    let base64midi = vrvToolkit.renderToMIDI();
-    player.src = 'data:audio/midi;base64,' + base64midi;
+    try {
+        if (window.currentLayers && baseMei) {
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(baseMei, 'text/xml');
+            applyLayerVolumes(xmlDoc, window.currentLayers);
+            const serializer = new XMLSerializer();
+            const modifiedData = serializer.serializeToString(xmlDoc);
+            
+            vrvToolkit.loadData(modifiedData);
+        } else if (baseMei) {
+            vrvToolkit.loadData(baseMei);
+        }
+        
+        vrvToolkit.redoLayout();
+        setTimemap(vrvToolkit.renderToTimemap({includeMeasures: true}));
+        buildNoteIdToPageMap();
+        buildMeasureIdToPageMap();
+        
+        console.log('🎼 [MIDI] Rendering MIDI data...');
+        let base64midi = vrvToolkit.renderToMIDI();
+        player.src = 'data:audio/midi;base64,' + base64midi;
+        console.log('✅ [MIDI] MIDI data rendered and set');
+    } catch (error) {
+        console.error('❌ [MIDI] Error preparing MIDI:', error);
+        alert('Failed to prepare MIDI playback. Please try again or refresh the page.');
+        return;
+    }
     
     try {
         if (typeof player.load === "function") player.load();
