@@ -1,5 +1,14 @@
 // --- Globals for metadata and PDF generation ---
-// Version 2.1 (mei-friend-inspired MIDI highlighting)
+// Version 2.2 - With Spinner Debugging (2026-02-10)
+
+// VERSION CHECK - This should appear FIRST in console if file is loaded correctly
+console.log('%c═══════════════════════════════════════════════════════════', 'color: #4CAF50; font-weight: bold');
+console.log('%c🎵 APP-DEV.JS VERSION 2.2 - LOADED SUCCESSFULLY 🎵', 'color: #4CAF50; font-weight: bold; font-size: 14px');
+console.log('%c═══════════════════════════════════════════════════════════', 'color: #4CAF50; font-weight: bold');
+console.log('%cIf you see this message, the updated app-dev.js is loaded!', 'color: #2196F3; font-style: italic');
+console.log('%cDebugging features: Spinner logs with emoji indicators 🔄✅🎨', 'color: #2196F3');
+console.log('%cMinimum spinner display time: 500ms', 'color: #2196F3');
+console.log('%c═══════════════════════════════════════════════════════════', 'color: #4CAF50; font-weight: bold');
 
 var globalTitle = '';
 var globalTuneTitle = '';
@@ -34,6 +43,90 @@ let pageTurnRAF = null;
 let debugInterval = null;
 let playbackStartTime = null;
 let playbackStartOffset = 0;
+
+// --- iOS Detection ---
+function isIOSDevice() {
+    return /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+           (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+
+// --- Comprehensive State Reset Function ---
+function resetAppState() {
+    console.log('🔄 [RESET] Resetting application state...');
+    
+    // Stop any ongoing playback
+    try {
+        const player = document.getElementById('verovio-midi-player');
+        if (player && typeof player.stop === "function") {
+            player.stop();
+        }
+    } catch (e) {
+        console.error('❌ [RESET] Error stopping player:', e);
+    }
+    
+    // Clear MIDI highlighting
+    try {
+        stopMidiHighlighting();
+    } catch (e) {
+        console.error('❌ [RESET] Error stopping highlighting:', e);
+    }
+    
+    // Clear animation frames and intervals
+    if (typeof highlightRAF !== 'undefined' && highlightRAF) {
+        cancelAnimationFrame(highlightRAF);
+        highlightRAF = null;
+    }
+    if (typeof pageTurnRAF !== 'undefined' && pageTurnRAF) {
+        cancelAnimationFrame(pageTurnRAF);
+        pageTurnRAF = null;
+    }
+    if (typeof debugInterval !== 'undefined' && debugInterval) {
+        clearInterval(debugInterval);
+        debugInterval = null;
+    }
+    
+    // Reset timemap and playback state
+    timemapIdx = 0;
+    lastReportedTime = 0;
+    playbackStartTime = null;
+    playbackStartOffset = 0;
+    pageLoadInProgress = false;
+    
+    // Clear highlight elements
+    try {
+        unHighlightAllElements();
+    } catch (e) {
+        console.error('❌ [RESET] Error unhighlighting elements:', e);
+    }
+    
+    // Reset page to 1
+    if (typeof page !== 'undefined' && page !== 1) {
+        page = 1;
+    }
+    
+    // Clear failsafe timeouts (they will be recreated)
+    // Note: Individual failsafe timeouts are cleared in their respective functions
+    
+    console.log('✅ [RESET] State reset complete');
+}
+
+// --- iOS AudioContext Resume Helper ---
+async function ensureAudioContextResumed() {
+    if (!isIOSDevice()) return true;
+    
+    try {
+        const audioContext = Tone.context.rawContext || Tone.context._context;
+        if (audioContext && audioContext.state === 'suspended') {
+            console.log('🔊 [iOS] AudioContext suspended, attempting to resume...');
+            await audioContext.resume();
+            console.log('✅ [iOS] AudioContext resumed');
+        }
+        return true;
+    } catch (error) {
+        console.error('❌ [iOS] Failed to resume AudioContext:', error);
+        return false;
+    }
+}
 
 // --- DOMContentLoaded: All event handlers and UI set up here ---
 document.addEventListener("DOMContentLoaded", () => {
@@ -339,14 +432,6 @@ function unhighlightNote(note) {
 
 function unHighlightAllElements() {
     document.querySelectorAll('.currently-playing').forEach((g) => g.classList.remove('currently-playing'));
-}
-
-function stopMidiHighlighting() {
-    if (highlightRAF) cancelAnimationFrame(highlightRAF);
-    highlightRAF = null;
-    timemapIdx = 0;
-    lastReportedTime = 0;
-    unHighlightAllElements();
 }
 
 function getTimeFromTimemap(id) {
@@ -801,31 +886,153 @@ function applyLayerVolumes(xmlDoc, layers) {
     return xmlDoc;
 }
 
+// Helper functions for loading spinner
+let spinnerStartTime = null;
+const MIN_SPINNER_DISPLAY_TIME = 500; // Minimum time to show spinner in ms
+
+function showLoadingSpinner() {
+    console.log('🔄 [SPINNER] showLoadingSpinner() called');
+    const container = document.getElementById("svg_output");
+    if (!container) {
+        console.error('❌ [SPINNER] ERROR: svg_output container not found!');
+        return;
+    }
+    
+    container.innerHTML = `
+        <div class="loading-spinner">
+            <div class="spinner"></div>
+            <div class="loading-text">Loading...</div>
+        </div>
+    `;
+    spinnerStartTime = Date.now();
+    console.log('✅ [SPINNER] Spinner HTML set, start time:', spinnerStartTime);
+    
+    // Force a reflow to ensure spinner is painted
+    container.offsetHeight;
+    console.log('🎨 [SPINNER] Forced reflow to ensure paint');
+}
+
+function ensureMinimumSpinnerTime(callback) {
+    // SIMPLIFIED: No artificial delays - execute callback immediately
+    // The spinner shows naturally during processing time
+    console.log('✅ [SPINNER] Executing callback immediately (no artificial delay)');
+    try {
+        callback();
+    } catch (error) {
+        console.error('❌ [SPINNER] Error in callback:', error);
+        // Force remove spinner on error
+        const container = document.getElementById("svg_output");
+        if (container) {
+            container.innerHTML = '<div style="padding: 20px; color: #d32f2f;"><h3>Error Loading Score</h3><p>An error occurred. Please try selecting a different score.</p></div>';
+        }
+    }
+}
+
 function loadDataWithLayerVolumes(data) {
-    // Parse the XML
-    const parser = new DOMParser();
-    const xmlDoc = parser.parseFromString(data, 'text/xml');
+    console.log('📥 [LOAD] loadDataWithLayerVolumes() called, data length:', data?.length || 0);
     
-    // Detect layers and create controls
-    const layers = detectLayers(xmlDoc);
-    createLayerVolumeControls(layers);
+    // Reset app state before loading to prevent state corruption from previous errors
+    try {
+        resetAppState();
+    } catch (error) {
+        console.error('❌ [LOAD] Error resetting state:', error);
+    }
     
-    // **DON'T apply velocities here - only on play**
+    // Show loading spinner immediately
+    showLoadingSpinner();
     
-    // Store the original and layers for later use
-    window.currentLayers = layers;
-    window.originalXmlData = data; // Store original without velocity modifications
-    currentXmlData = data; // Keep original for display
+    // Failsafe: force remove spinner after 10 seconds if nothing else does
+    const failsafeTimeout = setTimeout(() => {
+        console.error('⚠️ [LOAD] FAILSAFE: Forcing spinner removal after 10 seconds');
+        const container = document.getElementById("svg_output");
+        if (container && container.innerHTML.includes('loading-spinner')) {
+            container.innerHTML = `
+                <div style="padding: 20px; color: #ff9800;">
+                    <h3>Loading Timeout</h3>
+                    <p>The score took too long to load. Please try a different selection.</p>
+                </div>
+            `;
+            resetAppState();
+        }
+    }, 10000); // 10 second failsafe
     
-    // Proceed with normal Verovio loading (without velocities)
-    setOptions();
-    vrvToolkit.loadData(data);
-    tk_pdf.loadData(data);
-    setTimemap(vrvToolkit.renderToTimemap({includeMeasures: true}));
-    buildNoteIdToPageMap();
-    buildMeasureIdToPageMap();
-    page = 1;
-    loadPage();
+    // Use single requestAnimationFrame to allow spinner to paint, then process immediately
+    // This is MUCH faster than setTimeout and more reliable on iOS
+    const processData = () => {
+        console.log('🚀 [LOAD] Processing starting - Verovio loading');
+        const processingStartTime = Date.now();
+        
+        try {
+            // Parse the XML
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(data, 'text/xml');
+            
+            // Detect layers and create controls
+            const layers = detectLayers(xmlDoc);
+            createLayerVolumeControls(layers);
+            
+            // **DON'T apply velocities here - only on play**
+            
+            // Store the original and layers for later use
+            window.currentLayers = layers;
+            window.originalXmlData = data; // Store original without velocity modifications
+            currentXmlData = data; // Keep original for display
+            
+            // Proceed with normal Verovio loading (without velocities)
+            setOptions();
+            vrvToolkit.loadData(data);
+            tk_pdf.loadData(data);
+            setTimemap(vrvToolkit.renderToTimemap({includeMeasures: true}));
+            buildNoteIdToPageMap();
+            buildMeasureIdToPageMap();
+            page = 1;
+            
+            const processingTime = Date.now() - processingStartTime;
+            console.log(`⚡ [LOAD] Verovio processing completed in ${processingTime}ms`);
+            
+            // Display content immediately - no artificial delay
+            clearTimeout(failsafeTimeout);
+            console.log('🖼️ [LOAD] Calling loadPage() to display rendered content');
+            loadPage();
+            console.log('✅ [LOAD] loadDataWithLayerVolumes() complete');
+        } catch (error) {
+            clearTimeout(failsafeTimeout);
+            console.error('❌ [LOAD] Error loading data with layer volumes:', error);
+            console.error('❌ [LOAD] Error stack:', error.stack);
+            
+            // Reset state to prevent error persistence
+            try {
+                resetAppState();
+            } catch (resetError) {
+                console.error('❌ [LOAD] Error during state reset:', resetError);
+            }
+            
+            // Show error message instead of spinner
+            const container = document.getElementById("svg_output");
+            const errorDetail = isIOSDevice() ? 
+                '<p style="font-size: 14px; color: #666;">Try selecting a different score.</p>' :
+                '';
+            container.innerHTML = `
+                <div style="padding: 20px; color: #d32f2f;">
+                    <h3>Error Loading Score</h3>
+                    <p>An error occurred while processing the music data.</p>
+                    ${errorDetail}
+                    <p style="margin-top: 15px;">
+                        <button onclick="location.reload()" style="padding: 10px 20px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                            Reload Page
+                        </button>
+                    </p>
+                </div>
+            `;
+        }
+    };
+    
+    // Use requestAnimationFrame for single paint cycle, or immediate fallback
+    if (typeof requestAnimationFrame !== 'undefined') {
+        requestAnimationFrame(processData);
+    } else {
+        processData();
+    }
 }
 
 function resetLayerVolumesToDefault() {
@@ -874,14 +1081,92 @@ function setOptions() {
 }
 
 function loadData(data) {
+    console.log('📥 [LOAD] loadData() called, data length:', data?.length || 0);
     
-    setOptions();
-    vrvToolkit.loadData(data);
-    tk_pdf.loadData(data);
-    setTimemap(vrvToolkit.renderToTimemap({includeMeasures: true}));
-    buildNoteIdToPageMap();
-    page = 1;
-    loadPage();
+    // Reset app state before loading
+    try {
+        resetAppState();
+    } catch (error) {
+        console.error('❌ [LOAD] Error resetting state:', error);
+    }
+    
+    // Show loading spinner immediately
+    showLoadingSpinner();
+    
+    // Failsafe: force remove spinner after 10 seconds if nothing else does
+    const failsafeTimeout = setTimeout(() => {
+        console.error('⚠️ [LOAD] FAILSAFE: Forcing spinner removal after 10 seconds');
+        const container = document.getElementById("svg_output");
+        if (container && container.innerHTML.includes('loading-spinner')) {
+            container.innerHTML = `
+                <div style="padding: 20px; color: #ff9800;">
+                    <h3>Loading Timeout</h3>
+                    <p>The score took too long to load. Please try a different selection.</p>
+                </div>
+            `;
+            resetAppState();
+        }
+    }, 10000); // 10 second failsafe
+    
+    // Use single requestAnimationFrame to allow spinner to paint, then process immediately
+    const processData = () => {
+        console.log('🚀 [LOAD] Processing starting - Verovio loading');
+        const processingStartTime = Date.now();
+        
+        try {
+            setOptions();
+            vrvToolkit.loadData(data);
+            tk_pdf.loadData(data);
+            setTimemap(vrvToolkit.renderToTimemap({includeMeasures: true}));
+            buildNoteIdToPageMap();
+            page = 1;
+            
+            const processingTime = Date.now() - processingStartTime;
+            console.log(`⚡ [LOAD] Verovio processing completed in ${processingTime}ms`);
+            
+            // Display content immediately
+            clearTimeout(failsafeTimeout);
+            console.log('🖼️ [LOAD] Calling loadPage() to display rendered content');
+            loadPage();
+            console.log('✅ [LOAD] loadData() complete');
+        } catch (error) {
+            clearTimeout(failsafeTimeout);
+            console.error('❌ [LOAD] Error loading data:', error);
+            console.error('❌ [LOAD] Error stack:', error.stack);
+            
+            // Reset state to prevent error persistence
+            try {
+                resetAppState();
+            } catch (resetError) {
+                console.error('❌ [LOAD] Error during state reset:', resetError);
+            }
+            
+            // Show error message instead of spinner
+            const container = document.getElementById("svg_output");
+            const errorDetail = isIOSDevice() ? 
+                '<p style="font-size: 14px; color: #666;">Try selecting a different score.</p>' :
+                '';
+            container.innerHTML = `
+                <div style="padding: 20px; color: #d32f2f;">
+                    <h3>Error Loading Score</h3>
+                    <p>An error occurred while processing the music data.</p>
+                    ${errorDetail}
+                    <p style="margin-top: 15px;">
+                        <button onclick="location.reload()" style="padding: 10px 20px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                            Reload Page
+                        </button>
+                    </p>
+                </div>
+            `;
+        }
+    };
+    
+    // Use requestAnimationFrame for single paint cycle, or immediate fallback
+    if (typeof requestAnimationFrame !== 'undefined') {
+        requestAnimationFrame(processData);
+    } else {
+        processData();
+    }
 }
 
 function loadPage() {
@@ -997,13 +1282,34 @@ function getBaseMeiForPlayback() {
 
 // --- MIDI control handlers (mei-friend-inspired approach) ---
 function stopMIDIHandler() {
-    const player = document.getElementById('verovio-midi-player');
-    if (player && typeof player.stop === "function") player.stop();
-    stopMidiHighlighting();
+    try {
+        const player = document.getElementById('verovio-midi-player');
+        if (player && typeof player.stop === "function") player.stop();
+        stopMidiHighlighting();
+    } catch (error) {
+        // Silently catch errors - don't let MIDI issues prevent UI interactions
+        console.log('⚠️ [MIDI] Error in stopMIDIHandler (non-critical):', error.message);
+    }
 }
 
 async function loadAudioAndPlayHandler() {
+    console.log('🎵 [MIDI] loadAudioAndPlayHandler() called');
     const player = document.getElementById('verovio-midi-player');
+    
+    if (!player) {
+        console.error('❌ [MIDI] Player element not found');
+        alert('MIDI player not available.');
+        return;
+    }
+    
+    // Stop any existing playback and reset state
+    console.log('🛑 [MIDI] Stopping existing playback and resetting state');
+    try {
+        if (typeof player.stop === "function") player.stop();
+        stopMidiHighlighting();
+    } catch (error) {
+        console.error('❌ [MIDI] Error stopping player:', error);
+    }
     
     // Reset to first page before playback starts
     if (page !== 1) {
@@ -1011,17 +1317,45 @@ async function loadAudioAndPlayHandler() {
         loadPage();
     }
     
-    try { 
-        await Tone.start(); 
-    } catch (error) {
-        // Tone.start may already be started; ignore
+    // Reset playback state
+    timemapIdx = 0;
+    lastReportedTime = 0;
+    playbackStartTime = null;
+    playbackStartOffset = 0;
+    
+    // iOS AudioContext handling
+    if (isIOSDevice()) {
+        console.log('📱 [iOS] Detected iOS device, ensuring AudioContext is resumed');
+        const contextResumed = await ensureAudioContextResumed();
+        if (!contextResumed) {
+            console.error('❌ [iOS] Failed to resume AudioContext');
+            alert('Audio playback requires user interaction on iOS. Please try again.');
+            return;
+        }
     }
     
+    // Start Tone.js AudioContext
+    try { 
+        console.log('🔊 [MIDI] Starting Tone.js AudioContext');
+        await Tone.start();
+        console.log('✅ [MIDI] Tone.js AudioContext started');
+    } catch (error) {
+        console.error('❌ [MIDI] Error starting Tone.js:', error);
+        if (isIOSDevice()) {
+            alert('Audio initialization failed on iOS. Please refresh the page and try again.');
+            return;
+        }
+    }
+    
+    // Ensure soundfont is loaded
     if (player && !player.soundFont) {
         try {
+            console.log('🎹 [MIDI] Loading soundfont...');
             await player.ensureSoundfontLoaded();
+            console.log('✅ [MIDI] Soundfont loaded');
         } catch (error) {
-            // ignore soundfont loading issues
+            console.error('❌ [MIDI] Soundfont loading failed:', error);
+            // Continue anyway, player might work without explicit soundfont load
         }
     }
     
@@ -1032,28 +1366,39 @@ async function loadAudioAndPlayHandler() {
     
     const baseMei = getBaseMeiForPlayback();
     
-    if (window.currentLayers && baseMei) {
-        const parser = new DOMParser();
-        const xmlDoc = parser.parseFromString(baseMei, 'text/xml');
-        applyLayerVolumes(xmlDoc, window.currentLayers);
-        const serializer = new XMLSerializer();
-        const modifiedData = serializer.serializeToString(xmlDoc);
-        
-        vrvToolkit.loadData(modifiedData);
-    } else if (baseMei) {
-        vrvToolkit.loadData(baseMei);
-    } else {
+    if (!baseMei) {
+        console.error('❌ [MIDI] No score data available');
         alert('No score loaded to play.');
         return;
     }
     
-    vrvToolkit.redoLayout();
-    setTimemap(vrvToolkit.renderToTimemap({includeMeasures: true}));
-    buildNoteIdToPageMap();
-    buildMeasureIdToPageMap();
-    
-    let base64midi = vrvToolkit.renderToMIDI();
-    player.src = 'data:audio/midi;base64,' + base64midi;
+    try {
+        if (window.currentLayers && baseMei) {
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(baseMei, 'text/xml');
+            applyLayerVolumes(xmlDoc, window.currentLayers);
+            const serializer = new XMLSerializer();
+            const modifiedData = serializer.serializeToString(xmlDoc);
+            
+            vrvToolkit.loadData(modifiedData);
+        } else if (baseMei) {
+            vrvToolkit.loadData(baseMei);
+        }
+        
+        vrvToolkit.redoLayout();
+        setTimemap(vrvToolkit.renderToTimemap({includeMeasures: true}));
+        buildNoteIdToPageMap();
+        buildMeasureIdToPageMap();
+        
+        console.log('🎼 [MIDI] Rendering MIDI data...');
+        let base64midi = vrvToolkit.renderToMIDI();
+        player.src = 'data:audio/midi;base64,' + base64midi;
+        console.log('✅ [MIDI] MIDI data rendered and set');
+    } catch (error) {
+        console.error('❌ [MIDI] Error preparing MIDI:', error);
+        alert('Failed to prepare MIDI playback. Please try again or refresh the page.');
+        return;
+    }
     
     try {
         if (typeof player.load === "function") player.load();
@@ -1074,11 +1419,64 @@ async function loadAudioAndPlayHandler() {
 
 // --- When you load new MEI, update SVG, timemap, and clear highlights. ---
 function renderAndDisplayMEI(meiXML) {
-    vrvToolkit.loadData(meiXML);
-    tk_pdf.loadData(meiXML);
-    setTimemap(vrvToolkit.renderToTimemap({includeMeasures: true}));
-    document.getElementById("svg_output").innerHTML = vrvToolkit.renderToSVG(page);
-    unHighlightAllElements();
+    console.log('📥 [RENDER] renderAndDisplayMEI() called, XML length:', meiXML?.length || 0);
+    
+    // Show loading spinner immediately
+    showLoadingSpinner();
+    
+    // Failsafe: force remove spinner after 10 seconds if nothing else does
+    const failsafeTimeout = setTimeout(() => {
+        console.error('⚠️ [RENDER] FAILSAFE: Forcing spinner removal after 10 seconds');
+        const container = document.getElementById("svg_output");
+        if (container && container.innerHTML.includes('loading-spinner')) {
+            container.innerHTML = `
+                <div style="padding: 20px; color: #ff9800;">
+                    <h3>Loading Timeout</h3>
+                    <p>The score took too long to load. Please try a different selection.</p>
+                </div>
+            `;
+        }
+    }, 10000); // 10 second failsafe
+    
+    // Use single requestAnimationFrame to allow spinner to paint, then process immediately
+    const processData = () => {
+        console.log('🚀 [RENDER] Processing starting - Verovio loading');
+        const processingStartTime = Date.now();
+        
+        try {
+            vrvToolkit.loadData(meiXML);
+            tk_pdf.loadData(meiXML);
+            setTimemap(vrvToolkit.renderToTimemap({includeMeasures: true}));
+            
+            const processingTime = Date.now() - processingStartTime;
+            console.log(`⚡ [RENDER] Verovio processing completed in ${processingTime}ms`);
+            
+            // Display content immediately
+            clearTimeout(failsafeTimeout);
+            console.log('🖼️ [RENDER] Setting SVG output and unhighlighting elements');
+            document.getElementById("svg_output").innerHTML = vrvToolkit.renderToSVG(page);
+            unHighlightAllElements();
+            console.log('✅ [RENDER] renderAndDisplayMEI() complete');
+        } catch (error) {
+            clearTimeout(failsafeTimeout);
+            console.error('❌ [RENDER] Error rendering MEI:', error);
+            // Show error message instead of spinner
+            const container = document.getElementById("svg_output");
+            container.innerHTML = `
+                <div style="padding: 20px; color: #d32f2f;">
+                    <h3>Error Loading Score</h3>
+                    <p>An error occurred while processing the music data. Please try again.</p>
+                </div>
+            `;
+        }
+    };
+    
+    // Use requestAnimationFrame for single paint cycle, or immediate fallback
+    if (typeof requestAnimationFrame !== 'undefined') {
+        requestAnimationFrame(processData);
+    } else {
+        processData();
+    }
 }
 
 
