@@ -1034,31 +1034,6 @@ function loadDataWithLayerVolumes(data) {
         processData();
     }
 }
-                resetAppState();
-            } catch (resetError) {
-                console.error('❌ [LOAD] Error during state reset:', resetError);
-            }
-            
-            // Show error message instead of spinner
-            const container = document.getElementById("svg_output");
-            const errorDetail = isIOSDevice() ? 
-                '<p style="font-size: 14px; color: #666;">iOS-specific issue detected. Try selecting a different score or refreshing the page.</p>' :
-                '';
-            container.innerHTML = `
-                <div style="padding: 20px; color: #d32f2f;">
-                    <h3>Error Loading Score</h3>
-                    <p>An error occurred while processing the music data.</p>
-                    ${errorDetail}
-                    <p style="margin-top: 15px;">
-                        <button onclick="location.reload()" style="padding: 10px 20px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;">
-                            Reload Page
-                        </button>
-                    </p>
-                </div>
-            `;
-        }
-    }, 50); // Small delay to ensure spinner renders
-}
 
 function resetLayerVolumesToDefault() {
     if (window.currentLayers) {
