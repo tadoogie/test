@@ -1299,7 +1299,10 @@
            var closemenu = document.getElementById("closemenu");
         
            menutoggle.addEventListener("click", function() {
-             stopMIDIHandler();
+             // Only call stopMIDIHandler if it exists (app-dev.js is loaded with defer)
+             if (typeof stopMIDIHandler === 'function') {
+               stopMIDIHandler();
+             }
              if (!menutoggle.classList.contains("is-active")) {
                openNav();
              } else {
