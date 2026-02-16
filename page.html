@@ -576,9 +576,17 @@
               display: flex;
               align-items: flex-end;
               justify-content: center;
-              font-size: 1.25rem;  /* Changed from 16px to 1.25rem (20px) for consistent, larger text across all screen sizes */
               font-weight: bold;
               padding-bottom: 5px;
+            }
+            
+            /* Span elements inside keys - fixed size for consistency across all screens */
+            .piano-key span {
+              font-size: 20px !important;  /* Fixed pixel size ensures consistency regardless of screen size */
+              font-weight: bold;
+              line-height: 1;
+              display: block;
+              pointer-events: none;  /* Prevent span from interfering with key clicks */
             }
             
             .piano-key.white {
