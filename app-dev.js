@@ -921,54 +921,17 @@ function showLoadingSpinner() {
 }
 
 function ensureMinimumSpinnerTime(callback) {
-    if (!spinnerStartTime) {
-        console.log('⚠️ [SPINNER] No spinner start time, executing callback immediately');
+    // SIMPLIFIED: No artificial delays - execute callback immediately
+    // The spinner shows naturally during processing time
+    console.log('✅ [SPINNER] Executing callback immediately (no artificial delay)');
+    try {
         callback();
-        return;
-    }
-    
-    const elapsed = Date.now() - spinnerStartTime;
-    const remaining = MIN_SPINNER_DISPLAY_TIME - elapsed;
-    
-    console.log(`⏱️ [SPINNER] Time elapsed: ${elapsed}ms, minimum: ${MIN_SPINNER_DISPLAY_TIME}ms`);
-    
-    if (remaining > 0) {
-        console.log(`⏳ [SPINNER] Waiting additional ${remaining}ms to meet minimum display time`);
-        
-        // Use requestAnimationFrame for better iOS compatibility, fallback to setTimeout
-        const executeCallback = () => {
-            console.log('✅ [SPINNER] Minimum display time met, executing callback');
-            try {
-                callback();
-            } catch (error) {
-                console.error('❌ [SPINNER] Error in callback:', error);
-                // Force remove spinner on error
-                const container = document.getElementById("svg_output");
-                if (container) {
-                    container.innerHTML = '<div style="padding: 20px; color: #d32f2f;"><h3>Error Loading Score</h3><p>An error occurred. Please refresh and try again.</p></div>';
-                }
-            }
-        };
-        
-        // Use requestAnimationFrame for smoother execution on iOS, then setTimeout
-        if (typeof requestAnimationFrame !== 'undefined') {
-            requestAnimationFrame(() => {
-                setTimeout(executeCallback, Math.max(0, remaining - 16)); // Subtract one frame time
-            });
-        } else {
-            setTimeout(executeCallback, remaining);
-        }
-    } else {
-        console.log('✅ [SPINNER] Minimum display time already met, executing callback immediately');
-        try {
-            callback();
-        } catch (error) {
-            console.error('❌ [SPINNER] Error in callback:', error);
-            // Force remove spinner on error
-            const container = document.getElementById("svg_output");
-            if (container) {
-                container.innerHTML = '<div style="padding: 20px; color: #d32f2f;"><h3>Error Loading Score</h3><p>An error occurred. Please refresh and try again.</p></div>';
-            }
+    } catch (error) {
+        console.error('❌ [SPINNER] Error in callback:', error);
+        // Force remove spinner on error
+        const container = document.getElementById("svg_output");
+        if (container) {
+            container.innerHTML = '<div style="padding: 20px; color: #d32f2f;"><h3>Error Loading Score</h3><p>An error occurred. Please try selecting a different score.</p></div>';
         }
     }
 }
@@ -994,18 +957,17 @@ function loadDataWithLayerVolumes(data) {
             container.innerHTML = `
                 <div style="padding: 20px; color: #ff9800;">
                     <h3>Loading Timeout</h3>
-                    <p>The score took too long to load. Please try a different selection or refresh the page.</p>
+                    <p>The score took too long to load. Please try a different selection.</p>
                 </div>
             `;
-            // Reset state on timeout
             resetAppState();
         }
     }, 10000); // 10 second failsafe
     
-    console.log('⏰ [LOAD] Scheduling processing with setTimeout(50ms)');
-    // Defer processing to allow browser to render the spinner
-    setTimeout(() => {
-        console.log('🚀 [LOAD] setTimeout callback executing - starting Verovio processing');
+    // Use single requestAnimationFrame to allow spinner to paint, then process immediately
+    // This is MUCH faster than setTimeout and more reliable on iOS
+    const processData = () => {
+        console.log('🚀 [LOAD] Processing starting - Verovio loading');
         const processingStartTime = Date.now();
         
         try {
@@ -1036,20 +998,50 @@ function loadDataWithLayerVolumes(data) {
             const processingTime = Date.now() - processingStartTime;
             console.log(`⚡ [LOAD] Verovio processing completed in ${processingTime}ms`);
             
-            // Ensure spinner shows for minimum time before replacing with content
-            ensureMinimumSpinnerTime(() => {
-                clearTimeout(failsafeTimeout); // Clear the failsafe timer
-                console.log('🖼️ [LOAD] Calling loadPage() to display rendered content');
-                loadPage();
-                console.log('✅ [LOAD] loadDataWithLayerVolumes() complete');
-            });
+            // Display content immediately - no artificial delay
+            clearTimeout(failsafeTimeout);
+            console.log('🖼️ [LOAD] Calling loadPage() to display rendered content');
+            loadPage();
+            console.log('✅ [LOAD] loadDataWithLayerVolumes() complete');
         } catch (error) {
-            clearTimeout(failsafeTimeout); // Clear the failsafe timer
+            clearTimeout(failsafeTimeout);
             console.error('❌ [LOAD] Error loading data with layer volumes:', error);
             console.error('❌ [LOAD] Error stack:', error.stack);
             
             // Reset state to prevent error persistence
             try {
+                resetAppState();
+            } catch (resetError) {
+                console.error('❌ [LOAD] Error during state reset:', resetError);
+            }
+            
+            // Show error message instead of spinner
+            const container = document.getElementById("svg_output");
+            const errorDetail = isIOSDevice() ? 
+                '<p style="font-size: 14px; color: #666;">Try selecting a different score.</p>' :
+                '';
+            container.innerHTML = `
+                <div style="padding: 20px; color: #d32f2f;">
+                    <h3>Error Loading Score</h3>
+                    <p>An error occurred while processing the music data.</p>
+                    ${errorDetail}
+                    <p style="margin-top: 15px;">
+                        <button onclick="location.reload()" style="padding: 10px 20px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                            Reload Page
+                        </button>
+                    </p>
+                </div>
+            `;
+        }
+    };
+    
+    // Use requestAnimationFrame for single paint cycle, or immediate fallback
+    if (typeof requestAnimationFrame !== 'undefined') {
+        requestAnimationFrame(processData);
+    } else {
+        processData();
+    }
+}
                 resetAppState();
             } catch (resetError) {
                 console.error('❌ [LOAD] Error during state reset:', resetError);
@@ -1142,17 +1134,16 @@ function loadData(data) {
             container.innerHTML = `
                 <div style="padding: 20px; color: #ff9800;">
                     <h3>Loading Timeout</h3>
-                    <p>The score took too long to load. Please try a different selection or refresh the page.</p>
+                    <p>The score took too long to load. Please try a different selection.</p>
                 </div>
             `;
             resetAppState();
         }
     }, 10000); // 10 second failsafe
     
-    console.log('⏰ [LOAD] Scheduling processing with setTimeout(50ms)');
-    // Defer processing to allow browser to render the spinner
-    setTimeout(() => {
-        console.log('🚀 [LOAD] setTimeout callback executing - starting Verovio processing');
+    // Use single requestAnimationFrame to allow spinner to paint, then process immediately
+    const processData = () => {
+        console.log('🚀 [LOAD] Processing starting - Verovio loading');
         const processingStartTime = Date.now();
         
         try {
@@ -1166,15 +1157,13 @@ function loadData(data) {
             const processingTime = Date.now() - processingStartTime;
             console.log(`⚡ [LOAD] Verovio processing completed in ${processingTime}ms`);
             
-            // Ensure spinner shows for minimum time before replacing with content
-            ensureMinimumSpinnerTime(() => {
-                clearTimeout(failsafeTimeout); // Clear the failsafe timer
-                console.log('🖼️ [LOAD] Calling loadPage() to display rendered content');
-                loadPage();
-                console.log('✅ [LOAD] loadData() complete');
-            });
+            // Display content immediately
+            clearTimeout(failsafeTimeout);
+            console.log('🖼️ [LOAD] Calling loadPage() to display rendered content');
+            loadPage();
+            console.log('✅ [LOAD] loadData() complete');
         } catch (error) {
-            clearTimeout(failsafeTimeout); // Clear the failsafe timer
+            clearTimeout(failsafeTimeout);
             console.error('❌ [LOAD] Error loading data:', error);
             console.error('❌ [LOAD] Error stack:', error.stack);
             
@@ -1188,7 +1177,7 @@ function loadData(data) {
             // Show error message instead of spinner
             const container = document.getElementById("svg_output");
             const errorDetail = isIOSDevice() ? 
-                '<p style="font-size: 14px; color: #666;">iOS-specific issue detected. Try selecting a different score or refreshing the page.</p>' :
+                '<p style="font-size: 14px; color: #666;">Try selecting a different score.</p>' :
                 '';
             container.innerHTML = `
                 <div style="padding: 20px; color: #d32f2f;">
@@ -1203,7 +1192,14 @@ function loadData(data) {
                 </div>
             `;
         }
-    }, 50); // Small delay to ensure spinner renders
+    };
+    
+    // Use requestAnimationFrame for single paint cycle, or immediate fallback
+    if (typeof requestAnimationFrame !== 'undefined') {
+        requestAnimationFrame(processData);
+    } else {
+        processData();
+    }
 }
 
 function loadPage() {
@@ -1464,16 +1460,15 @@ function renderAndDisplayMEI(meiXML) {
             container.innerHTML = `
                 <div style="padding: 20px; color: #ff9800;">
                     <h3>Loading Timeout</h3>
-                    <p>The score took too long to load. Please refresh the page and try again.</p>
+                    <p>The score took too long to load. Please try a different selection.</p>
                 </div>
             `;
         }
     }, 10000); // 10 second failsafe
     
-    console.log('⏰ [RENDER] Scheduling processing with setTimeout(50ms)');
-    // Defer processing to allow browser to render the spinner
-    setTimeout(() => {
-        console.log('🚀 [RENDER] setTimeout callback executing - starting Verovio processing');
+    // Use single requestAnimationFrame to allow spinner to paint, then process immediately
+    const processData = () => {
+        console.log('🚀 [RENDER] Processing starting - Verovio loading');
         const processingStartTime = Date.now();
         
         try {
@@ -1484,16 +1479,14 @@ function renderAndDisplayMEI(meiXML) {
             const processingTime = Date.now() - processingStartTime;
             console.log(`⚡ [RENDER] Verovio processing completed in ${processingTime}ms`);
             
-            // Ensure spinner shows for minimum time before replacing with content
-            ensureMinimumSpinnerTime(() => {
-                clearTimeout(failsafeTimeout); // Clear the failsafe timer
-                console.log('🖼️ [RENDER] Setting SVG output and unhighlighting elements');
-                document.getElementById("svg_output").innerHTML = vrvToolkit.renderToSVG(page);
-                unHighlightAllElements();
-                console.log('✅ [RENDER] renderAndDisplayMEI() complete');
-            });
+            // Display content immediately
+            clearTimeout(failsafeTimeout);
+            console.log('🖼️ [RENDER] Setting SVG output and unhighlighting elements');
+            document.getElementById("svg_output").innerHTML = vrvToolkit.renderToSVG(page);
+            unHighlightAllElements();
+            console.log('✅ [RENDER] renderAndDisplayMEI() complete');
         } catch (error) {
-            clearTimeout(failsafeTimeout); // Clear the failsafe timer
+            clearTimeout(failsafeTimeout);
             console.error('❌ [RENDER] Error rendering MEI:', error);
             // Show error message instead of spinner
             const container = document.getElementById("svg_output");
@@ -1504,7 +1497,14 @@ function renderAndDisplayMEI(meiXML) {
                 </div>
             `;
         }
-    }, 50); // Small delay to ensure spinner renders
+    };
+    
+    // Use requestAnimationFrame for single paint cycle, or immediate fallback
+    if (typeof requestAnimationFrame !== 'undefined') {
+        requestAnimationFrame(processData);
+    } else {
+        processData();
+    }
 }
 
 
