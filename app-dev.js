@@ -434,14 +434,6 @@ function unHighlightAllElements() {
     document.querySelectorAll('.currently-playing').forEach((g) => g.classList.remove('currently-playing'));
 }
 
-function stopMidiHighlighting() {
-    if (highlightRAF) cancelAnimationFrame(highlightRAF);
-    highlightRAF = null;
-    timemapIdx = 0;
-    lastReportedTime = 0;
-    unHighlightAllElements();
-}
-
 function getTimeFromTimemap(id) {
     for (let e of timemap) {
         if (e.hasOwnProperty('on') && e.on.includes(id)) {
@@ -1315,9 +1307,14 @@ function getBaseMeiForPlayback() {
 
 // --- MIDI control handlers (mei-friend-inspired approach) ---
 function stopMIDIHandler() {
-    const player = document.getElementById('verovio-midi-player');
-    if (player && typeof player.stop === "function") player.stop();
-    stopMidiHighlighting();
+    try {
+        const player = document.getElementById('verovio-midi-player');
+        if (player && typeof player.stop === "function") player.stop();
+        stopMidiHighlighting();
+    } catch (error) {
+        // Silently catch errors - don't let MIDI issues prevent UI interactions
+        console.log('⚠️ [MIDI] Error in stopMIDIHandler (non-critical):', error.message);
+    }
 }
 
 async function loadAudioAndPlayHandler() {
