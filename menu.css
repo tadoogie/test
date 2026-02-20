@@ -1723,6 +1723,53 @@ div #tuneButtons button, .source-button {
   padding: 0 8px;
 }
 
+/* Row with both Text Only and Next buttons - spaced apart */
+.next-btn-row.has-two-btns {
+  justify-content: space-between;
+}
+
+/* Text Only button - styled like Go button (green) with icon above label */
+.text-only-btn {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 10px;
+  background: transparent;
+  color: #6fc252;
+  border: none;
+  cursor: pointer;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.text-only-btn svg { width: 28px; height: 28px; fill: currentColor; display: block; }
+.text-only-btn:hover { opacity: 0.9; }
+.text-only-btn:active { transform: translateY(1px); }
+
+/* CETEIcean text output styling */
+.cetei-text-output {
+  padding: 20px;
+  color: #222;
+  font-family: 'Georgia', serif;
+  font-size: 1.1em;
+  line-height: 1.7;
+  max-width: 800px;
+  margin: 0 auto;
+}
+.cetei-text-output tei-lg,
+.cetei-text-output tei-body > * {
+  display: block;
+  margin-bottom: 1.2em;
+}
+.cetei-text-output tei-l {
+  display: block;
+}
+.cetei-text-output tei-teiheader { display: none; }
+.cetei-text-output tei-title { font-size: 1.4em; font-weight: bold; display: block; margin-bottom: 0.3em; }
+.cetei-text-output tei-author { font-style: italic; display: block; margin-bottom: 1em; }
+
 /* NEW: Row with both Clear and Next buttons - spaced apart */
 .clear-next-btn-row {
   display: flex;
