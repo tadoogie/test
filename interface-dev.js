@@ -2105,6 +2105,17 @@ function ensureTextOnlyButton(containerEl) {
   return btn;
 }
 
+function assembleTeiLineText(lineEl) {
+  const segs = lineEl.getElementsByTagName('seg');
+  if (segs.length === 0) return lineEl.textContent.trim();
+  let text = '';
+  for (let k = 0; k < segs.length; k++) {
+    const t = segs[k].textContent;
+    text += t.endsWith('-') ? t.slice(0, -1) : t + ' ';
+  }
+  return text.trim();
+}
+
 function loadTextOnly() {
   const psInput = document.getElementById('pstext');
   if (!psInput || !psInput.dataset.psdata) {
@@ -2136,34 +2147,24 @@ function loadTextOnly() {
     .then(function(res) { return res.text(); })
     .then(function(xmlText) {
       container.innerHTML = '';
-      if (typeof CETEIcean !== 'undefined') {
-        const CETEI = new CETEIcean();
-        CETEI.makeHTML5(xmlText, function(data) {
-          const wrapper = document.createElement('div');
-          wrapper.className = 'cetei-text-output';
-          wrapper.appendChild(data);
-          container.appendChild(wrapper);
-        });
-      } else {
-        const parser = new DOMParser();
-        const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
-        const wrapper = document.createElement('div');
-        wrapper.className = 'cetei-text-output';
-        const lgs = xmlDoc.getElementsByTagName('lg');
-        for (let i = 0; i < lgs.length; i++) {
-          const verseDiv = document.createElement('div');
-          verseDiv.style.marginBottom = '1em';
-          const lines = lgs[i].getElementsByTagName('l');
-          for (let j = 0; j < lines.length; j++) {
-            const p = document.createElement('p');
-            p.style.margin = '0';
-            p.textContent = lines[j].textContent;
-            verseDiv.appendChild(p);
-          }
-          wrapper.appendChild(verseDiv);
+      const parser = new DOMParser();
+      const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
+      const wrapper = document.createElement('div');
+      wrapper.className = 'cetei-text-output';
+      const lgs = xmlDoc.getElementsByTagName('lg');
+      for (let i = 0; i < lgs.length; i++) {
+        const verseDiv = document.createElement('div');
+        verseDiv.className = 'cetei-verse';
+        const lines = lgs[i].getElementsByTagName('l');
+        for (let j = 0; j < lines.length; j++) {
+          const p = document.createElement('p');
+          p.className = 'cetei-line';
+          p.textContent = assembleTeiLineText(lines[j]);
+          verseDiv.appendChild(p);
         }
-        container.appendChild(wrapper);
+        wrapper.appendChild(verseDiv);
       }
+      container.appendChild(wrapper);
     })
     .catch(function(err) {
       console.error('Error loading text:', err);

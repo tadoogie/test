@@ -747,6 +747,48 @@
                 text-transform: uppercase;
                 font-size: 18px;
             }
+
+            /* TEXT ONLY button — same style as GO button */
+            .text-only-btn {
+                display: inline-flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                gap: 6px;
+                padding: 8px 10px;
+                background: transparent;
+                color: #6fc252;
+                border: none;
+                cursor: pointer;
+                font-weight: 700;
+                text-transform: uppercase;
+                letter-spacing: 0.04em;
+            }
+            .text-only-btn svg {
+                width: 28px;
+                height: 28px;
+                fill: #6fc252;
+                stroke: #6fc252;
+                display: block;
+            }
+            .text-only-btn:hover { opacity: 0.9; }
+            .text-only-btn:active { transform: translateY(1px); }
+
+            /* Put TEXT ONLY on the left and NEXT on the right */
+            .next-btn-row.has-two-btns {
+                justify-content: space-between !important;
+                width: 100%;
+            }
+
+            /* Text-only output display */
+            .cetei-text-output {
+                padding: 20px;
+                font-size: 1.1em;
+                line-height: 1.8;
+                color: #222;
+            }
+            .cetei-verse { margin-bottom: 1.2em; }
+            .cetei-line { margin: 0; }
         </style>
     </head>
     <body>
