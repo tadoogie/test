@@ -73,7 +73,12 @@ function setupShareModal() {
     const baseUrl = "https://splitleaf.org/app.html";
     const params = new URLSearchParams();
     if (window.globalTeiID) params.append('teiID', window.globalTeiID);
-    if (window.globalPsTune) params.append('psTune', window.globalPsTune);
+    if (window.globalTextOnly) {
+      // Text-only share: no tune, add textOnly flag
+      params.append('textOnly', 'true');
+    } else {
+      if (window.globalPsTune) params.append('psTune', window.globalPsTune);
+    }
     if (window.globalSelStanzas && window.globalSelStanzas.length > 0) {
       params.append('selStanzas', window.globalSelStanzas.join(','));
     }
@@ -2136,11 +2141,33 @@ function loadTextOnly() {
     return;
   }
 
+  try { closeNav(); } catch(_) {}
+  fetchAndRenderTextOnly(teiID, selStanzas);
+}
+
+// Called from URLVariableFunction when textOnly=true in URL params
+function loadTextOnlyAutoGen(teiID, selStanzas) {
+  if (!teiID || !selStanzas || !selStanzas.length) return;
+  fetchAndRenderTextOnly(teiID, selStanzas);
+}
+
+// Shared implementation used by both loadTextOnly and loadTextOnlyAutoGen
+function fetchAndRenderTextOnly(teiID, selStanzas) {
   const container = document.getElementById('svg_output');
   if (!container) return;
 
+  window.globalTextOnly = true;
+  if (typeof globalTeiID !== 'undefined') globalTeiID = teiID;
+  if (typeof globalSelStanzas !== 'undefined') globalSelStanzas = selStanzas;
+
+  const controlsEl = document.getElementById('controls');
+  if (controlsEl) {
+    controlsEl.style.display = 'inline';
+    controlsEl.classList.add('text-only-mode');
+    document.body.classList.add('controls-visible');
+  }
+
   container.innerHTML = '<div style="padding:20px;color:#aaa;">Loading text\u2026</div>';
-  try { closeNav(); } catch(_) {}
 
   const url = 'getVerses.xq?teiID=' + teiID + '&selStanzas="%20,' + selStanzas.join(',') + ',%20"';
   fetch(url)
@@ -2149,6 +2176,19 @@ function loadTextOnly() {
       container.innerHTML = '';
       const parser = new DOMParser();
       const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
+
+      try {
+        const titleEl = xmlDoc.getElementsByTagName('title')[0];
+        if (titleEl && typeof globalTitle !== 'undefined') globalTitle = titleEl.textContent.trim();
+        const editions = xmlDoc.getElementsByTagName('edition');
+        if (editions.length) {
+          const edTitles = editions[0].getElementsByTagName('title');
+          if (edTitles.length && typeof globalTextSource !== 'undefined') globalTextSource = edTitles[0].textContent.trim();
+          const edDates = editions[0].getElementsByTagName('date');
+          if (edDates.length && typeof globalTextSourceDate !== 'undefined') globalTextSourceDate = edDates[0].textContent.trim();
+        }
+      } catch(_) {}
+
       const wrapper = document.createElement('div');
       wrapper.className = 'cetei-text-output';
       const lgs = xmlDoc.getElementsByTagName('lg');

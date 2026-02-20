@@ -748,6 +748,28 @@
                 font-size: 18px;
             }
 
+            /* Text-only mode: gray out music controls (2nd .vl onwards), keep PDF+Share active */
+            #controls.text-only-mode .vl:not(:first-child) {
+                opacity: 0.35;
+                pointer-events: none;
+            }
+            #controls.text-only-mode .vl:not(:first-child) .icon {
+                fill: #888 !important;
+                color: #888 !important;
+            }
+            #controls.text-only-mode .vl:not(:first-child) .icon path,
+            #controls.text-only-mode .vl:not(:first-child) .icon polygon,
+            #controls.text-only-mode .vl:not(:first-child) .icon rect,
+            #controls.text-only-mode .vl:not(:first-child) svg path,
+            #controls.text-only-mode .vl:not(:first-child) svg polygon {
+                fill: #888 !important;
+                stroke: none !important;
+            }
+            #controls.text-only-mode .vl:not(:first-child) .icon-TransposeUpArrow,
+            #controls.text-only-mode .vl:not(:first-child) .icon-TransposeDwnArrow {
+                color: #888 !important;
+            }
+
             /* TEXT ONLY button — same style as GO button */
             .text-only-btn {
                 display: inline-flex;
