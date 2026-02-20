@@ -1,2090 +1,3876 @@
-// --- Globals for metadata and PDF generation ---
-// Version 2.1 (mei-friend-inspired MIDI highlighting)
+window.INTERFACE_DEV_BUILD = '2025-12-06-1';
+/*This is my new comment to check if this is updated*/
 
-var globalTitle = '';
-var globalTuneTitle = '';
-var globalTextSource = '';
-var globalTextSourceDate = '';
-var globalTuneSource = '';
-var globalTuneSourceDate = '';
-var globalTeiID = '';
-var globalPsTune = '';
-var globalSelStanzas = [];
-
-// --- Verovio toolkits, page state, and MIDI highlight state ---
-let vrvToolkit, tk_pdf;
-let page = 1;
-let zoom = 50;
-let trInterval = "0";
-let timemap = [];
-let timemapIdx = 0;
-let lastOnsetIdx = 0;
-let lastReportedTime = 0; // ms
-let highlightRAF = null;
-const highlightId = 'data-highlight';
-let playbackOnLoad = false;
-let currentXmlData = "";
-let layerVolumes = {};
-let layerMuteStates = {};let noteIdToPage = {};
-let measureIdToPage = {};
-let pageToLastMeasureTime = {};
-const PAGE_TURN_OFFSET = 100;
-let pageLoadInProgress = false;
-let pageTurnRAF = null;
-let debugInterval = null;
-let playbackStartTime = null;
-let playbackStartOffset = 0;
-
-// --- DOMContentLoaded: All event handlers and UI set up here ---
-document.addEventListener("DOMContentLoaded", () => {
-    verovio.module.onRuntimeInitialized = () => {
-        vrvToolkit = new verovio.toolkit();
-        tk_pdf = new verovio.toolkit();
-        // Set flag or call your main setup/render logic here!
-        verovioToolkitReady = true;
-
-
-    // --- PDF modal controls ---
-    const paperSizeModal = document.getElementById('paperSizeModal');
-    const printPdfButton = document.getElementById('printPDF');
-    const cancelPdfButton = document.getElementById('cancelPdfButton');
-    const generatePdfButton = document.getElementById('generatePdfButton');
-
-    printPdfButton.addEventListener('click', () => {
-        paperSizeModal.style.display = 'flex';
-    });
-    cancelPdfButton.addEventListener('click', () => {
-        paperSizeModal.style.display = 'none';
-    });
-    generatePdfButton.addEventListener('click', async function() {
-        paperSizeModal.style.display = 'none';
-        const selectedSizeElement = document.querySelector('input[name="paperSize"]:checked');
-        const selectedPaperSize = selectedSizeElement ? selectedSizeElement.value : 'LETTER';
-        await generatePDF(selectedPaperSize);
-    });
-
-    // --- MIDI playback and highlight controls (mei-friend-inspired) ---
-    const playMIDIButton = document.getElementById("playMIDI");
-    if (playMIDIButton) {
-        playMIDIButton.addEventListener("click", async function() {
-            stopMIDIHandler();
-            if (typeof midiTempoAdjustment !== 'undefined') {
-                vrvToolkit.setOptions({ midiTempoAdjustment: midiTempoAdjustment });
-                vrvToolkit.redoLayout();
-                setTimemap(vrvToolkit.renderToTimemap({includeMeasures: true}));
-            }
-            
-            await loadAudioAndPlayHandler();
-        });
-    }
-        const pauseMIDIButton = document.getElementById("pauseMIDI");
-        if (pauseMIDIButton) {
-            pauseMIDIButton.addEventListener("click", stopMIDIHandler);
-        }
-
-        // --- MIDI PLAYER EVENT LISTENERS (FOR END/PAUSE AUTOCLEANUP) ---
-        const player = document.getElementById('verovio-midi-player');
-        if (player) {
-            player.addEventListener('ended', function() {
-                stopMidiHighlighting();
-                // Optionally: enable pagination buttons here if you disable them during playback
-            });
-            player.addEventListener('pause', function() {
-                stopMidiHighlighting();
-                // Optionally: enable pagination buttons here if you disable them during playback
-            });
-        }
-
-    // --- Navigation and Zoom controls ---
-    window.addEventListener("resize", debounce(applyZoom, 200));
-    const zoomInButton = document.getElementById("zoomIn");
-        if (zoomInButton) {
-            zoomInButton.addEventListener("click", zoomIn);
-        }
-    
-    const zoomOutButton = document.getElementById("zoomOut");
-        if (zoomOutButton) {
-            zoomOutButton.addEventListener("click", zoomOut);
-        }
-    
-    // Pagination controls
-    const firstPageButton = document.getElementById("firstPage");
-        if (firstPageButton) {
-            firstPageButton.addEventListener("click", firstPage);
-        }
-    
-    const prevPageButton = document.getElementById("prevPage");
-        if (prevPageButton) {
-            prevPageButton.addEventListener("click", prevPage);
-        }
-    
-    const nextPageButton = document.getElementById("nextPage");
-        if (nextPageButton) {
-            nextPageButton.addEventListener("click", nextPage);
-        }
-    
-    const lastPageButton = document.getElementById("lastPage");
-        if (lastPageButton) {
-            lastPageButton.addEventListener("click", lastPage);
-        }
-    
-    // Transpose controls
-    const trUpButton = document.getElementById("trUp");
-        if (trUpButton) {
-            trUpButton.addEventListener("click", trUp);
-        }
-    
-    const trDownButton = document.getElementById("trDown");
-        if (trDownButton) {
-            trDownButton.addEventListener("click", trDown);
-        }
-
-    // --- Keyboard navigation (arrows, zoom, etc.) ---
-    window.addEventListener("keyup", function(event) {
-        processBasicEvents(event);
-    });
-
-    // --- Respond to window resize with layout/zoom update ---
-    window.addEventListener("resize", () => {
-        applyZoom();
-    });
-
-    // --- Initial file load (or trigger via UI as desired) ---
-    //loadFile();
-
-    };
-});
-
-function setFormFromURLParamsAndTriggerOnchange() {
-    const params = new URLSearchParams(window.location.search);
-
-    // Set pssource from URL params
-    const psSourceParam = params.get('pssource') || params.get('psSource');
-    if (psSourceParam) {
-        const psSourceInput = document.getElementById('pssource');
-        if (psSourceInput) {
-            psSourceInput.value = psSourceParam;
-            // Optionally trigger onchange
-            if (typeof psSourceInput.onchange === "function" || psSourceInput.hasAttribute("onchange")) {
-                psSourceInput.dispatchEvent(new Event('change', { bubbles: true }));
-            }
-        }
-    }
-
-    // Set pstext from URL params
-    const psTextParam = params.get('pstext');
-    if (psTextParam) {
-        const psTextSelect = document.getElementById('pstext');
-        if (psTextSelect) {
-            psTextSelect.value = psTextParam;
-            // Optionally trigger onchange
-            if (typeof psTextSelect.onchange === "function" || psTextSelect.hasAttribute("onchange")) {
-                psTextSelect.dispatchEvent(new Event('change', { bubbles: true }));
-            }
-        }
-    }
+/* ----------------------------- URL parameter application ----------------------------- */
+if (document.readyState === 'loading') {
+  document.addEventListener("DOMContentLoaded", () => {
+    try { applyURLParametersToForm(); } catch(e) { console.warn('applyURLParametersToForm error', e); }
+  });
+} else {
+  try { applyURLParametersToForm(); } catch(e) { console.warn('applyURLParametersToForm error', e); }
 }
 
-function applyTuneAndStanzaParameters() {
-    const params = new URLSearchParams(window.location.search);
+function applyURLParametersToForm() {
+  const urlParams = new URLSearchParams(window.location.search);
 
-    // Set tune
-    const pstuneParam = params.get('pstune');
-    if (pstuneParam) {
-        const pstuneInput = document.getElementById('pstune');
-        if (pstuneInput) {
-            pstuneInput.value = pstuneParam;
-            // Optionally trigger onchange
-            if (typeof pstuneInput.onchange === "function" || pstuneInput.hasAttribute("onchange")) {
-                pstuneInput.dispatchEvent(new Event('change', { bubbles: true }));
-            }
-        }
-    }
+  // 1. Handle 'psSource' parameter
+  const psSourceParam = urlParams.get('psSource') || urlParams.get('pssource');
+  if (psSourceParam) {
+    const psSourceInput = document.getElementById('pssource');
+    if (psSourceInput) {
+      psSourceInput.value = psSourceParam;
 
-    // Select stanzas (checkboxes)
-    const selStanzasParam = params.get('selectVerses') || params.get('selStanzas');
-    if (selStanzasParam) {
-        const stanzaValues = selStanzasParam.replace(/['"]/g, '').split(',').map(s => s.trim());
-        const verseSelectionContainer = document.getElementById('verseSelection');
-        if (verseSelectionContainer) {
-            const checkboxes = verseSelectionContainer.querySelectorAll('input[type="checkbox"]');
-            checkboxes.forEach(checkbox => {
-                checkbox.checked = stanzaValues.includes(checkbox.value);
-            });
-        }
-    }
-}
-
-function applyStanzaSelectionsFromURL() {
-    const params = new URLSearchParams(window.location.search);
-    const selStanzasParam = params.get('selectVerses') || params.get('selStanzas');
-    if (selStanzasParam) {
-        // Clean up the parameter format
-        const stanzaValues = selStanzasParam.replace(/['"]/g, '').split(',').map(s => s.trim());
-
-        // Deselect all using your toggle function
-        const indVersesDiv = document.getElementById('indVerses');
-        const selectAllBox = document.getElementById('selectAll');
-        if (indVersesDiv && selectAllBox) {
-            selectAllBox.checked = false; // Uncheck "Select All"
-            toggle(indVersesDiv);         // Deselect all stanza checkboxes
-        }
-
-        // Now, select only those matching stanzaValues
-        const checkboxes = indVersesDiv.getElementsByTagName("input");
-        for (let a = 0; a < checkboxes.length; a++) {
-            if (stanzaValues.includes(checkboxes[a].value)) {
-                checkboxes[a].checked = true;
-                // Optionally trigger onchange
-                if (typeof checkboxes[a].onchange === "function" || checkboxes[a].hasAttribute("onchange")) {
-                    checkboxes[a].dispatchEvent(new Event('change', { bubbles: true }));
-                }
-            }
-        }
-
-        // Optionally, update the display
-        if (document.getElementById("selectVerses")) {
-            document.getElementById("selectVerses").innerHTML = stanzaValues.join(", ");
-        }
-    }
-}
-
-// --- Call this after all dropdowns/lists are populated ---
-// If you use async data loading, call this from a callback or after a Promise resolves.
-// For synchronous setup, a short timeout after DOMContentLoaded is sufficient.
-
-function autoRenderPsalmFromURL() {
-    setFormFromURLParamsAndTriggerOnchange();
-
-    // Optionally: If all required fields are filled, trigger renderPsalm
-    if (
-        document.getElementById('pssource')?.value &&
-        document.getElementById('pstext')?.value &&
-        document.getElementById('pstune')?.value &&
-        Array.from(document.getElementsByName('stanzas')).some(cb => cb.checked)
-    ) {
-        renderPsalm();
-    }
-}
-
-document.addEventListener("DOMContentLoaded", () => {
-    // For async dropdown population, replace this with a callback/event!
-    setTimeout(autoRenderPsalmFromURL, 800); // Adjust delay as needed for your content
-});
-
-// Main function: checks URL and triggers renderPsalm if autoGen is present
-async function URLVariableFunction() {
-    const params = new URLSearchParams(window.location.search);
-
-    if (!params.has('autoGen')) return;
-
-    let teiID = params.get('teiID') || params.get('teiID');
-    let selStanzas = params.get('selStanzas') || params.get('selectVerses') || params.get('stanzas');
-    let psTune = params.get('psTune');
-
-    let selStanzasArr = null;
-    if (selStanzas) {
-        selStanzasArr = selStanzas.replace(/['"]/g, '').split(',').map(s => s.trim());
-    }
-
-    renderPsalm({
-        teiID: teiID,
-        selStanzas: selStanzasArr,
-        psTune: psTune,
-        autoGen: true
-    });
-}
-
-// Example: adjust your renderPsalm to accept an argument object
-function renderPsalm({ teiID, selStanzas, psTune, autoGen } = {}) {
-    // If these variables are provided, use them; else fall back to menu fields
-    // ... your custom logic here ...
-}
-
-// Call the function on load (after DOM is ready)
-document.addEventListener("DOMContentLoaded", () => {
-    URLVariableFunction();
-});
-
-
-function setTimemap(tm) {
-    timemap = tm || [];
-    determineLastOnsetIdx();
-    timemapIdx = 0;
-}
-
-function determineLastOnsetIdx() {
-    let i = timemap.length;
-    while (i-- > 0) {
-        if ('on' in timemap[i]) {
-            lastOnsetIdx = i;
-            break;
-        }
-    }
-}
-
-function highlightNote(note, id = '') {
-    if (!note) return;
-    note.classList.add('currently-playing');
-    if (id) note.setAttribute(highlightId, id);
-    note.querySelectorAll('g').forEach((g) => g.classList.add('currently-playing'));
-}
-
-function unhighlightNote(note) {
-    if (!note) return;
-    note.classList.remove('currently-playing');
-    note.removeAttribute(highlightId);
-    note.querySelectorAll('.currently-playing').forEach((g) => g.classList.remove('currently-playing'));
-}
-
-function unHighlightAllElements() {
-    document.querySelectorAll('.currently-playing').forEach((g) => g.classList.remove('currently-playing'));
-}
-
-function stopMidiHighlighting() {
-    if (highlightRAF) cancelAnimationFrame(highlightRAF);
-    highlightRAF = null;
-    timemapIdx = 0;
-    lastReportedTime = 0;
-    unHighlightAllElements();
-}
-
-function getTimeFromTimemap(id) {
-    for (let e of timemap) {
-        if (e.hasOwnProperty('on') && e.on.includes(id)) {
-            return e.tstamp;
-        }
-    }
-    return -1;
-}
-
-function getPageForTime(t) {
-    // Verovio's timemap entries sometimes include page info
-    // Find the last timemap entry <= t that has a 'page' property and return it
-    let p = 1;
-    for (let i = 0; i < timemap.length; i++) {
-        if (timemap[i].tstamp <= t && timemap[i].page !== undefined) {
-            p = timemap[i].page;
-        }
-    }
-    return p;
-}
-
-function seekMidiPlaybackToTime(t) {
-    const player = document.getElementById('verovio-midi-player');
-    if (player) {
-        if (player.playing) {
-            player.stop();
-            player.currentTime = t / 1000;
-            player.start();
-        } else {
-            player.currentTime = t / 1000;
-        }
-    }
-    timemapIdx = 0;
-    unHighlightAllElements();
-}
-
-function highlightNotesAtMidiPlaybackTime(ev = false) {
-    const player = document.getElementById('verovio-midi-player');
-    let t;
-    if (ev && ev.detail && ev.detail.note && ev.detail.note.startTime !== undefined) {
-        t = ev.detail.note.startTime * 1000;
-    } else if (player) {
-        t = player.currentTime * 1000;
     } else {
-        return;
+      window._initialPsSourceParam = psSourceParam;
     }
-    const currentlyHighlightedNotes = Array.from(document.querySelectorAll('g.note.currently-playing'));
-    const firstNoteOnPage = document.querySelector('.note');
+  }
 
-    // Efficiently advance timemapIdx - WITH SAFETY LIMIT
-    if (t < lastReportedTime) timemapIdx = 0;
-    lastReportedTime = t;
-    
-    let iterations = 0;
-    const MAX_ITERATIONS = 1000; // Safety limit
-    
-    while (
-        timemap.length > 0 &&
-        Math.round(timemap[timemapIdx].tstamp) + 1 < Math.round(t) &&
-        timemapIdx < timemap.length - 1 &&
-        iterations < MAX_ITERATIONS
-    ) {
-        timemapIdx++;
-        iterations++;
-    }
+  // 2. Handle 'pstext' parameter
+  const psTextParam = urlParams.get('pstext');
+  if (psTextParam) {
+    const psTextSelect = document.getElementById('pstext');
+    if (psTextSelect) {
+      psTextSelect.value = psTextParam;
 
-    // Unhighlight notes whose off event has occurred
-    let ix = timemapIdx;
-    while (ix >= 0 && timemap.length > 0) {
-        if ('off' in timemap[ix]) {
-            let i = currentlyHighlightedNotes.length - 1;
-            while (i >= 0) {
-                if (timemap[ix].off.includes(currentlyHighlightedNotes[i].getAttribute(highlightId))) {
-                    unhighlightNote(currentlyHighlightedNotes[i]);
-                    currentlyHighlightedNotes.splice(i, 1);
-                }
-                i = Math.min(currentlyHighlightedNotes.length - 1, --i);
-            }
-        }
-        if ('on' in timemap[ix] && firstNoteOnPage && timemap[ix].on.includes(firstNoteOnPage.id)) {
-            break;
-        }
-        ix--;
-    }
-
-    // At the last onset, schedule future unhighlights for remaining "off" events
-    if (timemapIdx === lastOnsetIdx) {
-        let j = timemapIdx;
-        while (j++ < timemap.length - 1) {
-            if ('off' in timemap[j]) {
-                timemap[j].off.forEach((id) => {
-                    let note = document.getElementById(id);
-                    setTimeout(() => unhighlightNote(note), timemap[j].tstamp - t, note);
-                });
-            }
-            // Stop the player at the end
-            if (j === timemap.length - 1) {
-                setTimeout(() => player.stop(), timemap[j].tstamp - t, player);
-            }
-        }
-    }
-
-    // Highlight notes at current timemap event
-    let closestTimemapTime = timemap[timemapIdx];
-    if (closestTimemapTime && 'on' in closestTimemapTime) {
-        for (let id of closestTimemapTime['on']) {
-            let note = document.getElementById(id);
-            if (note) {
-                highlightNote(note, id);
-                // Schedule unhighlight for notes that end later (only if not immediately followed by another "on")
-                for (let i = timemapIdx + 1; i < timemap.length - 1; i++) {
-                    if ('off' in timemap[i] && timemap[i].off.includes(id)) {
-                        if (!('on' in timemap[i])) {
-                            setTimeout(() => unhighlightNote(note), timemap[i].tstamp - t, note);
-                        }
-                        break;
-                    }
-                }
-            }
-        }
-    }
-}
-
-function pageTurnLoop() {
-    const player = document.getElementById('verovio-midi-player');
-    
-    // Use performance.now() for timing instead of player.currentTime
-    let currentTime;
-    if (playbackStartTime !== null) {
-        currentTime = performance.now() - playbackStartTime + playbackStartOffset;
     } else {
-        currentTime = player ? (player.currentTime * 1000) : 0;
+      window._initialPsTextParam = psTextParam;
     }
-    
-    // Check for page turn
-    if (player && currentTime > 0 && page < vrvToolkit.getPageCount() && !pageLoadInProgress) {
-        let currentPageEndTime = pageToLastMeasureTime[page];
-        
-        if (currentPageEndTime && currentTime >= (currentPageEndTime - PAGE_TURN_OFFSET)) {
-            pageLoadInProgress = true;
-            
-            const currentlyPlaying = Array.from(document.querySelectorAll('g.note.currently-playing'))
-                .map(note => note.getAttribute(highlightId) || note.id);
-            
-            const nextPage = page + 1;
-            
-            setTimeout(() => {
-                page = nextPage;
-                loadPage();
-                
-                currentlyPlaying.forEach(noteId => {
-                    const noteOnNewPage = document.getElementById(noteId);
-                    if (noteOnNewPage) {
-                        highlightNote(noteOnNewPage, noteId);
-                    }
-                });
-                
-                pageLoadInProgress = false;
-            }, 0);
-        }
-    }
-    
-    // ALWAYS call requestAnimationFrame
-    pageTurnRAF = requestAnimationFrame(pageTurnLoop);
+  }
 }
 
-function midiHighlightLoop() {
-    const player = document.getElementById('verovio-midi-player');
-    if (player && !player.paused && !player.ended) {
-        highlightNotesAtMidiPlaybackTime();
-        highlightRAF = requestAnimationFrame(midiHighlightLoop);
-    } else {
-        highlightRAF = null;
-    }
-}
-
-function startMidiHighlighting() {
-    if (highlightRAF) cancelAnimationFrame(highlightRAF);
-    if (pageTurnRAF) cancelAnimationFrame(pageTurnRAF);
-    if (debugInterval) clearInterval(debugInterval);
-    
-    // Record the start time
-    const player = document.getElementById('verovio-midi-player');
-    playbackStartTime = performance.now();
-    playbackStartOffset = player ? (player.currentTime * 1000) : 0;
-    
-    highlightNotesAtMidiPlaybackTime();
-    highlightRAF = requestAnimationFrame(midiHighlightLoop);
-    pageTurnRAF = requestAnimationFrame(pageTurnLoop);
-    
-    debugInterval = setInterval(debugPlayerTime, 50);
-}
-
-function stopMidiHighlighting() {
-    if (highlightRAF) cancelAnimationFrame(highlightRAF);
-    if (pageTurnRAF) cancelAnimationFrame(pageTurnRAF);
-    if (debugInterval) clearInterval(debugInterval);
-    highlightRAF = null;
-    pageTurnRAF = null;
-    debugInterval = null;
-    playbackStartTime = null;
-    unHighlightAllElements();
-}
-
-function buildNoteIdToPageMap() {
-    noteIdToPage = {};
-    let pageCount = vrvToolkit.getPageCount();
-    for (let p = 1; p <= pageCount; p++) {
-        let svg = vrvToolkit.renderToSVG(p, {});
-        let tempDiv = document.createElement('div');
-        tempDiv.innerHTML = svg;
-        let notes = tempDiv.querySelectorAll('g.note[id]');
-        notes.forEach(note => {
-            noteIdToPage[note.id] = p;
-        });
-    }
-}
-
-function buildMeasureIdToPageMap() {
-    measureIdToPage = {};
-    pageToLastMeasureTime = {};
-    
-    let pageCount = vrvToolkit.getPageCount();
-    
-    for (let p = 1; p <= pageCount; p++) {
-        let svg = vrvToolkit.renderToSVG(p, {});
-        let tempDiv = document.createElement('div');
-        tempDiv.innerHTML = svg;
-        
-        let measures = tempDiv.querySelectorAll('g.measure[id]');
-        let lastMeasureId = null;
-        
-        measures.forEach(measure => {
-            measureIdToPage[measure.id] = p;
-            lastMeasureId = measure.id;
-        });
-        
-        // Find the FIRST measure on the NEXT page using measureOn in timemap
-        if (p < pageCount && timemap.length > 0) {
-            let nextPageSvg = vrvToolkit.renderToSVG(p + 1, {});
-            let nextPageDiv = document.createElement('div');
-            nextPageDiv.innerHTML = nextPageSvg;
-            
-            let firstMeasureOnNextPage = nextPageDiv.querySelector('g.measure[id]');
-            if (firstMeasureOnNextPage) {
-                let nextMeasureId = firstMeasureOnNextPage.id;
-                
-                // Find when this measure starts in the timemap using measureOn
-                let found = false;
-                for (let i = 0; i < timemap.length; i++) {
-                    if (timemap[i].measureOn && timemap[i].measureOn === nextMeasureId) {
-                        pageToLastMeasureTime[p] = timemap[i].tstamp;
-                        found = true;
-                        break;
-                    }
-                }
-            }
-        }
-    }
-}
-
-function debugPlayerTime() {
-    const player = document.getElementById('verovio-midi-player');
-    if (player && player.currentTime) {
-        const time = player.currentTime * 1000;
-    }
-}
-
-function applyTempoToVerovio() {
-    if (!vrvToolkit || !currentXmlData) return;
-    
-    // Set the tempo adjustment option in Verovio
-    vrvToolkit.setOptions({ midiTempoAdjustment: midiTempoAdjustment });
-    
-    // Regenerate the layout and timemap
-    vrvToolkit.redoLayout();
-    setTimemap(vrvToolkit.renderToTimemap({includeMeasures: true}));
-    buildNoteIdToPageMap();
-    buildMeasureIdToPageMap();
-    
-    // Re-render the current page
-    loadPage();
-}
-
-function detectLayers(xmlDoc) {
-    const layers = [];
-    const layerDefs = xmlDoc.querySelectorAll('layerDef');
-    
-    layerDefs.forEach((layerDef, index) => {
-        const layerId = layerDef.getAttribute('xml:id') || layerDef.getAttribute('id');
-        const label = layerDef.getAttribute('label') || `Layer ${index + 1}`;
-        const staffN = layerDef.closest('staffDef')?.getAttribute('n') || '1';
-        const layerN = layerDef.getAttribute('n') || (index + 1).toString();
-        
-        layers.push({
-            id: layerId,
-            staffN: staffN,
-            layerN: layerN,
-            label: label,
-            fullLabel: `${label}`
-        });
-        
-        // Initialize volume to 71% (90/127) if not already set
-        if (!layerVolumes[layerId]) {
-            layerVolumes[layerId] = 71; // 90/127 ≈ 71%
-        }
+/* ----------------------------- Modals (Share, Paper Size) ----------------------------- */
+function setupModals() {
+  function setupModalCloseOnOutsideClick(modalId) {
+    const modal = document.getElementById(modalId);
+    if (!modal) return;
+    modal.addEventListener("click", function(e) {
+      if (e.target === modal) modal.style.display = "none";
     });
-    
-    return layers;
+  }
+  setupModalCloseOnOutsideClick("shareModal");
+  setupModalCloseOnOutsideClick("paperSizeModal");
+}
+if (document.readyState === 'loading') {
+  document.addEventListener("DOMContentLoaded", setupModals);
+} else {
+  setupModals();
 }
 
-function createLayerVolumeControls(layers) {
-    const container = document.getElementById('layerVolumeControls');
-    if (!container) return;
-    
-    // Clear existing controls
-    container.innerHTML = '';
-    
-    layers.forEach(layer => {
-        const sliderDiv = document.createElement('div');
-        sliderDiv.style.margin = '7px 0';
-        
-        const label = document.createElement('span');
-        label.style.color = '#fff';
-        label.style.display = 'block';
-        label.style.fontSize = '0.9em';
-        label.textContent = layer.fullLabel;
-        
-        // Container for mute button and slider
-        const controlsContainer = document.createElement('div');
-        controlsContainer.style.display = 'flex';
-        controlsContainer.style.alignItems = 'center';
-        controlsContainer.style.gap = '10px';
-        
-        // Mute button
-        const muteButton = document.createElement('button');
-        muteButton.id = `mute-btn-${layer.id}`;
-        muteButton.title = 'Mute'; // Add title attribute
-        muteButton.style.background = 'none';
-        muteButton.style.border = 'none';
-        muteButton.style.cursor = 'pointer';
-        muteButton.style.padding = '4px';
-        muteButton.style.display = 'flex';
-        muteButton.style.alignItems = 'center';
-        muteButton.style.justifyContent = 'center';
-        
-        // Initialize mute state
-        layerMuteStates[layer.id] = false;
-        
-        // Create SVG for unmuted state
-        const createUnmutedSVG = () => {
-            return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" style="width: 20px; height: 20px; fill: #fff;">
-                <path d="M533.6 96.5C523.3 88.1 508.2 89.7 499.8 100C491.4 110.3 493 125.4 503.3 133.8C557.5 177.8 592 244.8 592 320C592 395.2 557.5 462.2 503.3 506.3C493 514.7 491.5 529.8 499.8 540.1C508.1 550.4 523.3 551.9 533.6 543.6C598.5 490.7 640 410.2 640 320C640 229.8 598.5 149.2 533.6 96.5zM473.1 171C462.8 162.6 447.7 164.2 439.3 174.5C430.9 184.8 432.5 199.9 442.8 208.3C475.3 234.7 496 274.9 496 320C496 365.1 475.3 405.3 442.8 431.8C432.5 440.2 431 455.3 439.3 465.6C447.6 475.9 462.8 477.4 473.1 469.1C516.3 433.9 544 380.2 544 320.1C544 260 516.3 206.3 473.1 171.1zM412.6 245.5C402.3 237.1 387.2 238.7 378.8 249C370.4 259.3 372 274.4 382.3 282.8C393.1 291.6 400 305 400 320C400 335 393.1 348.4 382.3 357.3C372 365.7 370.5 380.8 378.8 391.1C387.1 401.4 402.3 402.9 412.6 394.6C434.1 376.9 448 350.1 448 320C448 289.9 434.1 263.1 412.6 245.5zM80 416L128 416L262.1 535.2C268.5 540.9 276.7 544 285.2 544C304.4 544 320 528.4 320 509.2L320 130.8C320 111.6 304.4 96 285.2 96C276.7 96 268.5 99.1 262.1 104.8L128 224L80 224C53.5 224 32 245.5 32 272L32 368C32 394.5 53.5 416 80 416z"/>
-            </svg>`;
-        };
-        
-        // Create SVG for muted state
-        const createMutedSVG = () => {
-            return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" style="width: 20px; height: 20px; fill: #ff0000;">
-                <path d="M80 416L128 416L262.1 535.2C268.5 540.9 276.7 544 285.2 544C304.4 544 320 528.4 320 509.2L320 130.8C320 111.6 304.4 96 285.2 96C276.7 96 268.5 99.1 262.1 104.8L128 224L80 224C53.5 224 32 245.5 32 272L32 368C32 394.5 53.5 416 80 416zM399 239C389.6 248.4 389.6 263.6 399 272.9L446 319.9L399 366.9C389.6 376.3 389.6 391.5 399 400.8C408.4 410.1 423.6 410.2 432.9 400.8L479.9 353.8L526.9 400.8C536.3 410.2 551.5 410.2 560.8 400.8C570.1 391.4 570.2 376.2 560.8 366.9L513.8 319.9L560.8 272.9C570.2 263.5 570.2 248.3 560.8 239C551.4 229.7 536.2 229.6 526.9 239L479.9 286L432.9 239C423.5 229.6 408.3 229.6 399 239z"/>
-            </svg>`;
-        };
-        
-        // Set initial button content
-        muteButton.innerHTML = createUnmutedSVG();
-        
-        const slider = document.createElement('input');
-        slider.type = 'range';
-        slider.id = `layer-volume-${layer.id}`;
-        slider.min = '0';
-        slider.max = '100';
-        slider.value = layerVolumes[layer.id] || '71'; // Default to 71% (90/127)
-        
-        // Function to update mute button appearance
-        const updateMuteButtonAppearance = () => {
-            const isMuted = layerMuteStates[layer.id] || parseInt(slider.value) === 0;
-            muteButton.innerHTML = isMuted ? createMutedSVG() : createUnmutedSVG();
-        };
-        
-        // Mute button click handler
-        muteButton.addEventListener('click', function() {
-            layerMuteStates[layer.id] = !layerMuteStates[layer.id];
-            
-            if (layerMuteStates[layer.id]) {
-                // Mute: remember current value and set slider to 0
-                muteButton.dataset.previousValue = slider.value;
-                slider.value = '0';
-                layerVolumes[layer.id] = 0;
-            } else {
-                // Unmute: restore previous value or default
-                const previousValue = muteButton.dataset.previousValue || '71';
-                slider.value = previousValue;
-                layerVolumes[layer.id] = parseInt(previousValue);
-            }
-            
-            updateMuteButtonAppearance();
-        });
-        
-        // Slider input handler
-        slider.addEventListener('input', function() {
-            const value = parseInt(this.value);
-            layerVolumes[layer.id] = isNaN(value) ? 0 : value;
-            
-            // Update mute state based on slider value
-            if (value === 0) {
-                layerMuteStates[layer.id] = true;
-            } else {
-                layerMuteStates[layer.id] = false;
-            }
-            
-            updateMuteButtonAppearance();
-        });
-        
-        // Initial appearance update
-        updateMuteButtonAppearance();
-        
-        controlsContainer.appendChild(muteButton);
-        controlsContainer.appendChild(slider);
-        
-        sliderDiv.appendChild(label);
-        sliderDiv.appendChild(controlsContainer);
-        container.appendChild(sliderDiv);
-    });
-}
-function applyLayerVolumes(xmlDoc, layers) {
-    layers.forEach(layer => {
-        const volumePercent = layerVolumes[layer.id];
-        
-        // Handle undefined/null values
-        const safeVolumePercent = (volumePercent !== undefined && volumePercent !== null) ? volumePercent : 71;
-        
-        // Convert percentage to MIDI velocity (0-127), ensuring no NaN
-        const velocity = Math.max(0, Math.min(127, Math.round((safeVolumePercent / 100) * 127)));
-        
-        // Find all notes in this specific layer
-        const layerElements = xmlDoc.querySelectorAll(`layer[n="${layer.layerN}"]`);
-        
-        layerElements.forEach(layerElement => {
-            // Check if this layer is in the correct staff
-            const parentStaff = layerElement.closest('staff');
-            if (parentStaff && parentStaff.getAttribute('n') === layer.staffN) {
-                const notes = layerElement.querySelectorAll('note');
-                notes.forEach(note => {
-                    note.setAttribute('vel', velocity.toString());
-                });
-            }
-        });
-    });
-    
-    return xmlDoc;
-}
+/* ----------------------------- Share modal wiring ----------------------------- */
+function setupShareModal() {
+  const shareLink = document.getElementById("shareLink");
+  const shareModal = document.getElementById("shareModal");
+  const shareUrlInput = document.getElementById("shareUrlInput");
+  const copyBtn = document.getElementById("copyShareUrlBtn");
+  const closeBtn = document.getElementById("closeShareModalBtn");
 
-function loadDataWithLayerVolumes(data) {
-    // Parse the XML
-    const parser = new DOMParser();
-    const xmlDoc = parser.parseFromString(data, 'text/xml');
-    
-    // Detect layers and create controls
-    const layers = detectLayers(xmlDoc);
-    createLayerVolumeControls(layers);
-    
-    // **DON'T apply velocities here - only on play**
-    
-    // Store the original and layers for later use
-    window.currentLayers = layers;
-    window.originalXmlData = data; // Store original without velocity modifications
-    currentXmlData = data; // Keep original for display
-    
-    // Proceed with normal Verovio loading (without velocities)
-    setOptions();
-    vrvToolkit.loadData(data);
-    tk_pdf.loadData(data);
-    setTimemap(vrvToolkit.renderToTimemap({includeMeasures: true}));
-    buildNoteIdToPageMap();
-    buildMeasureIdToPageMap();
-    page = 1;
-    loadPage();
-}
+  const facebookBtn = document.getElementById("share-facebook");
+  const xBtn = document.getElementById("share-x");
+  const redditBtn = document.getElementById("share-reddit");
+  const mastodonBtn = document.getElementById("share-mastodon");
 
-function resetLayerVolumesToDefault() {
-    if (window.currentLayers) {
-        window.currentLayers.forEach(layer => {
-            layerVolumes[layer.id] = 71; // 90/127 ≈ 71%
-            const slider = document.getElementById(`layer-volume-${layer.id}`);
-            if (slider) {
-                slider.value = '71';
-            }
-        });
+  function getShareUrl() {
+    const baseUrl = "https://splitleaf.org/app.html";
+    const params = new URLSearchParams();
+    if (window.globalTeiID) params.append('teiID', window.globalTeiID);
+    if (window.globalPsTune) params.append('psTune', window.globalPsTune);
+    if (window.globalSelStanzas && window.globalSelStanzas.length > 0) {
+      params.append('selStanzas', window.globalSelStanzas.join(','));
     }
+    params.append('autoGen', 'true');
+    return `${baseUrl}?${params.toString()}`;
+  }
+
+  if (shareLink) {
+    shareLink.addEventListener("click", function() {
+      let url = getShareUrl();
+      if (shareUrlInput) shareUrlInput.value = url;
+      if (facebookBtn) facebookBtn.href = "https://www.facebook.com/sharer/sharer.php?u=" + encodeURIComponent(url);
+      if (xBtn) xBtn.href = "https://x.com/intent/tweet?url=" + encodeURIComponent(url);
+      if (redditBtn) redditBtn.href = "https://reddit.com/submit?url=" + encodeURIComponent(url);
+      if (mastodonBtn) mastodonBtn.href = "https://mastodon.social/share?text=" + encodeURIComponent(url);
+      if (shareModal) shareModal.style.display = "flex";
+    });
+  }
+
+  if (copyBtn) {
+    copyBtn.addEventListener("click", function() {
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(shareUrlInput.value).then(() => {
+          copyBtn.textContent = "Copied!";
+          setTimeout(() => { copyBtn.textContent = "Copy Link"; }, 1200);
+        });
+      } else {
+        shareUrlInput.select();
+        document.execCommand("copy");
+        copyBtn.textContent = "Copied!";
+        setTimeout(() => { copyBtn.textContent = "Copy Link"; }, 1200);
+      }
+    });
+  }
+
+  if (closeBtn) {
+    closeBtn.addEventListener("click", function() {
+      if (shareModal) shareModal.style.display = "none";
+    });
+  }
+}
+if (document.readyState === 'loading') {
+  document.addEventListener("DOMContentLoaded", setupShareModal);
+} else {
+  setupShareModal();
 }
 
-// --- Core Verovio and UI functions (excluding PDF function and after) ---
+/* ----------------------------- Sound menu ----------------------------- */
+let urlParamsUsed = false;
 
-function debounce(func, wait) {
-    let timeout;
-    return function(...args) {
-        clearTimeout(timeout);
-        timeout = setTimeout(() => func.apply(this, args), wait);
-    };
+function setupSoundMenu() {
+  const soundMenu = document.getElementById("soundMenu");
+  const soundSettingsBtn = document.getElementById("soundSettingsBtn");
+  const closeSoundMenu = document.getElementById("closeSoundMenu");
+  const resetAudioBtn = document.getElementById("resetAudioBtn");
+  const applyAudioBtn = document.getElementById("applyAudioBtn");
+
+  function showSoundMenu() {
+    if (!soundMenu) return;
+    soundMenu.style.display = "block";
+    soundMenu.offsetHeight;
+    soundMenu.style.transform = "translateY(0)";
+    soundMenu.style.opacity = "1";
+  }
+  function hideSoundMenu() {
+    if (!soundMenu) return;
+    soundMenu.style.transform = "translateY(-20px)";
+    soundMenu.style.opacity = "0";
+    setTimeout(() => { soundMenu.style.display = "none"; }, 300);
+  }
+
+  if (soundSettingsBtn) {
+    soundSettingsBtn.addEventListener("click", function() {
+      if (!soundMenu) return;
+      if (soundMenu.style.display === "none" || soundMenu.style.display === "") showSoundMenu();
+      else hideSoundMenu();
+    });
+  }
+  if (closeSoundMenu) {
+    closeSoundMenu.addEventListener("click", hideSoundMenu);
+  }
+  if (resetAudioBtn) {
+    resetAudioBtn.addEventListener("click", function() {
+      resetAllAudioSettings();
+    });
+  }
+  if (applyAudioBtn) {
+    applyAudioBtn.addEventListener("click", async function() {
+      try { stopMIDIHandler(); } catch(e) {}
+      hideSoundMenu();
+      try { await loadAudioAndPlayHandler(); } catch(e) {}
+    });
+  }
+}
+if (document.readyState === 'loading') {
+  document.addEventListener("DOMContentLoaded", setupSoundMenu);
+} else {
+  setupSoundMenu();
 }
 
-function setOptions() {
-    let maxWidth = 1150;
-    let maxHeight = 900
-    let containerWidth = Math.floor(window.innerWidth * 0.85);
-    let containerHeight = Math.floor(window.innerHeight * 0.9);
-    let pageWidth = Math.min(containerWidth, maxWidth);
-    let pageHeight = Math.min(containerHeight, maxHeight);
+/* ----------------------------- Tempo & layer volume helpers ----------------------------- */
+const tempoSlider = document.getElementById("tempoSlider");
+const tempoDisplay = document.getElementById("tempoDisplay");
+if (tempoSlider) {
+  tempoSlider.min = 0.2;
+  tempoSlider.max = 2.5;
+  tempoSlider.step = 0.05;
+  tempoSlider.value = 1.0;
+}
+let midiTempoAdjustment = 1.0;
+if (tempoSlider) {
+  tempoSlider.addEventListener("input", function() {
+    midiTempoAdjustment = parseFloat(tempoSlider.value);
+    if (tempoDisplay) tempoDisplay.textContent = midiTempoAdjustment.toFixed(2);
+  });
+}
+function getVoiceVolume(id) {
+  const el = document.getElementById(id);
+  return el ? (el.value / 100) : 0;
+}
+function resetAllAudioSettings() {
+  const tempoSlider = document.getElementById("tempoSlider");
+  const tempoDisplay = document.getElementById("tempoDisplay");
+  if (tempoSlider && tempoDisplay) {
+    tempoSlider.value = "1.0";
+    tempoDisplay.textContent = "1.00";
+    midiTempoAdjustment = 1.0;
+  }
+  if (window.currentLayers) {
+    window.currentLayers.forEach(layer => {
+      window.layerVolumes[layer.id] = 71;
+      window.layerMuteStates[layer.id] = false;
+      const slider = document.getElementById(`layer-volume-${layer.id}`);
+      const muteButton = document.getElementById(`mute-btn-${layer.id}`);
+      if (slider) slider.value = '71';
+      if (muteButton) {
+        muteButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" style="width: 20px; height: 20px; fill: #fff;">
+          <path d="M533.6 96.5C523.3 88.1 508.2 89.7 499.8 100C491.4 110.3 493 125.4 503.3 133.8C557.5 177.8 592 244.8 592 320C592 395.2 557.5 462.2 503.3 506.3C493 514.7 491.5 529.8 499.8 540.1C508.1[...]
+        </svg>`;
+      }
+    });
+  }
 
-    let options = {
-        pageHeight: pageHeight,
-        pageWidth: pageWidth,
-        scale: zoom,
-        adjustPageHeight: true,
-        transpose: trInterval,
-        spacingLinear: 0.35,
-        scaleToPageSize: true,
-        svgAdditionalAttribute: ["note@pname", "note@oct"], 
-        lyricWordSpace: 4.0 
-    };
-    
-    vrvToolkit.setOptions(options);
 }
 
-function loadData(data) {
+/* ----------------------------- Metre sorting helper ----------------------------- */
+/**
+ * Custom sort for metre strings:
+ * - Priority order: 8.6.8.6., 8.8.8.8., 6.6.8.6. (if present, in this order)
+ * - Then all others sorted numerically by parsing the digit groups
+ */
+function sortMetres(metreArray) {
+  const priority = ['8.6.8.6.', '8.8.8.8.', '6.6.8.6.'];
+  
+  function parseMetreDigits(metre) {
+    const str = String(metre || '');
+    const matches = str.match(/\d+/g);
+    return matches ? matches.map(d => parseInt(d, 10)) : [];
+  }
+  
+  function compareDigitArrays(a, b) {
+    const len = Math.max(a.length, b.length);
+    for (let i = 0; i < len; i++) {
+      const aVal = i < a.length ? a[i] : 0;
+      const bVal = i < b.length ? b[i] : 0;
+      if (aVal < bVal) return -1;
+      if (aVal > bVal) return 1;
+    }
+    return 0;
+  }
+  
+  return metreArray.slice().sort(function(a, b) {
+    const aStr = String(a || '');
+    const bStr = String(b || '');
     
-    setOptions();
-    vrvToolkit.loadData(data);
-    tk_pdf.loadData(data);
-    setTimemap(vrvToolkit.renderToTimemap({includeMeasures: true}));
-    buildNoteIdToPageMap();
-    page = 1;
-    loadPage();
+    const aPriority = priority.indexOf(aStr);
+    const bPriority = priority.indexOf(bStr);
+    
+    if (aPriority !== -1 && bPriority !== -1) {
+      return aPriority - bPriority;
+    }
+    if (aPriority !== -1) return -1;
+    if (bPriority !== -1) return 1;
+    
+    const aDigits = parseMetreDigits(aStr);
+    const bDigits = parseMetreDigits(bStr);
+    const cmp = compareDigitArrays(aDigits, bDigits);
+    if (cmp !== 0) return cmp;
+    
+    return aStr.localeCompare(bStr);
+  });
 }
 
-function loadPage() {
-    let svg = vrvToolkit.renderToSVG(page, {});
-    const container = document.getElementById("svg_output");
-    container.innerHTML = ""; // Clear old content
+/* ----------------------------- getTunes & tune synchronization ----------------------------- */
+
+/* syncTuneInputDataset: updated to prefer dataset.tunelabel, keep dataset.tuneid
+   This preserves backward compatibility with code that may call this function. */
+function syncTuneInputDataset() {
+  var tuneInput = document.getElementById("pstune");
+  var tuneListText = document.getElementById("pstuneListData");
+  var tuneList = tuneListText ? JSON.parse(tuneListText.value || tuneListText.textContent || '[]') : [];
+  if (!tuneInput) return;
+
+  // Prefer dataset.tunelabel (explicit selection), otherwise use the input's visible value
+  var selectedLabel = (tuneInput.dataset && tuneInput.dataset.tunelabel) ? tuneInput.dataset.tunelabel : tuneInput.value;
+
+  // If selectedLabel is empty, clear tuneid
+  if (!selectedLabel) {
+    tuneInput.dataset.tuneid = "";
+    window.globalPsTune = "";
+    return;
+  }
+
+  var selectedObj = tuneList.find(function(item){ return item.label === selectedLabel; });
+  if (selectedObj) {
+    tuneInput.dataset.tuneid = selectedObj.id;
+    // Also ensure dataset.tunelabel is set to the canonical label
+    tuneInput.dataset.tunelabel = selectedObj.label;
+    window.globalPsTune = selectedObj.id;
+  } else {
+    // We don't want to put an id into the visible input value anymore;
+    // keep the dataset empty if we couldn't find a match
+    tuneInput.dataset.tuneid = "";
+    window.globalPsTune = "";
+  }
+}
+
+function ensurePstuneSearchUI(tuneLabels, tuneListObjs, initialValue, suggTune) {
+  const tunesContainer = document.getElementById('tunes');
+  let tuneButtonsContainer = document.getElementById('tuneButtons');
+
+  if (!tunesContainer) {
+    console.warn('#tunes container missing; cannot render tune search UI');
+    return;
+  }
+
+  // Create or reuse search input
+  let tuneInput = document.getElementById('pstune');
+  if (!tuneInput) {
+    // Don't clear innerHTML - preserve any existing content like pstuneSuggestion
+    tuneInput = document.createElement('input');
+    tuneInput.type = 'text';
+    tuneInput.id = 'pstune';
+    tuneInput.placeholder = '[Type here to filter tunes]';
+    tuneInput.autocomplete = 'off';
+    tuneInput.className = 'tune-search-input';
+    tunesContainer.appendChild(tuneInput);
+  } else {
+    try { tuneInput.placeholder = tuneInput.placeholder || '[Type here to filter tunes]'; } catch(e) {}
+  }
+
+  // Create or reuse melody search link
+  let melodySearchContainer = document.getElementById('searchMelodyContainer');
+  if (!melodySearchContainer) {
+    melodySearchContainer = document.createElement('div');
+    melodySearchContainer.id = 'searchMelodyContainer';
+    melodySearchContainer.style.cssText = 'margin-top:10px;margin-bottom:10px;margin-left:8px;display:block;';
     
-    const tempDiv = document.createElement("div");
-    tempDiv.innerHTML = svg; // svg is a string containing the SVG markup
+    const melodySearchLink = document.createElement('a');
+    melodySearchLink.href = '#';
+    melodySearchLink.id = 'searchMelodyLink';
+    melodySearchLink.style.cssText = 'color:#6fc252;text-decoration:none;font-size:1em;display:inline-flex;align-items:center;gap:10px;';
     
-    // Extract the SVG node and append it fresh
-    const svgNode = tempDiv.querySelector("svg");
-    if (svgNode) {
-      // Optionally: assign a unique key/id if you want to mimic the React solution
-      svgNode.setAttribute("data-key", Date.now()); // or use a random string
-      container.appendChild(svgNode);
-    } else {
-      // fallback: just append all child nodes if not a single SVG root
-      while (tempDiv.firstChild) {
-        container.appendChild(tempDiv.firstChild);
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('viewBox', '0 0 640 640');
+    svg.setAttribute('width', '18');
+    svg.setAttribute('height', '18');
+    svg.setAttribute('aria-hidden', 'true');
+    svg.setAttribute('focusable', 'false');
+    svg.style.cssText = 'display:inline-block;vertical-align:middle;fill:currentColor;';
+    
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', 'M532 71C539.6 77.1 544 86.3 544 96L544 400C544 444.2 501 480 448 480C395 480 352 444.2 352 400C352 355.8 395 320 448 320C459.2 320 470 321.6 480 324.6L480 207.9L256 257.7L256 464C256 508.2 213 544 160 544C107 544 64 508.2 64 464C64 419.8 107 384 160 384C171.2 384 182 385.6 192 388.6L192 160C192 145 202.4 132 217.1 128.8L505.1 64.8C514.6 62.7 524.5 65 532.1 71.1z');
+    svg.appendChild(path);
+    
+    const span = document.createElement('span');
+    span.textContent = 'Search by Melody';
+    
+    melodySearchLink.appendChild(svg);
+    melodySearchLink.appendChild(span);
+    melodySearchContainer.appendChild(melodySearchLink);
+    tunesContainer.appendChild(melodySearchContainer);
+    
+    // Attach click handler to open melody search modal
+    melodySearchLink.addEventListener('click', function(e) {
+      e.preventDefault();
+      const modal = document.getElementById('melodySearchModal');
+      const input = document.getElementById('melodySearchInput');
+      if (modal && input) {
+        modal.style.display = 'flex';
+        input.focus();
+        const resultsDiv = document.getElementById('melodySearchResults');
+        
+      }
+    });
+  }
+
+  if (!tuneButtonsContainer) {
+    tuneButtonsContainer = document.createElement('div');
+    tuneButtonsContainer.id = 'tuneButtons';
+    tunesContainer.appendChild(tuneButtonsContainer);
+  }
+
+  // Build mapping label -> id
+  window._pstuneMap = {};
+  if (Array.isArray(tuneListObjs) && tuneListObjs.length) {
+    tuneListObjs.forEach(function(o) {
+      if (o && o.label) window._pstuneMap[o.label] = o.id || '';
+    });
+  } else if (Array.isArray(tuneLabels)) {
+    tuneLabels.forEach(function(l) {
+      window._pstuneMap[l] = window._pstuneMap[l] || '';
+    });
+  }
+
+  // ← NEW: Flag to track if user is clicking a button
+  let isClickingButton = false;
+
+  function clearActiveButton() {
+    const btns = tuneButtonsContainer.querySelectorAll('.verse-btn, .tune-btn');
+    btns.forEach(b => b.classList.remove('active'));
+  }
+
+  // Helper function to normalize strings by removing diacritical marks
+  // Uses Unicode NFD normalization to separate base characters from combining marks
+  function normalizeString(str) {
+    return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  }
+
+  function renderTuneButtons(filter, excludeLabel) {
+     tuneButtonsContainer.innerHTML = '';
+    filter = (filter || '').toLowerCase().trim();
+    excludeLabel = excludeLabel || null;
+
+    const sourceList = Array.isArray(tuneLabels) && tuneLabels.length ? tuneLabels : Object.keys(window._pstuneMap || {});
+
+    const matches = sourceList.filter(function(lbl) {
+        // Exclude the specified label if provided
+        if (excludeLabel && lbl === excludeLabel) return false;
+        
+        if (!filter) return true;
+        return normalizeString(lbl).indexOf(normalizeString(filter)) !== -1;
+    });
+
+    if (!matches.length) {
+      const p = document.createElement('div');
+      p.className = 'menuSpan';
+      p.textContent = 'No tunes match your search';
+      tuneButtonsContainer.appendChild(p);
+      return;
+    }
+
+    matches.forEach(function(lbl) {
+      const mappingId = window._pstuneMap[lbl] || '';
+
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'verse-btn tune-btn';
+      btn.dataset.label = lbl;
+      btn.dataset.tuneid = mappingId;
+
+      const m = lbl.trim().match(/^(.*?)(?:\s*\(([^)]+)\))?$/);
+      const title = (m && m[1]) ? m[1].trim() : lbl;
+      const paren = (m && m[2]) ? m[2].trim() : '';
+
+      const titleSpan = document.createElement('span');
+      titleSpan.className = 'tune-title';
+      titleSpan.textContent = title;
+
+      btn.appendChild(titleSpan);
+
+      if (paren) {
+        const dateSpan = document.createElement('span');
+        dateSpan.className = 'tune-date';
+        dateSpan.textContent = paren;
+        btn.appendChild(dateSpan);
+      }
+
+      // ← NEW: Set flag on mousedown (before blur fires)
+      btn.addEventListener('mousedown', function(e) {
+        isClickingButton = true;
+      });
+
+      btn.addEventListener('click', function(e) {
+        const input = document.getElementById('pstune');
+        if (input) {
+          // Store selection in dataset
+          input.dataset.tuneid = mappingId || '';
+          input.dataset.tunelabel = lbl || '';
+          
+          // Show the tune name in the input field
+          input.value = lbl;
+          
+          // Mark button as active
+          tuneButtonsContainer.querySelectorAll('.verse-btn, .tune-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+
+          // Update global variable
+          window.globalPsTune = mappingId || '';
+          
+          // Filter to show only this tune button
+          renderTuneButtons(lbl);
+        }
+
+        // ← NEW: Reset flag after click completes
+        isClickingButton = false;
+
+        try { updateSelectionSummary(); } catch(e) {}
+        try { maybeShowNextForTune(); } catch(e) {}
+      });
+
+      tuneButtonsContainer.appendChild(btn);
+    });
+
+    // After rendering, re-apply active state to the selected tune button
+    const currentInput = document.getElementById('pstune');
+    if (currentInput && currentInput.dataset && currentInput.dataset.tunelabel) {
+      const selectedLabel = currentInput.dataset.tunelabel;
+      try {
+        const chosenBtn = tuneButtonsContainer.querySelector(`[data-label="${CSS.escape(selectedLabel)}"]`);
+        if (chosenBtn) {
+          chosenBtn.classList.add('active');
+        }
+      } catch (e) {
+        const allBtns = tuneButtonsContainer.querySelectorAll('.tune-btn');
+        allBtns.forEach(function(btn) {
+          if (btn.dataset.label === selectedLabel) {
+            btn.classList.add('active');
+          }
+        });
       }
     }
-    unHighlightAllElements();
-}
+  }
 
-function loadFile() {
-    renderPsalm();
-    //let fullData = new XMLSerializer().serializeToString(xmlData);
-    //loadData(fullData);
-}
-
-function nextPage() {
-    stopMIDIHandler()
-    if (page < vrvToolkit.getPageCount()) {
-        page++;
-        loadPage();
-    }
-}
-function prevPage() {
-     stopMIDIHandler();
-    if (page > 1) {
-        page--;
-        loadPage();
-    }
-}
-function firstPage() {
-    stopMIDIHandler();
-    page = 1;
-    loadPage();
-}
-function lastPage() {
-    stopMIDIHandler();
-    page = vrvToolkit.getPageCount();
-    loadPage();
-}
-function applyZoom() {
-    setOptions();
-    vrvToolkit.redoLayout();
-    page = 1;
-    loadPage();
-}
-function zoomOut() {
-    if (zoom > 20) {
-        zoom -= 5;
-        applyZoom();
-    }
-}
-function zoomIn() {
-    if (zoom < 80) {
-        zoom += 5;
-        applyZoom();
-    }
-}
-function trUp() {
-    trInterval = String(Number(trInterval) + 1);
-    setOptions();
-    loadData(currentXmlData);
-}
-function trDown() {
-    trInterval = String(Number(trInterval) - 1);
-    setOptions();
-    loadData(currentXmlData);
-}
-
-function processBasicEvents(event) {
-    if (event.ctrlKey && event.keyCode == 37) {
-        firstPage();
-    } else if (event.keyCode == 37) {
-        prevPage();
-    } else if (event.ctrlKey && event.keyCode == 39) {
-        lastPage();
-    } else if (event.keyCode == 39) {
-        nextPage();
-    } else if ([107, 187, 61].includes(event.keyCode)) {
-        zoomIn();
-    } else if ([109, 189, 173].includes(event.keyCode)) {
-        zoomOut();
-    }
-}
-
-// --- Helper: always start playback from the MEI that is currently displayed ---
-function getBaseMeiForPlayback() {
+  // When user clicks input (focus), clear it and show all tunes
+  tuneInput.addEventListener('focus', function() {
+    this.value = '';
+    renderTuneButtons('');
+    
     try {
-        if (tk_pdf && typeof tk_pdf.getMEI === 'function') {
-            const mei = tk_pdf.getMEI();
-            if (mei && mei.length) return mei;
-        }
-    } catch (e) {
-        // ignore and fall back
-    }
-    return currentXmlData || window.originalXmlData || '';
-}
-
-// --- MIDI control handlers (mei-friend-inspired approach) ---
-function stopMIDIHandler() {
-    const player = document.getElementById('verovio-midi-player');
-    if (player && typeof player.stop === "function") player.stop();
-    stopMidiHighlighting();
-}
-
-async function loadAudioAndPlayHandler() {
-    const player = document.getElementById('verovio-midi-player');
-    
-    // Reset to first page before playback starts
-    if (page !== 1) {
-        page = 1;
-        loadPage();
-    }
-    
-    try { 
-        await Tone.start(); 
-    } catch (error) {
-        // Tone.start may already be started; ignore
-    }
-    
-    if (player && !player.soundFont) {
+      setTimeout(() => {
         try {
-            await player.ensureSoundfontLoaded();
-        } catch (error) {
-            // ignore soundfont loading issues
-        }
-    }
-    
-    setOptions();
-    if (typeof midiTempoAdjustment !== 'undefined') {
-        vrvToolkit.setOptions({ midiTempoAdjustment: midiTempoAdjustment });
-    }
-    
-    const baseMei = getBaseMeiForPlayback();
-    
-    if (window.currentLayers && baseMei) {
-        const parser = new DOMParser();
-        const xmlDoc = parser.parseFromString(baseMei, 'text/xml');
-        applyLayerVolumes(xmlDoc, window.currentLayers);
-        const serializer = new XMLSerializer();
-        const modifiedData = serializer.serializeToString(xmlDoc);
-        
-        vrvToolkit.loadData(modifiedData);
-    } else if (baseMei) {
-        vrvToolkit.loadData(baseMei);
-    } else {
-        alert('No score loaded to play.');
-        return;
-    }
-    
-    vrvToolkit.redoLayout();
-    setTimemap(vrvToolkit.renderToTimemap({includeMeasures: true}));
-    buildNoteIdToPageMap();
-    buildMeasureIdToPageMap();
-    
-    let base64midi = vrvToolkit.renderToMIDI();
-    player.src = 'data:audio/midi;base64,' + base64midi;
-    
-    try {
-        if (typeof player.load === "function") player.load();
-        if (typeof player.stop === "function") player.stop();
-        
-        setTimeout(() => {
-            if (typeof player.start === "function") player.start();
-            lastReportedTime = 0;
-            timemapIdx = 0;
-            highlightNotesAtMidiPlaybackTime();
-            startMidiHighlighting();
-        }, 1000);
-        
-    } catch (error) {
-        alert('Audio playback encountered an issue. The score is still functional for viewing.');
-    }
+          tuneInput.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          setTimeout(() => { try { window.scrollTo(0, 1); } catch(_) {} }, 250);
+        } catch (e) {}
+      }, 250);
+    } catch(e) {}
+  });
+
+  // When user types, filter the list
+  tuneInput.addEventListener('input', function() {
+    renderTuneButtons(this.value || '');
+    try { updateSelectionSummary(); } catch(e) {}
+  });
+
+  // ← CHANGED: Only restore selection if user is NOT clicking a button
+  tuneInput.addEventListener('blur', function() {
+    // Use setTimeout to allow button click to complete first
+    setTimeout(() => {
+      if (!isClickingButton && this.dataset.tunelabel && !this.value) {
+        this.value = this.dataset.tunelabel;
+        renderTuneButtons(this.dataset.tunelabel);
+      }
+      // Reset flag just in case
+      isClickingButton = false;
+    }, 150);
+  });
+  
+  // Always keep input empty and show all tunes on initial load
+  tuneInput.value = '';
+  renderTuneButtons('');
+
+  // Expose renderTuneButtons for use by suggested tune button
+  window._renderTuneButtons = renderTuneButtons;
+
+  try { maybeShowNextForTune(); } catch (_) {}
 }
 
-// --- When you load new MEI, update SVG, timemap, and clear highlights. ---
-function renderAndDisplayMEI(meiXML) {
-    vrvToolkit.loadData(meiXML);
-    tk_pdf.loadData(meiXML);
-    setTimemap(vrvToolkit.renderToTimemap({includeMeasures: true}));
-    document.getElementById("svg_output").innerHTML = vrvToolkit.renderToSVG(page);
-    unHighlightAllElements();
-}
+function getTunes(tuneLabel) {
+  var psInput = document.getElementById("pstext");
+  var psDataStr = psInput ? psInput.dataset.psdata : "";
+  if (!psDataStr) return;
 
+  var psData = psDataStr.split(";");
+  var teiID = psData[0];
+  var metre = psData[1];
+  var suggTune = tuneLabel || psData[2] || "201a";
 
-// --- PDF generation (unchanged from your code) ---
-async function generatePDF(selectedPaperSize) {
+  var urlVariable = encodeURI("getTunes.xq?metre=" + metre + "&suggTune=" + suggTune + "&teiID=" + teiID);
 
-    if (!tk_pdf || tk_pdf.getMEI() === '') {
-        // IMPORTANT: Replace alert() with a custom modal or message box in a real application.
-        alert("Verovio PDF toolkit is not ready or no MEI data loaded. Please load a score first.");
-        return;
-    }
+  var selMetInput = document.getElementById("selMet");
+  if (selMetInput) {
+    try { selMetInput.value = metre; } catch(_) {}
+  }
 
-    try {
-        const originalPdfOptions = tk_pdf.getOptions();
+  var tuneQuery = new XMLHttpRequest();
+  tuneQuery.open("GET", urlVariable, true);
+  tuneQuery.send();
 
-        const paperSizeOptions = {
-            'LETTER': {
-                pdfkitSize: 'LETTER',
-                pdfKitMargins: { top: 30, bottom: 30, left: 30, right: 30 },
-                svgVerticalOffset: -5,
-                footerReservedHeight: 40,
-                verovioSettings: {
-                    pageWidth: 2056,
-                    pageHeight: 2661,
-                    spacingLinear: 0.4,
-                    spacingNonLinear: 0.59,
-                    unit: 9
-                }
-            },
-            'A4': {
-                pdfkitSize: 'A4',
-                pdfKitMargins: { top: 25, bottom: 30, left: 30, right: 30 },
-                svgVerticalOffset: -5,
-                footerReservedHeight: 40,
-                verovioSettings: {
-                    pageWidth: 2100,
-                    pageHeight: 2970,
-                    spacingLinear: 0.4,
-                    spacingNonLinear: 0.59,
-                    unit: 9
-                }
-            },
-            'A5': {
-                pdfkitSize: 'A5',
-                pdfKitMargins: { top: 10, bottom: 10, left: 10, right: 10 },
-                svgVerticalOffset: 0,
-                footerReservedHeight: 20,
-                verovioSettings: {
-                    pageWidth: 1100,
-                    pageHeight: 2100,
-                    spacingLinear: 0.4,
-                    spacingNonLinear: 0.5,
-                    unit: 6
-                }
-            },
-            'STATEMENT': {
-                pdfkitSize: [396, 612],
-                pdfKitMargins: { top: 10, bottom: 10, left: 20, right: 20 },
-                svgVerticalOffset: 0,
-                footerReservedHeight: 40,
-                verovioSettings: {
-                    pageWidth: 1550,
-                    pageHeight: 2056,
-                    spacingLinear: 0.5,
-                    spacingNonLinear: 0.55,
-                    unit: 9
-                }
-            }
-        };
+  tuneQuery.onreadystatechange = function() {
+    if (this.readyState == 4 && this.status == 200) {
+      document.getElementById("tunes").innerHTML = tuneQuery.responseText;
 
-        const currentPaperSettings = paperSizeOptions[selectedPaperSize];
+      var tuneListText = document.getElementById("pstuneListData");
+      var tuneLabelsText = document.getElementById("pstuneLabelsData");
+      var tuneList = tuneListText ? JSON.parse(tuneListText.value || tuneListText.textContent || '[]') : [];
+      var tuneLabels = tuneLabelsText ? JSON.parse(tuneLabelsText.value || tuneLabelsText.textContent || '[]') : [];
 
-        let doc = new PDFDocument({
-            size: currentPaperSettings.pdfkitSize,
-            layout: 'portrait',
-            margins: currentPaperSettings.pdfKitMargins
+      // Initialize our persistent filter UI (input placeholder + buttons)
+      try {
+        ensurePstuneSearchUI(tuneLabels, tuneList, tuneLabel || '', suggTune);
+      } catch (e) {
+        console.warn('ensurePstuneSearchUI failed', e);
+      }
+
+      // Attach click handler to suggested tune button if it exists
+      const suggTuneBtn = document.querySelector('#pstuneSuggestion .tune-btn');
+      if (suggTuneBtn) {
+        suggTuneBtn.addEventListener('mousedown', function(e) {
+          // Set flag to prevent blur event from interfering
+          if (window.isClickingButton !== undefined) {
+            window.isClickingButton = true;
+          }
         });
 
-        const stream = doc.pipe(blobStream());
+        suggTuneBtn.addEventListener('click', function(e) {
+          const input = document.getElementById('pstune');
+          const tuneButtonsContainer = document.getElementById('tuneButtons');
+          const lbl = suggTuneBtn.dataset.label || '';
+          // Use the same lookup mechanism as regular tune buttons
+          const mappingId = window._pstuneMap[lbl] || '';
 
-        stream.on('finish', function() {
-            const blob = stream.toBlob('application/pdf');
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.style.display = 'none';
-            a.href = url;
-            // PDF filename using the passed parameters
-            const pdfFilename = `${globalTitle || 'untitled'}_${globalTuneTitle || 'untitled'}_${selectedPaperSize.toLowerCase()}.pdf`;
-            a.download = pdfFilename;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
-        });
-
-        stream.on('error', function(err) {
-            // IMPORTANT: Replace alert() with a custom modal or message box.
-            alert("An error occurred during PDF creation.");
-        });
-
-        const drawableWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
-        const drawableHeight = doc.page.height - doc.page.margins.top - doc.page.margins.bottom - currentPaperSettings.footerReservedHeight;
-
-        const verovioPageHeightForDrawableArea = (drawableHeight / drawableWidth) * currentPaperSettings.verovioSettings.pageWidth;
-
-        tk_pdf.setOptions({
-            font: 'Leipzig', // Ensure this font is embedded or available to PDFKit if not standard
-            adjustPageHeight: true,
-            footer: 'none', // Verovio's footer is disabled as we're adding our own via PDFKit
-            pageWidth: currentPaperSettings.verovioSettings.pageWidth,
-            pageHeight: verovioPageHeightForDrawableArea,
-            unit: currentPaperSettings.verovioSettings.unit,
-            scaleToPageSize: false,
-            shrinkToFit: false,
-            transpose: trInterval, // Assuming trInterval is a global variable or passed as argument
-            spacingLinear: currentPaperSettings.verovioSettings.spacingLinear,
-            spacingNonLinear: currentPaperSettings.verovioSettings.spacingNonLinear,
-        });
-
-        // Reload data into tk_pdf AFTER setting options to apply transpose.
-        // Use tk_pdf.getMEI() to reliably get the current MEI data.
-        tk_pdf.loadData(tk_pdf.getMEI());
-
-        const pageCount = tk_pdf.getPageCount();
-
-        // Define logo properties BEFORE the loop
-        // IMPORTANT: This base64 string is for a specific image. If your logo changes, update this.
-        const logoSrc = 'data:image/png;base64,iVBORw0K...'; // truncated for brevity
-        const logoHeight = 25;
-        const logoWidth = logoHeight * (100 / 25);
-        const gapBetweenLogoAndText = -75;
-
-        const baseFooterY = doc.page.height - doc.page.margins.bottom - (currentPaperSettings.footerReservedHeight / 2);
-
-        for (let i = 1; i <= pageCount; i++) {
-            const svgString = tk_pdf.renderToSVG(i);
-
-            if (typeof svgString !== 'string' || svgString.trim() === '' || !svgString.startsWith('<svg')) {
-                throw new Error(`Invalid or malformed SVG content for page ${i}.`);
-            }
-
-            await SVGtoPDF(doc, svgString, doc.page.margins.left, doc.page.margins.top + currentPaperSettings.svgVerticalOffset, {
-                width: drawableWidth,
-                height: drawableHeight,
-                preserveAspectRatio: 'xMidYMid meet',
-                assumeGIsCursive: true
-            });
-
-            // --- Footer Content ---
-            doc.font('Helvetica');
-            doc.fontSize(9);
-
-            const textSourceLineY = baseFooterY - 33;
-            doc.text(`Text source: ${globalTextSource} (${globalTextSourceDate})`, doc.page.margins.left, textSourceLineY, {
-                align: 'center'
-            });
-
-            const tuneSourceLineY = baseFooterY - 23;
-            doc.text(`Tune source: ${globalTuneSource} (${globalTuneSourceDate})`, doc.page.margins.left, tuneSourceLineY, {
-                align: 'center'
-            });
-
-            const copyrightText = "Generated by the Digital Splitleaf (https://splitleaf.org)";
-            doc.fontSize(10);
-
-            const copyrightTextWidth = doc.widthOfString(copyrightText);
-            const totalCopyrightContentWidth = logoWidth + gapBetweenLogoAndText + copyrightTextWidth;
-            const startXForCopyrightBlock = doc.page.margins.left + (drawableWidth - totalCopyrightContentWidth) / 2;
-
-            const logoX = startXForCopyrightBlock;
-            const logoY = baseFooterY - (logoHeight / 2);
-
-            try {
-                doc.image(logoSrc, logoX, logoY, {
-                    height: logoHeight
-                });
-            } catch (imgError) {}
-
-            const copyrightTextX = logoX + logoWidth + gapBetweenLogoAndText;
-            const copyrightTextY = baseFooterY - (doc.currentLineHeight() / 2);
-
-            doc.text(copyrightText, copyrightTextX, copyrightTextY, {
-                width: copyrightTextWidth
-            });
-            // --- End Footer Content ---
-
-            if (i < pageCount) {
-                doc.addPage();
-            }
-        }
-
-        doc.end();
-        tk_pdf.setOptions(originalPdfOptions);
-
-    } catch (error) {
-        alert("Failed to generate PDF: " + error.message);
-    }
-}
-
-// --- Utility: recursively change attribute (unchanged) ---
-function changeAttributeRecursively(node, attributeName, sequence) {
-    for (let i = 0; i < node.childNodes.length; i++) {
-        const childNode = node.childNodes[i];
-        if (childNode.nodeType === Node.ELEMENT_NODE) {
-            let oldID = childNode.getAttribute(attributeName);
-            if (oldID === null) {
-                oldID = childNode.nodeName + '_' + Date.now();
-            }
-            let newValue = oldID + sequence;
-            childNode.setAttribute(attributeName, newValue);
-            let childClass = node.getAttribute("class");
-            if (childClass !== "undefined") {
-                childNode.setAttribute("class", newValue)
-            }
-            changeAttributeRecursively(childNode, attributeName, newValue);
-        }
-    }
-}
-
-function findParentNode(xmlDoc, childNode, parentTagName) {
-    let currentNode = childNode;
-    while (currentNode && currentNode.tagName !== parentTagName) {
-        currentNode = currentNode.parentNode;
-    }
-    return currentNode;
-}
-
-function displayMode (xmlDoc, stanzaCount){
-    var dupNode = xmlDoc.getElementsByTagName("section")[0];
-    var bars = dupNode.getElementsByTagName("measure");
-
-    //Set final bar to double barline
-    var barsCount = bars.length;
-    bars[barsCount-1].setAttribute("right", "dbl");
-
-    //Identify the measures in the section to be duplicated
-    var m = dupNode.getElementsByTagName("measure");
-
-    //Get rid of extra text in MEI section before copying
-    var mDir = m[0].getElementsByTagName("dir");
-    var mTempo = m[0].getElementsByTagName("tempo");
+          if (input) {
+            // Store selection in dataset
+            input.dataset.tuneid = mappingId;
+            input.dataset.tunelabel = lbl;
             
-    if (mDir !== "undefined"){
-        for (var i=0; i<mDir.length; i++){
-        mDir[i].remove();
-        } 
-    }
-    
-    if (mTempo !== "undefined"){
-        for (var i=0; i<mDir.length; i++){
-        mTempo[i].remove();
-        } 
-    }
-
-    var versesToDelete = Array.from(xmlDoc.querySelectorAll('verse:not([n="1"])'));
-        versesToDelete.forEach(verse => {
-            // Remove the verse element from its parent node
-            verse.parentNode.removeChild(verse);
-        });
-
-    for (i=1; i<stanzaCount; i++){
-        //Create new version of content to be copied
-        var newNode = dupNode.cloneNode(true);
-
-        //Create new section in the MEI document
-        var newSection = xmlDoc.createElement("section");
-        var parentElement = xmlDoc.getElementsByTagName("score")[0];
-        var getAtt = "xml:id";
-        var newSectionAtt = xmlDoc.createAttribute(getAtt);
-        var oldAtt = newNode.getAttribute(getAtt);
-
-        //Delete verses not needed from the new version
-        var versesToDelete = Array.from(newNode.querySelectorAll('verse:not([n="'+(i+1)+'"])'));
-        versesToDelete.forEach(verse => {
-            // Remove the verse element from its parent node
-            verse.parentNode.removeChild(verse);
-        });
-
-        //Create a new xml:id attribute for the new section
-        if (oldAtt === 'undefined') {
-            oldAtt = newNode.nodeName + '_' + Date.now();
-        }
-
-        var newAttValue = oldAtt + "A";
-        parentElement.appendChild(newSection);
-        newSectionAtt.nodeValue = newAttValue;
-        parentElement.lastChild.setAttributeNode(newSectionAtt);
-        newNode.setAttribute(getAtt, newAttValue);
-        
-        changeAttributeRecursively(newNode, getAtt, );	
-
-
-        for (let i = 0; i < newNode.childNodes.length; i++) {
-                const childNode = newNode.childNodes[i];
-                newNode.appendChild(childNode.cloneNode(true)); 
-        }
-        
-        const targetRoot = xmlDoc.getElementsByTagName("score")[0].lastChild;
-        targetRoot.appendChild(newNode);             
-    }
-    
-    var finalBars = xmlDoc.getElementsByTagName("measure");
-    var finalBarCount = finalBars.length;
-    bars[finalBarCount-1].setAttribute("right", "end");
-}
-
-
-function appendSuffixToIdsAndIdrefs(root, suffix = "A", { skipRoot = true } = {}) {
-    if (!root || root.nodeType !== Node.ELEMENT_NODE) return;
-
-    const ATTR_XML_ID = "xml:id";
-    const idSet = new Set();
-
-    // 1) Collect all original IDs in the subtree (before renaming), optionally skipping the root
-    (function collect(node, isRoot) {
-        if (node.nodeType !== Node.ELEMENT_NODE) return;
-        if (!(skipRoot && isRoot)) {
-            if (node.hasAttribute(ATTR_XML_ID)) {
-                idSet.add(node.getAttribute(ATTR_XML_ID));
-            } else if (node.hasAttribute("id")) {
-                idSet.add(node.getAttribute("id"));
-            }
-        }
-        for (let i = 0; i < node.children.length; i++) {
-            collect(node.children[i], false);
-        }
-    })(root, true);
-
-    // 2) Rename IDs by appending the suffix
-    (function rename(node, isRoot) {
-        if (node.nodeType !== Node.ELEMENT_NODE) return;
-        if (!(skipRoot && isRoot)) {
-            if (node.hasAttribute(ATTR_XML_ID)) {
-                const oldId = node.getAttribute(ATTR_XML_ID);
-                if (oldId) node.setAttribute(ATTR_XML_ID, oldId + suffix);
-            } else if (node.hasAttribute("id")) {
-                const oldId = node.getAttribute("id");
-                if (oldId) node.setAttribute("id", oldId + suffix);
-            }
-        }
-        for (let i = 0; i < node.children.length; i++) {
-            rename(node.children[i], false);
-        }
-    })(root, true);
-
-    // 3) Rewrite IDREF attributes for slurs/ties/spanners
-    function rewriteRefAttr(el, attrName) {
-        if (!el.hasAttribute(attrName)) return;
-        const raw = (el.getAttribute(attrName) || "").trim();
-        if (!raw) return;
-
-        // Handles single tokens (e.g., startid, endid) and space-separated lists (plist)
-        const tokens = raw.split(/\s+/).map(tok => {
-            if (tok.startsWith("#")) {
-                const bare = tok.slice(1);
-                // Only rewrite if the target existed inside this subtree
-                if (idSet.has(bare)) return `#${bare}${suffix}`;
-            }
-            return tok;
-        });
-        el.setAttribute(attrName, tokens.join(" "));
-    }
-
-    (function rewriteRefs(node) {
-        if (node.nodeType !== Node.ELEMENT_NODE) return;
-
-        // Typical MEI spanners:
-        rewriteRefAttr(node, "startid");
-        rewriteRefAttr(node, "endid");
-        rewriteRefAttr(node, "plist");
-
-        for (let i = 0; i < node.children.length; i++) {
-            rewriteRefs(node.children[i]);
-        }
-    })(root);
-}
-
-function displayMode (xmlDoc, stanzaCount){
-    var dupNode = xmlDoc.getElementsByTagName("section")[0];
-    var bars = dupNode.getElementsByTagName("measure");
-
-    // final barline to dbl
-    var barsCount = bars.length;
-    bars[barsCount-1].setAttribute("right", "dbl");
-
-    // Clean text (dir/tempo) from the template section
-    var m = dupNode.getElementsByTagName("measure");
-    var mDir = m[0].getElementsByTagName("dir");
-    var mTempo = m[0].getElementsByTagName("tempo");
-    if (mDir !== "undefined"){ for (var i=0; i<mDir.length; i++){ mDir[i].remove(); } }
-    if (mTempo !== "undefined"){ for (var i=0; i<mTempo.length; i++){ mTempo[i].remove(); } }
-
-    // Keep only verse n="1" in the template before copying
-    Array.from(xmlDoc.querySelectorAll('verse:not([n="1"])')).forEach(v => v.parentNode.removeChild(v));
-
-    for (i=1; i<stanzaCount; i++){
-        var newNode = dupNode.cloneNode(true);
-
-        // Keep only the verse that will survive in this duplicate
-        Array.from(newNode.querySelectorAll('verse:not([n="'+(i+1)+'"])')).forEach(v => v.parentNode.removeChild(v));
-
-        // Assign new section xml:id by appending "A"
-        var parentElement = xmlDoc.getElementsByTagName("score")[0];
-        var oldSectionId = newNode.getAttribute("xml:id") || (newNode.nodeName + '_' + Date.now());
-        var newSectionId = oldSectionId + "A";
-        newNode.setAttribute("xml:id", newSectionId);
-
-        // IMPORTANT: apply the same "A" suffix to all descendant IDs and slur/tie pointers
-        appendSuffixToIdsAndIdrefs(newNode, "A", { skipRoot: true });
-
-        // Attach
-        parentElement.appendChild(newNode);
-    }
-
-    var finalBars = xmlDoc.getElementsByTagName("measure");
-    var finalBarCount = finalBars.length;
-    bars[finalBarCount-1].setAttribute("right", "end");
-}
-
-//Combine the correct portions of the relevant XML files
-function renderPsalm(options = {}) {
-    // Helper to append suffix to IDs and fix IDREFs for slurs/ties/spanners
-    // It follows your "append 'A' to existing ID" approach and rewrites startid/endid/plist accordingly.
-    function appendSuffixToIdsAndIdrefs(root, suffix = "A", { skipRoot = true } = {}) {
-        if (!root || root.nodeType !== Node.ELEMENT_NODE) return;
-
-        const ATTR_XML_ID = "xml:id";
-        const idSet = new Set();
-
-        // 1) Collect original IDs in the subtree (before renaming)
-        (function collect(node, isRoot) {
-            if (node.nodeType !== Node.ELEMENT_NODE) return;
-            if (!(skipRoot && isRoot)) {
-                if (node.hasAttribute(ATTR_XML_ID)) {
-                    idSet.add(node.getAttribute(ATTR_XML_ID));
-                } else if (node.hasAttribute("id")) {
-                    idSet.add(node.getAttribute("id"));
-                }
-            }
-            for (let i = 0; i < node.children.length; i++) {
-                collect(node.children[i], false);
-            }
-        })(root, true);
-
-        // 2) Rename IDs by appending the suffix
-        (function rename(node, isRoot) {
-            if (node.nodeType !== Node.ELEMENT_NODE) return;
-            if (!(skipRoot && isRoot)) {
-                if (node.hasAttribute(ATTR_XML_ID)) {
-                    const oldId = node.getAttribute(ATTR_XML_ID);
-                    if (oldId) node.setAttribute(ATTR_XML_ID, oldId + suffix);
-                } else if (node.hasAttribute("id")) {
-                    const oldId = node.getAttribute("id");
-                    if (oldId) node.setAttribute("id", oldId + suffix);
-                }
-            }
-            for (let i = 0; i < node.children.length; i++) {
-                rename(node.children[i], false);
-            }
-        })(root, true);
-
-        // 3) Rewrite IDREF attributes for slurs/ties/spanners
-        function rewriteRefAttr(el, attrName) {
-            if (!el.hasAttribute(attrName)) return;
-            const raw = (el.getAttribute(attrName) || "").trim();
-            if (!raw) return;
-
-            const tokens = raw.split(/\s+/).map(tok => {
-                if (tok.startsWith("#")) {
-                    const bare = tok.slice(1);
-                    if (idSet.has(bare)) return `#${bare}${suffix}`;
-                }
-                return tok;
-            });
-            el.setAttribute(attrName, tokens.join(" "));
-        }
-
-        (function rewriteRefs(node) {
-            if (node.nodeType !== Node.ELEMENT_NODE) return;
-
-            rewriteRefAttr(node, "startid");
-            rewriteRefAttr(node, "endid");
-            rewriteRefAttr(node, "plist");
-
-            for (let i = 0; i < node.children.length; i++) {
-                rewriteRefs(node.children[i]);
-            }
-        })(root);
-    }
-
-    const menuToggle = document.getElementById("menutoggle");
-    if (menuToggle) {
-        menuToggle.classList.remove("test");
-        menuToggle.classList.add("hamburger");    
-    }
-    
-    const isAutoGen = options.autoGen === true;
-
-    // --- Get values from options OR DOM ---
-    let selStanzas;
-    if (isAutoGen && options.selStanzas && Array.isArray(options.selStanzas)) {
-        selStanzas = options.selStanzas;
-    } else {
-        // Get selected verses from verse buttons
-        const verseBtns = document.querySelectorAll('.verse-btn[data-selected="true"]');
-        selStanzas = [];
-        for (let c = 0; c < verseBtns.length; c++) {
-            selStanzas.push(verseBtns[c].dataset.verse);
-        }
-        
-        // Filter out Psalm 119 section headers if applicable
-        const psTextInput = document.getElementById("pstext");
-        if (psTextInput && psTextInput.value === "Psalm 119"){
-            const ps119Array = ["ALEPH","BETH","GIMEL","DALETH","HE","VAV","ZAIN","HETH","TETH","YOD","CAPH","LAMED","MEM","NUN","SAMECH","AIN","PE","TSADE","KOPH","RES","SHIN","TAV"];
-            selStanzas = selStanzas.filter(function(el){ return !ps119Array.includes(el); });
-        }
-    }
-    if (selStanzas && selStanzas.length > 0) globalSelStanzas = selStanzas;
-
-    let teiID;
-    if (isAutoGen && options.teiID) {
-        teiID = options.teiID;
-    } else {
-        const psInput = document.getElementById("pstext");
-        if (!psInput || !psInput.dataset.psdata) {
-            return;
-        }
-        const psDataArr = psInput.dataset.psdata.split(';');
-        teiID = psDataArr[0];
-    }
-    if (teiID) globalTeiID = teiID;
-
-    let psTune;
-    if (isAutoGen && options.psTune) {
-        psTune = options.psTune;
-    } else {
-        const tuneInput = document.getElementById("pstune");
-        if (!tuneInput || !tuneInput.dataset.tuneid) {
-            return;
-        }
-        psTune = tuneInput.dataset.tuneid;
-    }
-    if (psTune) globalPsTune = psTune;
-
-    // Build text request
-    const psText = "getVerses.xq?teiID=" + teiID + "&selStanzas=\"%20," + selStanzas.join(",") + ",%20\"";
-    const disOptions = document.getElementById("psMode") !== null ? document.getElementById("psMode").checked : false;
-
-    const xmlhttp = new XMLHttpRequest();
-    xmlhttp.open("GET", psText, true);
-    xmlhttp.send(); 
-    xmlhttp.onreadystatechange = function() {
-        if (this.readyState == 4 && this.status == 200) {
-            const myObj = this.responseXML;
-            const title = myObj.getElementsByTagName("title")[0].childNodes[0].nodeValue;
-            globalTitle = title;
-            const author = myObj.getElementsByTagName("author")[0].childNodes[0].nodeValue;
-            const textStanzas = myObj.getElementsByTagName("lg").length;
-            const textSyll = myObj.getElementsByTagName("lg")[0].getElementsByTagName("seg").length;
-            const textLicense = myObj.getElementsByTagName("license")[0].childNodes[0].nodeValue;
-            const textLicenseURL = myObj.getElementsByTagName("license")[0].getAttribute("target");
-            const textSource = myObj.getElementsByTagName("edition")[0].getElementsByTagName("title")[0].innerHTML;
-            globalTextSource = textSource;
-            const textSourceDate = myObj.getElementsByTagName("edition")[0].getElementsByTagName("date")[0].innerHTML;
-            globalTextSourceDate = textSourceDate;
+            // Show the tune name in the input field
+            input.value = lbl;
             
-            //Get MEI file
-            const xhttp = new XMLHttpRequest();
-            xhttp.open("GET", psTune, true);
-            xhttp.send();
-            xhttp.onreadystatechange = function() {
-                if (this.readyState == 4 && this.status == 200) {
-                    const xmlDoc = this.responseXML;
-                    const project = xmlDoc.getElementsByTagName("mei")[0];
-                    let i, j, k, r = "";
-                    let wordPos = [];
-                    const tuneMetre = xmlDoc.getElementsByTagName("otherChar")[0].childNodes[0].nodeValue;
-                    const tuneLicense = xmlDoc.getElementsByTagName("useRestrict")[0].childNodes[0].nodeValue;
-                    const tuneLicenseURL = xmlDoc.getElementsByTagName("useRestrict")[0].getAttribute("auth.uri");
-                    const tuneSource = xmlDoc.getElementsByTagName("edition")[0].getElementsByTagName("title")[0].innerHTML;
-                    globalTuneSource = tuneSource;
-                    const tuneSourceDate = xmlDoc.getElementsByTagName("edition")[0].getElementsByTagName("date")[0].innerHTML;
-                    globalTuneSourceDate = tuneSourceDate;
-                    const metreLen = tuneMetre.length;
-                    const multiMetre = tuneMetre.charAt(metreLen-2);
-                    const partMetreCheck = tuneMetre.charAt(metreLen-1);
-    
-                    let metreMult = 1;
-                    if (multiMetre === "D") metreMult = 2;
-                    else if (multiMetre === "T") metreMult = 3;
-                    else if (multiMetre === "Q") metreMult = 4;
-                    
-                    //Get notes with verse containers
-                    const y = project.getElementsByTagName("verse");
-                    let sylCount = y.length;
+            // Mark button as active and deactivate all others
+            if (tuneButtonsContainer) {
+              tuneButtonsContainer.querySelectorAll('.verse-btn, .tune-btn').forEach(b => {
+                b.classList.remove('active');
+              });
+            }
+            suggTuneBtn.classList.add('active');
 
-                    //Get noteIDs for notes with verse containers
-                    const containerPos = [];
-                    for (i = 0; i < sylCount; i++){
-                        containerPos[i] = y[i].parentElement.getAttribute("class");
-                    }
-                    
-                    let partMetreResult = "false";
-                    let startRepeat = 0;
-                    let repeatSum = 0;
-                    if (partMetreCheck === ")"){
-                        const startPartMetre = tuneMetre.indexOf("(");
-                        let partMetre = tuneMetre.substring(startPartMetre+1, metreLen-1);
-                        partMetreResult = "true";
-                        partMetre = partMetre.slice(0, -1);
-                        const repeatArray = partMetre.split('.');
-                        repeatSum = repeatArray.reduce((partialSum, a) => partialSum + Number(a), 0);
-                        sylCount = sylCount - repeatSum;
-                        startRepeat = sylCount - repeatSum;
-                    }
-    
-                    //Check number of stanzas
-                    const stanzaCount = textStanzas/metreMult;
-                    const halfStanza = Number.isInteger(stanzaCount);
-                    const fullStanza = Math.floor(stanzaCount);
-                    
-                    //Fill document metadata
-                    const xmlTitleStmt = project.getElementsByTagName("titleStmt");
-                    const xmlTitle = xmlTitleStmt[0].getElementsByTagName("title");
-                    const newTitle = xmlDoc.createTextNode(title);
-                    const titlePos = xmlTitle[0];
-                    if (typeof titlePos.childNodes[0] !== 'undefined') {
-                        titlePos.childNodes[0].nodeValue = title;
-                    } else {
-                        titlePos.appendChild(newTitle);
-                    }
-                   
-                    const work = project.getElementsByTagName("work");
-                    const tuneTitle = work[0].getElementsByTagName("title")[0].childNodes[0].nodeValue;
-                    globalTuneTitle = tuneTitle;
-                    const subTitle = xmlDoc.createElement("title", project.namespaceURI);
-                    const newTune = xmlDoc.createTextNode("Tune: " + tuneTitle);
-                    titlePos.parentElement.appendChild(subTitle).appendChild(newTune);
-                    titlePos.parentElement.lastElementChild.setAttribute("type","subordinate");
-    
-                    const xmlAuth = project.getElementsByTagName("persName");
-                    const authPos = xmlAuth[0].parentElement;
-                    const newPers = xmlDoc.createElement("persName", project.namespaceURI);
-                    const authUpdate = "Text by " + author
-                    const newAuth = xmlDoc.createTextNode(authUpdate);
-                    const lyrDefined = xmlDoc.querySelectorAll("[role='lyricist']");
-                    if (lyrDefined === undefined || lyrDefined.length == 0){
-                        authPos.appendChild(newPers).appendChild(newAuth);
-                        authPos.lastElementChild.setAttribute("role","lyricist");
-                    } else {
-                        lyrDefined[0].childNodes[0].nodeValue = authUpdate;
-                    }
-    
-                    //Loop through each syllable container in XML
-                    for (i = 0; i< sylCount; i++){
-                        const thisContainer = project.getElementsByClassName(containerPos[i])
-                        const newLyric = myObj.getElementsByTagName("seg");
-                        const newLyr = newLyric[i].childNodes[0].nodeValue;
-                        const newLyrLen = newLyr.length;
-                        const lastChar = newLyr.charAt(newLyrLen-1);
-                        const newText = xmlDoc.createTextNode(newLyr);
-                        const trimLyr = newLyr.substr(0,newLyrLen-1);
-                        const trimText = xmlDoc.createTextNode(trimLyr); 
+            // Update global variable
+            window.globalPsTune = mappingId;
+            
+            // Filter to show only this tune button, but exclude it from tuneButtons div
+            // since it's already shown in the pstuneSuggestion area
+            if (typeof window._renderTuneButtons === 'function') {
+              window._renderTuneButtons(lbl, lbl);  // Pass lbl twice: filter and exclude
+            }
+          }
+
+          // Reset flag
+          if (window.isClickingButton !== undefined) {
+            window.isClickingButton = false;
+          }
+
+          try { updateSelectionSummary(); } catch(e) {}
+          try { maybeShowNextForTune(); } catch(e) {}
+        });
+      }
+
+      const optionsSpacer = document.getElementById("optionsSpacer");
+      if (optionsSpacer) optionsSpacer.style.height = "15px";
+
+      setTimeout(function(){ try { updateSelectionSummary(); } catch(e) {} }, 0);
+
+      document.getElementById("submit").innerHTML =
+        "<button type='button' class='submitbtn' onclick='loadFile(); closeNav();'>" +
+        "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'>" +
+        "<path d='M21,4 C21.5128358,4 21.9355072,4.38604019 21.9932723,4.88337887 L22,5 L22,11.5 C22,13.3685634 20.5357224,14.8951264 18.6920352,14.9948211 L18.5,15 L5.415,15 L8.70710678,18.2928932 C9.06759074,18.6533772 9.09532028,19.2206082 8.79029539,19.6128994 L8.70710678,19.7071068 C8.34662282,20.0675907 7.77939176,20.0953203 7.38710056,19.7902954 L7.29289322,19.7071068 L2.29289322,14.7071068 C2.25749917,14.6717127 2.22531295,14.6343256 2.19633458,14.5953066 L2.12467117,14.4840621 L2.12467117,14.4840621 L2.07122549,14.371336 L2.07122549,14.371336 L2.03584514,14.265993 L2.03584514,14.265993 L2.0110178,14.1484669 L2.0110178,14.1484669 L2.00397748,14.0898018 L2.00397748,14.0898018 L2,14 L2.00278786,13.9247615 L2.00278786,13.9247615 L2.02024007,13.7992742 L2.02024007,13.7992742 L2.04973809,13.6878575 L2.04973809,13.6878575 L2.09367336,13.5767785 L2.09367336,13.5767785 L2.14599545,13.4792912 L2.14599545,13.4792912 L2.20970461,13.3871006 L2.20970461,13.3871006 L2.29289322,13.2928932 L2.29289322,13.2928932 L7.29289322,8.29289322 C7.68341751,7.90236893 8.31658249,7.90236893 8.70710678,8.29289322 C9.06759074,8.65337718 9.09532028,9.22060824 8.79029539,9.61289944 L8.70710678,9.70710678 L5.415,13 L18.5,13 C19.2796961,13 19.9204487,12.4051119 19.9931334,11.64446 L20,11.5 L20,5 C20,4.44771525 20.4477153,4 21,4 Z'></path>"+
+        "</svg>" +
+        "Go" +
+        "</button>";
+
+      loadcssfile();
+
+      try { watchForVersesAndShowNext(); } catch(e) {}
+    }
+  }
+}
+
+/* ----------------------------- Convert verse checkboxes to buttons ----------------------------- */
+/**
+ * This function finds all the checkbox-based verse selectors in #verses
+ * and converts them to mobile-friendly button-based selectors.
+ * Preserves Psalm 119 grouped structure with "select all" functionality.
+ */
+function convertVersesToButtons() {
+  const versesEl = document.getElementById('verses');
+  if (!versesEl) return;
+
+  // Find #indVerses container (this is where checkboxes live)
+  const indVerses = document.getElementById('indVerses');
+  if (!indVerses) return;
+
+  // Check if this is Psalm 119 (has multiple groups)
+  const verseGroups = indVerses.querySelectorAll('.verseGroup');
+  
+  if (verseGroups.length > 0) {
+    // Psalm 119 or similar: has sections with group headers
+    verseGroups.forEach(function(group, groupIdx) {
+      // Find the group header checkbox (if any)
+      const groupCheckbox = group.querySelector('input[type="checkbox"]');
+      const groupLabel = group.querySelector('.stanza-label');
+      
+      // Create "Select All" button for this group
+      const selectAllBtn = document.createElement('button');
+      selectAllBtn.type = 'button';
+      selectAllBtn.className = 'stanza-control-btn';
+      selectAllBtn.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" style="width: 1em; height: 1em; fill: currentColor;">
+          <path d="M438.6 105.4c12.5 12.5 12.5 32.8 0 45.3l-256 256c-12.5 12.5-32.8 12.5-45.3 0l-128-128c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0L160 338.7 393.4 105.4c12.5-12.5 32.8-12.5 45.3 0z"[...]
+        </svg>
+        <span class="stanza-toggle-label">Select All</span>
+      `;
+      selectAllBtn.dataset.groupIdx = groupIdx;
+      
+      // Find all verse checkboxes in this group
+      const verseCheckboxes = group.querySelectorAll('input[type="checkbox"][value]');
+      
+      // Convert each checkbox to a button
+      verseCheckboxes.forEach(function(checkbox) {
+        const verseValue = checkbox.value;
+        const verseBtn = document.createElement('button');
+        verseBtn.type = 'button';
+        verseBtn.className = 'verse-btn';
+        verseBtn.dataset.verse = verseValue;
+        verseBtn.dataset.selected = 'false';
         
-                        if (partMetreResult == "true" && i > startRepeat - 1) {
-                            const r = i + repeatSum;
-                            const repeatContainer = project.getElementsByClassName(containerPos[r])
-                            const repeatLyr = newLyric[r].childNodes[0].nodeValue;
-
-                            if (lastChar == "-"){
-                                thisContainer[0].lastElementChild.lastElementChild.textContent = trimText.textContent;
-                                repeatContainer[0].lastElementChild.lastElementChild.textContent = trimText.textContent;
-                                thisContainer[0].lastElementChild.lastElementChild.setAttribute("con","d");
-                                repeatContainer[0].lastElementChild.lastElementChild.setAttribute("con","d");            
-                                if (wordPos == "i" || wordPos == "m"){
-                                    thisContainer[0].lastElementChild.lastElementChild.setAttribute("wordpos","m");
-                                    repeatContainer[0].lastElementChild.lastElementChild.setAttribute("wordpos","m");
-                                } else {            
-                                    thisContainer[0].lastElementChild.lastElementChild.setAttribute("wordpos","i");
-                                    repeatContainer[0].lastElementChild.lastElementChild.setAttribute("wordpos","i");
-                                }
-                            } else {
-                                thisContainer[0].lastElementChild.lastElementChild.textContent = newText.textContent
-                                thisContainer[0].lastElementChild.lastElementChild.setAttribute("con","s")
-                                thisContainer[0].lastElementChild.lastElementChild.setAttribute("wordpos","t");
-                                repeatContainer[0].lastElementChild.lastElementChild.textContent = newText.textContent
-                                repeatContainer[0].lastElementChild.lastElementChild.setAttribute("con","s")
-                                repeatContainer[0].lastElementChild.lastElementChild.setAttribute("wordpos","t");
-                            }
-                        } else {
-                            if (lastChar == "-"){
-                                thisContainer[0].lastElementChild.lastElementChild.textContent = trimText.textContent;
-                                thisContainer[0].lastElementChild.lastElementChild.setAttribute("con","d");          
-                                if (wordPos == "i" || wordPos == "m"){
-                                    thisContainer[0].lastElementChild.lastElementChild.setAttribute("wordpos","m");
-                                } else {            
-                                    thisContainer[0].lastElementChild.lastElementChild.setAttribute("wordpos","i");
-                                }
-                            } else {
-                                thisContainer[0].lastElementChild.lastElementChild.textContent = newText.textContent;
-                                thisContainer[0].lastElementChild.lastElementChild.setAttribute("con","s")
-                                thisContainer[0].lastElementChild.lastElementChild.setAttribute("wordpos","t")
-                            }
-                        }
-                        //Add xml:id for new <lyr>
-                        const newLyrAtt = 'syl_' + Date.now();
-                        thisContainer[0].lastElementChild.lastElementChild.setAttribute("xml:id", newLyrAtt + "A");
-                        // Update wordPos for next word
-                        wordPos = thisContainer[0].lastElementChild.lastElementChild.getAttribute("wordpos");
-                    } 
-                    
-                    let kIndex = i;
-                    // If there is more than one stanza  
-                    j = 1;
-                    if (fullStanza > 1){
-                        for (j = 1; j < fullStanza; j++){
-                            for (i = 0; i< sylCount; i++){
-                                const thisContainer = project.getElementsByClassName(containerPos[i])
-                                const newVerse = xmlDoc.createElement("verse", project.namespaceURI);
-                                const repeatVerse = newVerse.cloneNode(true);
-                                const newSyl = xmlDoc.createElement("syl", project.namespaceURI);
-                                const repeatSyl = newSyl.cloneNode(true);
-                                const newLyr = myObj.getElementsByTagName("seg")[kIndex].childNodes[0].nodeValue;
-                                const newLyrLen = newLyr.length;
-                                const lastChar = newLyr.charAt(newLyrLen-1);
-                                const newText = xmlDoc.createTextNode(newLyr);
-                                const trimLyr = newLyr.substr(0,newLyrLen-1);
-                                const trimText = xmlDoc.createTextNode(trimLyr); 
-                                thisContainer[0].appendChild(newVerse).setAttribute("n",j+1);
+        const verseNum = document.createElement('span');
+        verseNum.className = 'verse-number';
+        verseNum.textContent = verseValue;
+        verseBtn.appendChild(verseNum);
         
-                                if (partMetreResult == "true" && i > startRepeat - 1) {
-                                    const r = i + repeatSum;
-                                    const repeatContainer = project.getElementsByClassName(containerPos[r])
-                                    const repeatLyr = myObj.getElementsByTagName("seg")[r].childNodes[0].nodeValue;
-                                    repeatContainer[0].appendChild(repeatVerse).setAttribute("n",j+1);
+        // Click handler: toggle selection
+        verseBtn.addEventListener('click', function() {
+          const isSelected = verseBtn.dataset.selected === 'true';
+          verseBtn.dataset.selected = isSelected ? 'false' : 'true';
+          if (isSelected) {
+            verseBtn.classList.remove('active');
+          } else {
+            verseBtn.classList.add('active');
+          }
+          verseMenu();
+        });
         
-                                    if (lastChar == "-"){
-                                        thisContainer[0].lastElementChild.appendChild(newSyl).textContent = trimText.textContent;
-                                        repeatContainer[0].lastElementChild.appendChild(repeatSyl).textContent = trimText.textContent;
-                                        thisContainer[0].lastElementChild.lastElementChild.setAttribute("con","d");
-                                        repeatContainer[0].lastElementChild.lastElementChild.setAttribute("con","d");            
-                                        if (wordPos == "i" || wordPos == "m"){
-                                            thisContainer[0].lastElementChild.lastElementChild.setAttribute("wordpos","m")
-                                            repeatContainer[0].lastElementChild.lastElementChild.setAttribute("wordpos","m");
-                                        } else {            
-                                            thisContainer[0].lastElementChild.lastElementChild.setAttribute("wordpos","i");
-                                            repeatContainer[0].lastElementChild.lastElementChild.setAttribute("wordpos","i");
-                                        }
-                                    } else {
-                                        thisContainer[0].lastElementChild.appendChild(newSyl).textContent = newText.textContent
-                                        thisContainer[0].lastElementChild.lastElementChild.setAttribute("con","s")
-                                        thisContainer[0].lastElementChild.lastElementChild.setAttribute("wordpos","t")
-                                        repeatContainer[0].lastElementChild.appendChild(repeatSyl).textContent = newText.textContent
-                                        repeatContainer[0].lastElementChild.lastElementChild.setAttribute("con","s")
-                                        repeatContainer[0].lastElementChild.lastElementChild.setAttribute("wordpos","t");
-                                    }
-                                } else {
-                                    if (lastChar == "-"){
-                                        thisContainer[0].lastElementChild.appendChild(newSyl).textContent = trimText.textContent;
-                                        thisContainer[0].lastElementChild.lastElementChild.setAttribute("con","d");          
-                                        if (wordPos == "i" || wordPos == "m"){
-                                            thisContainer[0].lastElementChild.lastElementChild.setAttribute("wordpos","m");
-                                        } else {            
-                                            thisContainer[0].lastElementChild.lastElementChild.setAttribute("wordpos","i");
-                                        }
-                                    } else {
-                                        thisContainer[0].lastElementChild.appendChild(newSyl).textContent = newText.textContent;
-                                        thisContainer[0].lastElementChild.lastElementChild.setAttribute("con","s")
-                                        thisContainer[0].lastElementChild.lastElementChild.setAttribute("wordpos","t")
-                                    }
-                                }
-                                const newLyrAtt = 'syl_' + Date.now();
-                                thisContainer[0].lastElementChild.lastElementChild.setAttribute("xml:id", newLyrAtt);
-                                wordPos = thisContainer[0].lastElementChild.lastElementChild.getAttribute("wordpos");
-                                kIndex = kIndex + 1;
-                            }
-                        }
-                    } 
-    
-                    //Is there a half stanza at the end?
-                    if (halfStanza === false){
-                        const remainder = textStanzas % metreMult;
-                        const startCount = textSyll* (metreMult - remainder);
-                        j = j + 1;
-                        for (i = startCount; i< sylCount; i++){
-                            const thisContainer = project.getElementsByClassName(containerPos[i])
-                            const newVerse = xmlDoc.createElement("verse", project.namespaceURI);
-                            const repeatVerse = newVerse.cloneNode(true);
-                            const newSyl = xmlDoc.createElement("syl", project.namespaceURI);
-                            const repeatSyl = newSyl.cloneNode(true);
-                            const newLyr = myObj.getElementsByTagName("seg")[kIndex].childNodes[0].nodeValue;
-                            const newLyrLen = newLyr.length;
-                            const lastChar = newLyr.charAt(newLyrLen-1);
-                            const newText = xmlDoc.createTextNode(newLyr);
-                            const trimLyr = newLyr.substr(0,newLyrLen-1);
-                            const trimText = xmlDoc.createTextNode(trimLyr); 
-                            thisContainer[0].appendChild(newVerse).setAttribute("n",j);
-                            if (partMetreResult == "true" && i > startRepeat-1) {
-                                const r = i + repeatSum;
-                                const repeatContainer = project.getElementsByClassName(containerPos[r])
-                                const repeatLyr = myObj.getElementsByTagName("seg")[r].childNodes[0].nodeValue;
-                                repeatContainer[0].appendChild(repeatVerse).setAttribute("n",j);
-                                if (lastChar == "-"){
-                                    thisContainer[0].lastElementChild.appendChild(newSyl).textContent = trimText.textContent;
-                                    repeatContainer[0].lastElementChild.appendChild(repeatSyl).textContent = trimText.textContent;
-                                    thisContainer[0].lastElementChild.lastElementChild.setAttribute("con","d");
-                                    repeatContainer[0].lastElementChild.lastElementChild.setAttribute("con","d");            
-                                    if (wordPos == "i" || wordPos == "m"){
-                                        thisContainer[0].lastElementChild.lastElementChild.setAttribute("wordpos","m");
-                                        repeatContainer[0].lastElementChild.lastElementChild.setAttribute("wordpos","m");
-                                    } else {            
-                                        thisContainer[0].lastElementChild.lastElementChild.setAttribute("wordpos","i");
-                                        repeatContainer[0].lastElementChild.lastElementChild.setAttribute("wordpos","i");
-                                    }
-                                } else {
-                                    thisContainer[0].lastElementChild.appendChild(newSyl).textContent = newText.textContent;
-                                    thisContainer[0].lastElementChild.lastElementChild.setAttribute("con","s")
-                                    thisContainer[0].lastElementChild.lastElementChild.setAttribute("wordpos","t")
-                                    repeatContainer[0].lastElementChild.appendChild(newSyl).textContent = newText.textContent;
-                                    repeatContainer[0].lastElementChild.lastElementChild.setAttribute("con","s")
-                                    repeatContainer[0].lastElementChild.lastElementChild.setAttribute("wordpos","t")
-                                }
-                            } else {
-                                if (lastChar == "-"){
-                                    thisContainer[0].lastElementChild.appendChild(newSyl).textContent = trimText.textContent;
-                                    thisContainer[0].lastElementChild.lastElementChild.setAttribute("con","d");          
-                                    if (wordPos == "i" || wordPos == "m"){
-                                        thisContainer[0].lastElementChild.lastElementChild.setAttribute("wordpos","m");
-                                    } else {            
-                                        thisContainer[0].lastElementChild.lastElementChild.setAttribute("wordpos","i");
-                                    }
-                                } else {
-                                    thisContainer[0].lastElementChild.appendChild(newSyl).textContent = newText.textContent;
-                                    thisContainer[0].lastElementChild.lastElementChild.setAttribute("con","s")
-                                    thisContainer[0].lastElementChild.lastElementChild.setAttribute("wordpos","t")
-                                }
-                            }
-                            const newLyrAtt = 'syl_' + Date.now();
-                            thisContainer[0].lastElementChild.lastElementChild.setAttribute("xml:id", newLyrAtt);
-                            wordPos = thisContainer[0].lastElementChild.lastElementChild.getAttribute("wordpos");
-                            kIndex = kIndex + 1;
-                        }            
-                    }            
-
-                    // --- PRESENTATION MODE DUPLICATION (repeats with verse n=1 only) ---
-                    if (disOptions == true) {
-
-                        // Final bar to double in the template section
-                        const bars = xmlDoc.getElementsByTagName("measure");
-                        const barsCount = bars.length;
-                        bars[barsCount-1].setAttribute("right", "dbl");
-
-                        // Template for duplication
-                        const dupNode = xmlDoc.getElementsByTagName("section")[0].cloneNode(true);
-
-                        // Set n=1 on the original first section
-                        const newSectionN = xmlDoc.getElementsByTagName("section")[0];
-                        const newSectionAttN = xmlDoc.createAttribute("n");
-                        newSectionAttN.nodeValue = 1;
-                        newSectionN.setAttributeNode(newSectionAttN);
-
-                        // Clean text (dir/tempo) from template
-                        const m = dupNode.getElementsByTagName("measure");
-                        const mDir = m[0].getElementsByTagName("dir");
-                        const mTempo = m[0].getElementsByTagName("tempo");
-                        if (mDir !== "undefined"){
-                            for (let i=0; i<mDir.length; i++){ mDir[i].remove(); } 
-                        }
-                        if (mTempo !== "undefined"){
-                            for (let i=0; i<mTempo.length; i++){ mTempo[i].remove(); } 
-                        }
-
-                        // Strip all verses except n=1 in the original score
-                        const versesToDeleteOrig = Array.from(xmlDoc.querySelectorAll('verse:not([n="1"])'));
-                        versesToDeleteOrig.forEach(verse => { verse.remove(); });
-
-                        // Duplicate for each stanza
-                        for (i=1; i<stanzaCount; i++){
-                            const newNode = dupNode.cloneNode(true);
-                            const parentElement = project.getElementsByTagName("score")[0];
-
-                            const getAtt = "xml:id";
-                            const getAttN = "n";
-                            const newSectionAtt = xmlDoc.createAttribute(getAtt);
-                            const newSectionAttN = xmlDoc.createAttribute(getAttN);
-
-                            let oldAtt = newNode.getAttribute(getAtt);
-                            if (oldAtt === null) {
-                                oldAtt = newNode.nodeName + '_' + Date.now();
-                            }
-
-                            const aSequence = "A".repeat(i); // your programmatic suffix pattern
-                            const newAttValue = oldAtt + aSequence;
-                            newSectionAtt.nodeValue = newAttValue;
-                            newSectionAttN.nodeValue = i+1;
-                            newNode.setAttributeNode(newSectionAtt);
-                            newNode.setAttributeNode(newSectionAttN);
-
-                            // Keep only verse n = i+1 in the duplicate
-                            const versesToDelete = Array.from(newNode.querySelectorAll('verse:not([n="'+(i+1)+'"])'));
-                            versesToDelete.forEach(verse => { verse.remove(); });
-                            
-                            // Normalize kept verse numbers to n=1 (display single line)
-                            const keptVerses = newNode.querySelectorAll('verse');
-                            keptVerses.forEach(verse => { verse.setAttribute('n', '1'); });
-                            
-                            // IMPORTANT: Append the SAME suffix to all descendant IDs and fix slur/tie IDREFs
-                            appendSuffixToIdsAndIdrefs(newNode, aSequence, { skipRoot: true });
-
-                            // Append to score
-                            const targetRoot = xmlDoc.getElementsByTagName("score")[0];
-                            targetRoot.appendChild(newNode);
-                        }
-                        
-                        // Delete unused measures in the last section (no lyrics)
-                        const sections = xmlDoc.getElementsByTagName('section');
-                        let lastSection = sections[sections.length - 1];
-                        let measuresInLastSection = lastSection.getElementsByTagName('measure');
-                        for (let i = measuresInLastSection.length - 1; i >= 0; i--) {
-                            const measure = measuresInLastSection[i];
-                            const hasLyr = measure.getElementsByTagName('syl').length > 0;
-                            if (hasLyr == false) {
-                                measure.parentNode.removeChild(measure);         
-                            }
-                        }
-                        
-                        // Second pass cleanup (defensive)
-                        const allSections = xmlDoc.getElementsByTagName('section');
-                        lastSection = allSections[allSections.length - 1];
-                        measuresInLastSection = lastSection.getElementsByTagName('measure');
-                        for (let i = measuresInLastSection.length - 1; i >= 0; i--) {
-                            const measure = measuresInLastSection[i];
-                            const hasLyr = measure.getElementsByTagName('syl').length > 0;
-                            if (hasLyr == false) {
-                                measure.parentNode.removeChild(measure);         
-                            }
-                        }
-
-                        // Remove unused portion of the first measure in last section
-                        const partFirstMeasure = lastSection.getElementsByTagName("measure")[0];
-                        const partFirstLayer = partFirstMeasure.getElementsByTagName("layer")[0];
-                        const notesInFirstLayer = partFirstLayer.getElementsByTagName("note");
-                        let partMeasureDur = 0;
-
-                        // Remove notes in first layer without lyrics while timing
-                        for (let i = 0; i < notesInFirstLayer.length; i++){
-                            const thisNoteCandidate = notesInFirstLayer[i];
-                            const hasLyr = thisNoteCandidate.getElementsByTagName('syl').length > 0;
-                            if (hasLyr == false) {
-                                let thisCandidateDur = 1/Number(thisNoteCandidate.getAttribute("dur"));
-                                const thisCandidateDots = thisNoteCandidate.getAttribute("dots");
-                                let addNoteDur = thisCandidateDur;
-
-                                if (thisCandidateDots !== null){
-                                    for (let o=0; o < thisCandidateDots; o++){
-                                        addNoteDur = addNoteDur/2;
-                                        thisCandidateDur = thisCandidateDur + addNoteDur;
-                                    }
-                                }
-                                partMeasureDur = partMeasureDur + thisCandidateDur;
-                                thisNoteCandidate.parentNode.removeChild(thisNoteCandidate);
-                            } else {
-                                break;
-                            }   
-                        }
-
-                        // Use timestamp to delete unused notes in the other layers
-                        const allLayers = partFirstMeasure.getElementsByTagName("layer");
-                        for (let i = 1; i < allLayers.length; i++){
-                            const notesInLayer = allLayers[i].getElementsByTagName("note");
-                            let thisLayerDur = 0;
-                            let jx = 0;
-                            while (thisLayerDur < partMeasureDur) {
-                                const thisCandiadateNote = notesInLayer[jx];
-                                let thisCandidateDur = 1/Number(thisCandiadateNote.getAttribute("dur"));
-                                const thisCandidateDots = thisCandiadateNote.getAttribute("dots");
-                                let addNoteDur = thisCandidateDur;
-
-                                if (thisCandidateDots !== null){
-                                    for (let o=0; o < thisCandidateDots; o++){
-                                        addNoteDur = addNoteDur/2;
-                                        thisCandidateDur = thisCandidateDur + addNoteDur;
-                                    }
-                                }
-                                thisLayerDur = thisLayerDur + thisCandidateDur;
-                                jx = jx+1;
-                                thisCandiadateNote.parentNode.removeChild(thisCandiadateNote);
-                            }
-                        }
-                        
-                        const finalBars = xmlDoc.getElementsByTagName("measure");
-                        const finalBarCount = finalBars.length;
-                        finalBars[finalBarCount-1].setAttribute("right", "end");
-                    } // end presentation mode
-
-                    document.getElementById("controls").style.display = "inline";
-                    document.body.classList.add("controls-visible");
-                    const textLicenseHTML = "<p><strong>Text Source:</strong>&nbsp;<em>" + textSource + "</em>&nbsp;(" + textSourceDate + ")<br/> <a href='" + textLicenseURL + "' target='_blank'>" + textLicense + "</a></p>"
-                    const tuneLicenseHTML = "<p><strong>Tune Source:</strong>&nbsp;<em>" + tuneSource + "</em>&nbsp;(" + tuneSourceDate + ")<br/> <a href='" + tuneLicenseURL + "' target='_blank'>" + tuneLicense + "</a></p>"
-                    document.getElementById("textLicense").innerHTML = textLicenseHTML;
-                    document.getElementById("tuneLicense").innerHTML = tuneLicenseHTML;
-                    
-                    currentXmlData = new XMLSerializer().serializeToString(xmlDoc);
-                    loadDataWithLayerVolumes(currentXmlData);
-                }
-            };
+        // Replace checkbox with button
+        if (checkbox.parentElement) {
+          checkbox.parentElement.replaceWith(verseBtn);
         }
+      });
+      
+      // Wire up "Select All" button
+      selectAllBtn.addEventListener('click', function() {
+        const verseBtns = group.querySelectorAll('.verse-btn');
+        const allSelected = Array.from(verseBtns).every(btn => btn.dataset.selected === 'true');
+        
+        verseBtns.forEach(btn => {
+          btn.dataset.selected = allSelected ? 'false' : 'true';
+          if (allSelected) {
+            btn.classList.remove('active');
+          } else {
+            btn.classList.add('active');
+          }
+        });
+        
+        verseMenu();
+      });
+      
+      // Insert "Select All" button after the group label
+      if (groupLabel && groupLabel.nextSibling) {
+        groupLabel.parentElement.insertBefore(selectAllBtn, groupLabel.nextSibling);
+      } else if (groupLabel) {
+        groupLabel.parentElement.appendChild(selectAllBtn);
+      }
+      
+      // Remove original group checkbox if it exists
+      if (groupCheckbox && groupCheckbox.parentElement) {
+        groupCheckbox.parentElement.remove();
+      }
+    });
+  } else {
+    // Regular psalm: flat list of verse checkboxes
+    const verseCheckboxes = indVerses.querySelectorAll('input[type="checkbox"][value]');
+    
+    verseCheckboxes.forEach(function(checkbox) {
+      const verseValue = checkbox.value;
+      const verseBtn = document.createElement('button');
+      verseBtn.type = 'button';
+      verseBtn.className = 'verse-btn';
+      verseBtn.dataset.verse = verseValue;
+      verseBtn.dataset.selected = 'false';
+      
+      const verseNum = document.createElement('span');
+      verseNum.className = 'verse-number';
+      verseNum.textContent = verseValue;
+      verseBtn.appendChild(verseNum);
+      
+      verseBtn.addEventListener('click', function() {
+        const isSelected = verseBtn.dataset.selected === 'true';
+        verseBtn.dataset.selected = isSelected ? 'false' : 'true';
+        if (isSelected) {
+          verseBtn.classList.remove('active');
+        } else {
+          verseBtn.classList.add('active');
+        }
+        verseMenu();
+      });
+      
+      // Replace checkbox with button (preserve parent structure if it's a label)
+      if (checkbox.parentElement) {
+        const parent = checkbox.parentElement;
+        if (parent.tagName.toLowerCase() === 'label') {
+          parent.replaceWith(verseBtn);
+        } else {
+          checkbox.replaceWith(verseBtn);
+        }
+      }
+    });
+  }
+}
+
+/* ----------------------------- Verses formatting and selection helpers ----------------------------- */
+function parseVerseToken(tok) {
+  const m = String(tok).trim().match(/^(\d+)([a-z])?$/i);
+  if (!m) return { raw: tok, num: NaN, suf: "" };
+  return { raw: tok, num: parseInt(m[1], 10), suf: (m[2] || "").toLowerCase() };
+}
+
+function tokensAdjacent(a, b) {
+  if (Number.isNaN(a.num) || Number.isNaN(b.num)) return false;
+  if (a.num === b.num && a.suf && b.suf && a.suf.length === 1 && b.suf.length === 1) {
+    return b.suf.charCodeAt(0) === a.suf.charCodeAt(0) + 1;
+  }
+  return b.num === a.num + 1;
+}
+
+function formatVersesCompact(list) {
+  if (!Array.isArray(list) || list.length === 0) return "";
+  const toks = list.map(parseVerseToken);
+  let out = [];
+  let rangeStart = toks[0];
+  let prev = toks[0];
+  for (let i = 1; i < toks.length; i++) {
+    const cur = toks[i];
+    if (tokensAdjacent(prev, cur)) {
+      prev = cur;
+    } else {
+      out.push(rangeStart.raw === prev.raw ? rangeStart.raw : (rangeStart.raw + "-" + prev.raw));
+      rangeStart = prev = cur;
+    }
+  }
+  out.push(rangeStart.raw === prev.raw ? rangeStart.raw : (rangeStart.raw + "-" + prev.raw));
+  return out.join(", ");
+}
+
+function verseMenu(){
+  var ind = document.getElementById("indVerses");
+  if (!ind) return;
+  
+  // Gather all verse buttons (selected and unselected)
+  var allVerseBtns = ind.querySelectorAll('.verse-btn');
+  var selVerseBtns = ind.querySelectorAll('.verse-btn[data-selected="true"]');
+  
+  var verseList = [];
+  
+  selVerseBtns.forEach(function(btn) {
+    verseList.push(btn.dataset.verse);
+  });
+  
+  // Filter out Psalm 119 section headers if applicable
+  if (document.getElementById("pstext") && document.getElementById("pstext").value === "Psalm 119"){
+    var ps119Array = ["ALEPH","BETH","GIMEL","DALETH","HE","VAV","ZAIN","HETH","TETH","YOD","CAPH","LAMED","MEM","NUN","SAMECH","AIN","PE","TSADE","KOPH","RES","SHIN","TAV"];
+    verseList = verseList.filter(function(el){ return !ps119Array.includes(el); });
+  }
+  
+  // Store in global variable
+  window.globalSelStanzas = verseList;
+  
+  // Store in hidden input for renderPsalm() to read
+  var hiddenInput = document.getElementById("selectedStanzasData");
+  if (!hiddenInput) {
+    // Create the hidden input if it doesn't exist
+    hiddenInput = document.createElement('input');
+    hiddenInput.type = 'hidden';
+    hiddenInput.id = 'selectedStanzasData';
+    hiddenInput.name = 'stanzas';
+    // Append to indVerses or verses container
+    if (ind) {
+      ind.appendChild(hiddenInput);
+    } else {
+      document.getElementById('verses').appendChild(hiddenInput);
+    }
+  }
+  hiddenInput.value = verseList.join(',');
+  
+  var display;
+  
+  // Check if all verses are selected
+  if (allVerseBtns.length > 0 && selVerseBtns.length === allVerseBtns.length) {
+    display = "All";
+  } else {
+    var compact = formatVersesCompact(verseList);
+    var limit = 40;
+    if (!compact) {
+      display = "Select verses below...";
+    } else if (compact.length > limit) {
+      var cut = limit;
+      if (compact.charAt(cut) === ",") { /* ok */ }
+      else if (compact.charAt(cut) === " ") { cut = cut - 1; }
+      else if (compact.charAt(cut + 1) === ",") { cut = cut + 1; }
+      else { while (cut > 0 && compact.charAt(cut) !== " ") cut--; cut = Math.max(0, cut - 1); }
+      display = compact.slice(0, Math.max(0, cut)) + "...";
+    } else {
+      display = compact;
+    }
+  }
+  
+   var box = document.getElementById("selectVerses");
+  if (box) box.innerHTML = display;
+  try { updateSelectionSummary(); } catch(_) {}
+  
+  // ADD THIS:  Update Next button state
+  updateNextButtonState();
+}
+
+// Add this new function:
+function updateNextButtonState() {
+  const nextBtn = document.getElementById('next-btn-text');
+  if (!nextBtn) return;
+  
+  const selectedVerses = getSelectedVerses();
+  
+  if (selectedVerses.length < 2) {
+    nextBtn.style.opacity = '0.5';
+    nextBtn.style.cursor = 'not-allowed';
+    nextBtn.disabled = true;
+  } else {
+    nextBtn. style.opacity = '1';
+    nextBtn.style.cursor = 'pointer';
+    nextBtn.disabled = false;
+  }
+}
+
+function getSelectedVerses() {
+  var ind = document.getElementById("indVerses");
+  if (! ind) return [];
+  
+  var selVerseBtns = ind.querySelectorAll('.verse-btn[data-selected="true"]');
+  var verseList = [];
+  
+  selVerseBtns.forEach(function(btn) {
+    verseList.push(btn.dataset.verse);
+  });
+  
+  // Filter out Psalm 119 section headers if applicable
+  if (document.getElementById("pstext") && document.getElementById("pstext").value === "Psalm 119"){
+    var ps119Array = ["ALEPH","BETH","GIMEL","DALETH","HE","VAV","ZAIN","HETH","TETH","YOD","CAPH","LAMED","MEM","NUN","SAMECH","AIN","PE","TSADE","KOPH","RES","SHIN","TAV"];
+    verseList = verseList.filter(function(el){ return ! ps119Array.includes(el); });
+  }
+  
+  return verseList;
+}
+
+/* ----------------------------- Utility helpers ----------------------------- */
+function myFunction() {
+  var dd = document.getElementById("myDropdown");
+  if (dd) dd.classList.toggle("show");
+}
+
+function filterFunction() {
+  var input = document.getElementById("myInput");
+  var div = document.getElementById("myDropdown");
+  if (!input || !div) return;
+  var filter = input.value.toUpperCase();
+  var a = div.getElementsByTagName("a");
+  for (var i = 0; i < a.length; i++) {
+    var txtValue = a[i].getAttribute("name") || a[i].innerText;
+    a[i].style.display = (txtValue.toUpperCase().indexOf(filter) > -1) ? "" : "none";
+  }
+}
+
+function toggle(section) {
+  var parSelect = document.getElementById("selectAll");
+  var selection = section.getAttribute("id");
+  var selChecks = document.getElementById(selection).getElementsByTagName("input");
+  if (parSelect && parSelect.checked == true) {
+    for (var a = 0; a < selChecks.length; a++){ selChecks[a].checked = true; }
+    document.getElementById("selectVerses").innerHTML = "All";
+  } else {
+    for (var b = 0; b < selChecks.length; b++){ selChecks[b].checked = false; }
+    document.getElementById("selectVerses").innerHTML = "Select verses below...";
+  }
+}
+
+function secToggle(section) {
+  var selection = section.getAttribute("id");
+  var selChecks = document.getElementById(selection).getElementsByTagName("input");
+  if (selChecks[0].checked == true) {
+    for (var a = 0; a < selChecks.length; a++){ selChecks[a].checked = true; }
+  } else {
+    for (var b = 0; b < selChecks.length; b++){ selChecks[b].checked = false; }
+  }
+  verseMenu();
+}
+
+function loadcssfile(){
+  var fileref=document.createElement("link");
+  fileref.setAttribute("rel", "stylesheet");
+  fileref.setAttribute("type", "text/css");
+  fileref.setAttribute("href", "resources/css/toggle.css");
+  document.getElementsByTagName('head')[0].appendChild(fileref);
+}
+
+/* ----------------------------- Consolidated server fetch and client-side UI building ----------------------------- */
+async function fetchConsolidatedData() {
+  try {
+    const resp = await fetch('getSourcesTextsMetres.xq', { cache: 'no-store' });
+    if (!resp.ok) throw new Error('Network response not ok: ' + resp.status);
+    const data = await resp.json();
+    window.consolidatedData = data || { sources: [], metres: [] };
+
+    window.sourceMap = {};
+    if (Array.isArray(window.consolidatedData.sources)) {
+      window.consolidatedData.sources.forEach(function(s) {
+        const label = (s && s.label) ? s.label : String(s || '');
+        const texts = (s && s.texts && Array.isArray(s.texts)) ? s.texts : [];
+        window.sourceMap[label] = texts;
+      });
+    }
+    window.globalMetres = Array.isArray(window.consolidatedData.metres) ? window.consolidatedData.metres.slice() : [];
+
+    initializeSourceButtons();
+
+  } catch (err) {
+    console.warn('Failed to fetch consolidated data (getSourcesTextsMetres.xq):', err);
+  }
+}
+
+function initializeSourceButtons() {
+  const sourceContainer = document.getElementById('sourceButtonContainer');
+  if (!sourceContainer) {
+    console.warn('#sourceButtonContainer not found - skipping source button generation.');
+    return;
+  }
+  sourceContainer.innerHTML = '';
+
+  const labels = Object.keys(window.sourceMap || {});
+  if (!labels.length) {
+    const span = document.createElement('div');
+    span.className = 'menuSpan';
+    span.textContent = 'No sources available';
+    sourceContainer.appendChild(span);
+    return;
+  }
+
+  let hiddenInput = document.getElementById('pssource');
+  if (!hiddenInput) {
+    hiddenInput = document.createElement('input');
+    hiddenInput.type = 'hidden';
+    hiddenInput.id = 'pssource';
+    sourceContainer.parentElement.appendChild(hiddenInput);
+    if (window._initialPsSourceParam) {
+      hiddenInput.value = window._initialPsSourceParam;
+      delete window._initialPsSourceParam;
+    }
+  }
+
+  labels.forEach(function(label) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'source-button';
+    btn.textContent = label;
+    btn.setAttribute('data-source-label', label);
+
+    btn.addEventListener('click', function() {
+      // Single selection only - deselect all others
+      sourceContainer.querySelectorAll('.source-button').forEach(b => {
+        b.classList.remove('active');
+      });
+      
+      // Select this button
+      btn.classList.add('active');
+      
+      // Update hidden input with single source
+      const sourceLabel = btn.getAttribute('data-source-label');
+      hiddenInput.value = sourceLabel;
+      
+      // Handle source selection
+      handleSourceSelection(sourceLabel);
+    });
+
+    sourceContainer.appendChild(btn);
+  });
+
+  if (hiddenInput.value) {
+    // Single source selection - take the first one if comma-separated
+    const initialSource = hiddenInput.value.split(',')[0].trim();
+    if (initialSource) {
+      const existing = Array.from(sourceContainer.querySelectorAll('.source-button'))
+        .find(b => b.getAttribute('data-source-label') === initialSource);
+      if (existing) existing.click();
+    }
+  }
+}
+
+function clearTextSelection() {
+  // Clear text list
+  const container = document.getElementById('psTextList');
+  if (container) {
+    container.textContent = 'Select source first';
+  }
+  
+  // Clear verses
+  const versesEl = document.getElementById('verses');
+  if (versesEl) {
+    versesEl.innerHTML = '';
+    versesEl.style.display = 'none';
+  }
+  
+  // Clear tune selection
+  const tuneButtons = document.getElementById('tuneButtons');
+  if (tuneButtons) {
+    tuneButtons.innerHTML = '';
+  }
+  
+  // Clear metre dropdown
+  const metreContainer = document.getElementById('psMetreList');
+  if (metreContainer) {
+    metreContainer.textContent = 'Select source first';
+  }
+  
+  try { updateSelectionSummary(); } catch (_) {}
+}
+
+function handleMultipleSourceSelection(sourceLabels) {
+  // Combine texts from all selected sources
+  const allTexts = [];
+  const seenIds = new Set();
+  const allMetres = new Set();
+  
+  sourceLabels.forEach(function(label) {
+    const texts = window.sourceMap && window.sourceMap[label] ? window.sourceMap[label] : [];
+    texts.forEach(function(t) {
+      // Remove duplicates by text ID
+      if (!seenIds.has(t.id)) {
+        seenIds.add(t.id);
+        allTexts.push(t);
+      }
+      // Collect unique metres
+      if (t.metre) {
+        allMetres.add(t.metre);
+      }
+    });
+  });
+  
+  // Build psalm list
+  const psList = allTexts.map(function(t) {
+    const label = t.label || '';
+    const teiID = t.id || '';
+    const metre = t.metre || '';
+    const sugg = t.suggTune || '';
+    return { label: label, data: `${teiID};${metre};${sugg}`, rawObj: t };
+  });
+  
+  const psLabels = psList.map(l => l.label);
+  
+  window.fullPsList = psList;
+  window.fullPsLabels = psLabels;
+  
+  // Populate metre filter dropdown
+  let selMetElem = document.getElementById('selMet');
+  
+  if (!selMetElem || selMetElem.tagName.toLowerCase() !== 'select') {
+    const container = document.getElementById('psMetreList');
+    if (container) {
+      const select = document.createElement('select');
+      select.id = 'selMet';
+      select.className = 'metre-picker';
+      const defaultOpt = document.createElement('option');
+      defaultOpt.value = '';
+      defaultOpt.textContent = 'Filter by metre (optional)';
+      select.appendChild(defaultOpt);
+      
+      container.innerHTML = '';
+      container.appendChild(select);
+      selMetElem = select;
+    }
+  }
+  
+  if (selMetElem && selMetElem.tagName.toLowerCase() === 'select') {
+    selMetElem.innerHTML = '';
+    const defaultOpt = document.createElement('option');
+    defaultOpt.value = '';
+    defaultOpt.textContent = 'Filter by metre (optional)';
+    selMetElem.appendChild(defaultOpt);
+    
+    const metresArray = Array.from(allMetres);
+    if (metresArray.length) {
+      const sorted = sortMetres(metresArray);
+      sorted.forEach(function(m) {
+        const opt = document.createElement('option');
+        opt.value = m;
+        opt.textContent = m;
+        selMetElem.appendChild(opt);
+      });
+    } else {
+      const none = document.createElement('option');
+      none.value = '';
+      none.disabled = true;
+      none.textContent = 'No metres available';
+      selMetElem.appendChild(none);
+    }
+    
+    selMetElem.addEventListener('change', function() {
+      setTexts();
+    });
+  }
+  
+  setTexts();
+  
+  try { updateSelectionSummary(); } catch (_) {}
+  
+  const container = document.getElementById('panel-source') || document.querySelector('.menu-item');
+  try { ensureNextButton(container, 'next-btn-source', () => switchToTab('text')); } catch (_) {}
+}
+
+function handleSourceSelection(sourceLabel) {
+  const texts = window.sourceMap && window.sourceMap[sourceLabel] ? window.sourceMap[sourceLabel] : [];
+
+  const psList = texts.map(function(t) {
+    const label = t.label || '';
+    const teiID = t.id || '';
+    const metre = t.metre || '';
+    const sugg = t.suggTune || '';
+    return { label: label, data: `${teiID};${metre};${sugg}`, rawObj: t };
+  });
+
+  const psLabels = psList.map(l => l.label);
+
+  window.fullPsList = psList;
+  window.fullPsLabels = psLabels;
+
+  const metresForSource = Array.from(new Set(texts.map(t => t.metre || '').filter(Boolean)));
+  let selMetElem = document.getElementById('selMet');
+
+  if (!selMetElem || selMetElem.tagName.toLowerCase() !== 'select') {
+    const container = document.getElementById('psMetreList');
+    if (container) {
+      const select = document.createElement('select');
+      select.id = 'selMet';
+      select.className = 'metre-picker';
+      const defaultOpt = document.createElement('option');
+      defaultOpt.value = '';
+      defaultOpt.textContent = 'Filter by metre (optional)';
+      select.appendChild(defaultOpt);
+
+      container.innerHTML = '';
+      container.appendChild(select);
+      selMetElem = select;
+    }
+  }
+
+  if (selMetElem && selMetElem.tagName.toLowerCase() === 'select') {
+    selMetElem.innerHTML = '';
+    const defaultOpt = document.createElement('option');
+    defaultOpt.value = '';
+    defaultOpt.textContent = 'Filter by metre (optional)';
+    selMetElem.appendChild(defaultOpt);
+
+    const sourceMetres = (metresForSource.length ? metresForSource : (window.globalMetres || []));
+    if (sourceMetres && sourceMetres.length) {
+      const sorted = sortMetres(sourceMetres);
+      sorted.forEach(function(m) {
+        const opt = document.createElement('option');
+        opt.value = m;
+        opt.textContent = m;
+        selMetElem.appendChild(opt);
+      });
+    } else {
+      const none = document.createElement('option');
+      none.value = '';
+      none.disabled = true;
+      none.textContent = 'No metres available';
+      selMetElem.appendChild(none);
+    }
+
+    selMetElem.addEventListener('change', function() {
+      setTexts();
+    });
+
+    if (window._initialSelMetParam && selMetElem.querySelector(`option[value="${window._initialSelMetParam}"]`)) {
+      selMetElem.value = window._initialSelMetParam;
+      delete window._initialSelMetParam;
+    }
+  }
+
+  setTexts();
+
+  try { updateSelectionSummary(); } catch (_) {}
+
+  const container = document.getElementById('panel-source') || document.querySelector('.menu-item');
+  try { ensureNextButton(container, 'next-btn-source', () => switchToTab('text')); } catch (_) {}
+}
+
+function setTexts() {
+  const selMetEl = document.getElementById("selMet");
+  const selectedMetre = selMetEl ? selMetEl.value : '';
+  const fullList = Array.isArray(window.fullPsList) ? window.fullPsList : [];
+
+  const filtered = fullList.filter(function(item) {
+    if (!selectedMetre) return true;
+    const parts = String(item.data || '').split(';');
+    const metre = parts[1] || '';
+    return metre === selectedMetre;
+  });
+
+  window.currentPsListForUI = filtered.map(function(item) {
+    return { label: item.label, data: item.data, rawObj: item.rawObj || null };
+  });
+
+  // Sort psalms numerically with version ordering
+  window.currentPsListForUI.sort(function(a, b) {
+    const aMatch = a.label.match(/Psalm\s+(\d+)(?:\s+\(([^)]+)\))?/i);
+    const bMatch = b.label.match(/Psalm\s+(\d+)(?:\s+\(([^)]+)\))?/i);
+    
+    // If both match the psalm pattern
+    if (aMatch && bMatch) {
+      const aNum = parseInt(aMatch[1], 10);
+      const bNum = parseInt(bMatch[1], 10);
+      
+      // Sort by psalm number first
+      if (aNum !== bNum) {
+        return aNum - bNum;
+      }
+      
+      // Same psalm number - sort by version
+      const aVersion = aMatch[2] || '';
+      const bVersion = bMatch[2] || '';
+      
+      // Define version order
+      const versionOrder = ['First', 'Second', 'Third', 'Fourth', 'Fifth', 'Sixth', 'Seventh', 'Eighth', 'Ninth', 'Tenth'];
+      
+      const aVersionMatch = aVersion.match(/(First|Second|Third|Fourth|Fifth|Sixth|Seventh|Eighth|Ninth|Tenth)/i);
+      const bVersionMatch = bVersion.match(/(First|Second|Third|Fourth|Fifth|Sixth|Seventh|Eighth|Ninth|Tenth)/i);
+      
+      if (aVersionMatch && bVersionMatch) {
+        const aIdx = versionOrder.findIndex(v => v.toLowerCase() === aVersionMatch[1].toLowerCase());
+        const bIdx = versionOrder.findIndex(v => v.toLowerCase() === bVersionMatch[1].toLowerCase());
+        return aIdx - bIdx;
+      }
+      
+      // If only one has version, non-version comes first
+      if (aVersionMatch && !bVersionMatch) return 1;
+      if (!aVersionMatch && bVersionMatch) return -1;
+      
+      // Otherwise sort version text alphabetically
+      return aVersion.localeCompare(bVersion);
+    }
+    
+    // If only one matches psalm pattern, psalms come first
+    if (aMatch && !bMatch) return -1;
+    if (!aMatch && bMatch) return 1;
+    
+    // Neither matches - sort alphabetically
+    return a.label.localeCompare(b.label);
+  });
+
+  const container = document.getElementById('psTextList');
+  // ⬇️ NEW: Also get the texts container
+  const textsContainer = document.getElementById('texts');
+  
+  if (!container) {
+    console.warn('#psTextList missing; cannot populate texts');
+    return;
+  }
+
+  // Clear both containers
+  container.innerHTML = '';
+  if (textsContainer) {
+    textsContainer.innerHTML = '';
+    textsContainer.style.display = 'none';  // Start hidden
+  }
+
+  if (filtered.length === 0) {
+    container.textContent = 'No texts match this metre.';
+    // Also clear verses
+    const versesEl = document.getElementById('verses');
+    if (versesEl) {
+      versesEl.innerHTML = '';
+      versesEl.style.display = 'none';
+    }
+    return;
+  }
+
+  // Create selector display
+  const selectPsDiv = document.createElement('div');
+  selectPsDiv.id = 'selectPsalm';
+  selectPsDiv.textContent = 'Select text below...';
+  selectPsDiv.setAttribute('role', 'button');
+  selectPsDiv.setAttribute('tabindex', '0');
+  selectPsDiv.setAttribute('aria-expanded', 'false');
+
+  // Hidden input
+  let hiddenInput = document.getElementById('pstext');
+  if (!hiddenInput) {
+    hiddenInput = document.createElement('input');
+    hiddenInput.type = 'hidden';
+    hiddenInput.id = 'pstext';
+  } else {
+    hiddenInput.value = '';
+    hiddenInput.removeAttribute('data-psdata');
+  }
+
+  // Psalm buttons container
+  const psalmBtnsContainer = document.createElement('div');
+  psalmBtnsContainer.id = 'psalmButtons';
+
+  // Inner wrapper
+  const psalmBtnsInner = document.createElement('div');
+  psalmBtnsInner.className = 'psalm-btn-container';
+
+  // Create buttons (using the now-sorted list)
+  window.currentPsListForUI.forEach(function(item) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'psalm-btn';
+    btn.dataset.label = item.label;
+    btn.dataset.psdata = item.data;
+
+    const match = item.label.match(/Psalm\s+(\d+)(?:\s+\(([^)]+)\))?/i);
+    
+    if (match) {
+      const psalmNum = match[1];
+      const versionText = match[2];
+
+      const labelSpan = document.createElement('span');
+      labelSpan.className = 'psalm-label';
+      labelSpan.textContent = 'PSALM';
+
+      const numberSpan = document.createElement('span');
+      numberSpan.className = 'psalm-number';
+      numberSpan.textContent = psalmNum;
+
+      btn.appendChild(labelSpan);
+      btn.appendChild(numberSpan);
+
+      if (versionText) {
+        const sublineSpan = document.createElement('span');
+        sublineSpan.className = 'psalm-subline';
+        
+        const versionMatch = versionText.match(/(First|Second|Third|Fourth|Fifth|Sixth|Seventh|Eighth|Ninth|Tenth)/i);
+        if (versionMatch) {
+          const versionWords = ['First', 'Second', 'Third', 'Fourth', 'Fifth', 'Sixth', 'Seventh', 'Eighth', 'Ninth', 'Tenth'];
+          const versionIndex = versionWords.findIndex(w => w.toLowerCase() === versionMatch[1].toLowerCase());
+          sublineSpan.textContent = `VER ${versionIndex + 1}`;
+        } else {
+          sublineSpan.textContent = versionText.toUpperCase();
+        }
+        
+        btn.appendChild(sublineSpan);
+      }
+    } else {
+      const labelSpan = document.createElement('span');
+      labelSpan.className = 'psalm-label';
+      labelSpan.textContent = item.label;
+      btn.appendChild(labelSpan);
+    }
+
+    btn.addEventListener('click', function() {
+      psalmBtnsInner.querySelectorAll('.psalm-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      
+      hiddenInput.value = item.label;
+      hiddenInput.dataset.psdata = item.data;
+      selectPsDiv.textContent = item.label;
+      
+      // ⬇️ CHANGED: Hide psalm buttons
+      if (textsContainer) {
+        textsContainer.style.display = 'none';
+      }
+      psalmBtnsContainer.classList.remove('expanded');
+      selectPsDiv.classList.remove('open');
+      selectPsDiv.setAttribute('aria-expanded', 'false');
+      
+      const parts = (item.data || '').split(';');
+      const teiID = parts[0] || '';
+      const metre = parts[1] || '';
+      const suggTune = parts[2] || '';
+      
+      const selMetInput = document.getElementById("selMet");
+      if (selMetInput) {
+        try { selMetInput.value = metre; } catch(_) {}
+      }
+    
+      populateVersesFromSelectedText(item.rawObj || { verses: [], sections: [] });
+    
+      try { getTunes(suggTune); } catch (e) { console.warn('getTunes failed', e); }
+    });
+
+    psalmBtnsInner.appendChild(btn);
+  });
+
+  psalmBtnsContainer.appendChild(psalmBtnsInner);
+
+  // Toggle - ⬇️ MODIFIED: Toggle the texts container visibility
+  const togglePanel = function(e) {
+    if (e) e.preventDefault();
+    
+    if (!textsContainer) return;
+    
+    const isExpanded = textsContainer.style.display === 'block';
+    
+    if (isExpanded) {
+      textsContainer.style.display = 'none';
+      psalmBtnsContainer.classList.remove('expanded');
+      selectPsDiv.classList.remove('open');
+      selectPsDiv.setAttribute('aria-expanded', 'false');
+    } else {
+      textsContainer.style.display = 'block';
+      psalmBtnsContainer.classList.add('expanded');
+      selectPsDiv.classList.add('open');
+      selectPsDiv.setAttribute('aria-expanded', 'true');
+    }
+  };
+
+  selectPsDiv.addEventListener('click', togglePanel);
+  selectPsDiv.addEventListener('keydown', function(e) {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      togglePanel(e);
+    }
+  });
+
+  container.appendChild(selectPsDiv);    
+  container.appendChild(hiddenInput);   
+  
+  if (textsContainer) {
+      textsContainer.appendChild(psalmBtnsContainer);
+      
+      // Show immediately on first load (no transition)
+      textsContainer.style.display = 'block';
+      textsContainer.style.maxHeight = 'none';
+      textsContainer.style.opacity = '1';
+      textsContainer.classList.add('expanded');
+      psalmBtnsContainer.classList.add('expanded');
+      selectPsDiv.classList.add('open');
+      selectPsDiv.setAttribute('aria-expanded', 'true');
+    }
+
+  // Clear verse selector
+  const selectVersesDiv = document.getElementById("selectVerses");
+  if (selectVersesDiv) selectVersesDiv.textContent = "Select Psalm first";
+  
+  const versesList = document.getElementById("verses");
+  if (versesList) {
+    versesList.innerHTML = "";
+    versesList.style.display = "none";
+    versesList.classList.remove("expanded");
+  }
+}
+
+/* ----------------------------- Populate verses ----------------------------- */
+function populateVersesFromSelectedText(rawObj) {
+  const versesEl = document.getElementById('verses');
+  const selectVersesEl = document.getElementById('selectVerses');
+  const verseSection = document.getElementById('VerseSection');
+
+  if (!versesEl) {
+    console.warn('#verses element missing; cannot render verses');
+    return;
+  }
+
+  versesEl.innerHTML = '';
+
+  const sections = (rawObj && Array.isArray(rawObj.sections) && rawObj.sections.length) ? rawObj.sections : null;
+  const flatVerses = (rawObj && Array.isArray(rawObj.verses) && rawObj.verses.length) ? rawObj.verses : [];
+
+  const indContainer = document.createElement('div');
+  indContainer.id = 'indVerses';
+
+  if (sections && sections.length) {
+    // Psalm 119-style with sections
+    sections.forEach(function(sec, idx) {
+      const secDiv = document.createElement('div');
+      secDiv.className = 'verseGroup';
+
+      const secHeader = document.createElement('div');
+      secHeader.className = 'stanza-label';
+      secHeader.textContent = sec.name || `Section ${idx+1}`;
+      secDiv.appendChild(secHeader);
+
+      // "Select All" button for this section
+      const selectAllBtn = document.createElement('button');
+      selectAllBtn.type = 'button';
+      selectAllBtn.className = 'stanza-control-btn active';  // <-- CHANGED: Added 'active' class
+      selectAllBtn.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" style="width: 1em; height: 1em; fill: currentColor;">
+          <path d="M438.6 105.4c12.5 12.5 12.5 32.8 0 45.3l-256 256c-12.5 12.5-32.8 12.5-45.3 0l-128-128c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0L160 338.7 393.4 105.4c12.5-12.5 32.8-12.5 45.3 0z"[...]
+        </svg>
+        <span class="stanza-toggle-label">Select All</span>
+      `;
+      secDiv.appendChild(selectAllBtn);
+
+      const verseList = Array.isArray(sec.verses) ? sec.verses : [];
+      const versesWrap = document.createElement('div');
+      versesWrap.className = 'psalm-btn-container';
+      versesWrap.style.display = 'flex';
+      versesWrap.style.flexWrap = 'wrap';
+      versesWrap.style.gap = '6px';
+      
+      verseList.forEach(function(v) {
+        const verseBtn = document.createElement('button');
+        verseBtn.type = 'button';
+        verseBtn.className = 'verse-btn active';  // <-- CHANGED: Added 'active' class by default
+        verseBtn.dataset.verse = v;
+        verseBtn.dataset.selected = 'true';  // <-- CHANGED: Set to 'true' by default
+        verseBtn.textContent = v;
+        
+        verseBtn.addEventListener('click', function() {
+          const isSelected = verseBtn.dataset.selected === 'true';
+          verseBtn.dataset.selected = isSelected ? 'false' : 'true';
+          if (isSelected) {
+            verseBtn.classList.remove('active');
+          } else {
+            verseBtn.classList.add('active');
+          }
+          verseMenu();
+        });
+        
+        versesWrap.appendChild(verseBtn);
+      });
+      secDiv.appendChild(versesWrap);
+      
+      // Wire "Select All" button
+      selectAllBtn.addEventListener('click', function() {
+        const verseBtns = secDiv.querySelectorAll('.verse-btn');
+        const allSelected = Array.from(verseBtns).every(btn => btn.dataset.selected === 'true');
+        
+        verseBtns.forEach(btn => {
+          btn.dataset.selected = allSelected ? 'false' : 'true';
+          if (allSelected) {
+            btn.classList.remove('active');
+          } else {
+            btn.classList.add('active');
+          }
+        });
+        
+        // Update the select all button appearance
+        if (allSelected) {
+          selectAllBtn.classList.remove('active');
+        } else {
+          selectAllBtn.classList.add('active');
+        }
+        
+        verseMenu();
+      });
+      
+      indContainer.appendChild(secDiv);
+    });
+  } else if (flatVerses && flatVerses.length) {
+    // Regular psalm: flat button list with "Select All" button at the top
+    
+    // Create "Select All" button for the entire psalm
+    const selectAllBtn = document.createElement('button');
+    selectAllBtn.type = 'button';
+    selectAllBtn.className = 'stanza-control-btn active';  // <-- Added: "Select All" button for regular psalms
+    selectAllBtn.innerHTML = `
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" style="width: 1em; height: 1em; fill: currentColor;">
+        <path d="M438.6 105.4c12.5 12.5 12.5 32.8 0 45.3l-256 256c-12.5 12.5-32.8 12.5-45.3 0l-128-128c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0L160 338.7 393.4 105.4c12.5-12.5 32.8-12.5 45.3 0z"/>
+      </svg>
+      <span class="stanza-toggle-label">Select All</span>
+    `;
+    indContainer.appendChild(selectAllBtn);
+    
+    const versesWrap = document.createElement('div');
+    versesWrap.className = 'psalm-btn-container';
+    versesWrap.style.display = 'flex';
+    versesWrap.style.flexWrap = 'wrap';
+    versesWrap.style.gap = '6px';
+    versesWrap.style.marginTop = '8px';
+    
+    flatVerses.forEach(function(v) {
+      const verseBtn = document.createElement('button');
+      verseBtn.type = 'button';
+      verseBtn.className = 'verse-btn active';  // <-- CHANGED: Added 'active' class by default
+      verseBtn.dataset.verse = v;
+      verseBtn.dataset.selected = 'true';  // <-- CHANGED: Set to 'true' by default
+      verseBtn.textContent = v;
+      
+      verseBtn.addEventListener('click', function() {
+        const isSelected = verseBtn.dataset.selected === 'true';
+        verseBtn.dataset.selected = isSelected ? 'false' : 'true';
+        if (isSelected) {
+          verseBtn.classList.remove('active');
+        } else {
+          verseBtn.classList.add('active');
+        }
+        verseMenu();
+      });
+      
+      versesWrap.appendChild(verseBtn);
+    });
+    indContainer.appendChild(versesWrap);
+    
+    // Wire "Select All" button for regular psalms
+    selectAllBtn.addEventListener('click', function() {
+      const verseBtns = indContainer.querySelectorAll('.verse-btn');
+      const allSelected = Array.from(verseBtns).every(btn => btn.dataset.selected === 'true');
+      
+      verseBtns.forEach(btn => {
+        btn.dataset.selected = allSelected ? 'false' : 'true';
+        if (allSelected) {
+          btn.classList.remove('active');
+        } else {
+          btn.classList.add('active');
+        }
+      });
+      
+      // Update the select all button appearance
+      if (allSelected) {
+        selectAllBtn.classList.remove('active');
+      } else {
+        selectAllBtn.classList.add('active');
+      }
+      
+      verseMenu();
+    });
+    
+  } else {
+    const p = document.createElement('div');
+    p.textContent = 'No verse metadata available for this text';
+    indContainer.appendChild(p);
+  }
+
+  versesEl.appendChild(indContainer);
+  versesEl.style.display = 'block';         
+  versesEl.classList.add('expanded'); 
+
+    if (selectVersesEl) {
+      selectVersesEl.innerHTML = 'All';
+      selectVersesEl.classList.add('open');  // ← ADDED: Reset caret
+      selectVersesEl.setAttribute('aria-expanded', 'true');  // ← ADDED: Reset ARIA
+    }
+
+  if (selectVersesEl) {
+    const togglePanel = function(e) {
+      if (e) e.preventDefault();
+      
+      if (!textsContainer) return;
+      
+      const isExpanded = textsContainer.style.display === 'block';
+      
+      if (isExpanded) {
+        textsContainer.style.display = 'none';
+        psalmBtnsContainer.classList.remove('expanded');
+        selectPsDiv.classList.remove('open');
+        selectPsDiv.setAttribute('aria-expanded', 'false');
+      } else {
+        textsContainer.style.display = 'block';
+        psalmBtnsContainer.classList.add('expanded');
+        selectPsDiv.classList.add('open');
+        selectPsDiv.setAttribute('aria-expanded', 'true');
+      }
     };
+    selectVersesEl.setAttribute('role', 'button');
+    selectVersesEl.setAttribute('tabindex', '0');
+    selectVersesEl.setAttribute('aria-expanded', 'true');
+    selectVersesEl.style.cursor = 'pointer';
+    selectVersesEl.onclick = togglePanel;
+    selectVersesEl.onkeydown = function(e) {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); togglePanel(e); }
+    };
+  }
+
+  try { 
+  ensureNextButton(verseSection || versesEl.parentElement, 'next-btn-text', () => {
+    const selectedVerses = getSelectedVerses();
+    if (selectedVerses. length < 2) {
+      alert('Please select at least 2 verses before proceeding.');
+      return;
+    }
+    switchToTab('tune');
+  }); 
+} catch (_) {}
+  try { updateSelectionSummary(); } catch (_) {}
+}
+
+/* ----------------------------- Tab navigation and sidenav open/close ----------------------------- */
+if (document.readyState === 'loading') {
+  document.addEventListener("DOMContentLoaded", function() {
+    initializeTabNavigation();
+  });
+} else {
+  initializeTabNavigation();
+}
+
+function initializeTabNavigation() {
+  const tabs = document.querySelectorAll('.sidenav-tab, .top-tab');
+  const panels = document.querySelectorAll('.tab-panel');
+  if (tabs.length === 0 || panels.length === 0) {
+    console.warn('Tab navigation elements not found');
+    return;
+  }
+  function activate(tabEl) {
+    const target = tabEl.getAttribute('data-tab');
+    tabs.forEach(t => {
+      t.classList.remove('active');
+      t.setAttribute('aria-selected', 'false');
+      t.setAttribute('tabindex', '-1');
+    });
+    tabEl.classList.add('active');
+    tabEl.setAttribute('aria-selected', 'true');
+    tabEl.setAttribute('tabindex', '0');
+
+    panels.forEach(p => p.classList.remove('active'));
+    const panel = document.getElementById('panel-' + target);
+    if (panel) panel.classList.add('active');
+  }
+  tabs.forEach(tab => {
+    tab.addEventListener('click', function () { activate(this); });
+    tab.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activate(this); }
+    });
+  });
+  const initial = document.querySelector('.top-tab.active, .sidenav-tab.active') || tabs[0];
+  if (initial) activate(initial);
+}
+
+function openNav() {
+  var sidenav = document.getElementById("sidenav");
+  var menutoggle = document.getElementById("menutoggle");
+  
+  // Use responsive width based on orientation and viewport
+  var sidenavWidth = "360px";
+  if (window.matchMedia("(orientation: landscape) and (max-height: 500px)").matches) {
+    sidenavWidth = "min(360px, 90vw)"; // Never exceed 90% of viewport width
+  }
+  
+  sidenav.style.width = sidenavWidth;
+  sidenav.classList.add("open");
+  sidenav.style.height = "100%";
+  menutoggle.classList.add("is-active");
+}
+
+function closeNav() {
+  var sidenav = document.getElementById("sidenav");
+  var menutoggle = document.getElementById("menutoggle");
+  sidenav.style.width = "0";
+  sidenav.classList.remove("open");
+  menutoggle.classList.remove("is-active");
+}
+
+/* ----------------------------- iPhone Chrome fallback CSS injection ----------------------------- */
+function ensureSidenavStyles() {
+  try {
+    const tab = document.querySelector('.sidenav-tab');
+    const icon = document.querySelector('.sidenav-tab svg');
+    if (!tab || !icon) return;
+    const tabStyle = getComputedStyle(tab);
+    const iconStyle = getComputedStyle(icon);
+    const tabLooksUnstyled = tabStyle.display !== 'flex';
+    const iconFill = iconStyle.fill || '';
+    const iconLooksBlack =
+      iconFill === 'rgb(0, 0, 0)' || iconFill.toLowerCase() === '#000' || iconFill.toLowerCase() === 'black';
+    if (tabLooksUnstyled || iconLooksBlack) {
+      console.warn('Sidenav CSS not applied. Injecting fallback styles for tabs.');
+      const style = document.createElement('style');
+      style.setAttribute('data-injected', 'sidenav-fallback');
+      style.textContent = `
+        #sidenav.open { width: min(360px, 90vw); max-width: 90vw; }
+        .sidenav-container { display: flex; flex-direction: row; height: 100%; width: 100%; max-width: 90vw; position: relative; }
+        .sidenav-content { flex: 1; width: 290px; overflow-y: auto; background: #555; order: 1; -webkit-overflow-scrolling: touch; }
+        .sidenav-tabs { width: 60px; min-width: 60px; max-width: 60px; background: #444; display: flex; flex-direction: column; border-left: 2px solid #333; flex-shrink: 0; order: 2; padding-top: 65px[...]
+        .sidenav-tab { flex: 1 1 auto; min-height: 80px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 12px 8px; cursor: pointer; background: #555; bord[...]
+        .sidenav-tab:hover { background: #5f6f4f; }
+        .sidenav-tab.active { background: #6fc252; }
+        .sidenav-tab svg { width: 28px !important; height: 28px !important; display: block !important; fill: #fff !important; }
+        .sidenav-tab-label { writing-mode: vertical-rl; transform: rotate(0deg); color: #fff; font-size: 18px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; white-space: nowrap; op[...]
+        .sidenav-tab.active .sidenav-tab-label { opacity: 1; max-height: 150px; }
+        .tab-panel { display: none; padding: 15px; }
+        .tab-panel.active { display: block; }
+      `;
+      document.head.appendChild(style);
+    }
+  } catch (e) { console.error('Error ensuring sidenav styles:', e); }
+}
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', ensureSidenavStyles);
+} else {
+  ensureSidenavStyles();
+}
+
+/* ----------------------------- Summary display & wiring ----------------------------- */
+function updateSelectionSummary() {
+  var srcEl = document.getElementById("pssource");
+  var txtEl = document.getElementById("pstext");
+  var versesEl = document.getElementById("selectVerses");
+  var tuneEl = document.getElementById("pstune");
+
+  var srcOut = document.getElementById("summary-source");
+  var txtOut = document.getElementById("summary-text");
+  var tuneOut = document.getElementById("summary-tune");
+  if (!srcOut || !txtOut || !tuneOut) return;
+
+  var sourceVal = srcEl && srcEl.value ? srcEl.value.trim() : "";
+  
+  // Single source selection
+  if (sourceVal) {
+    srcOut.textContent = sourceVal;
+  } else {
+    srcOut.textContent = "Select Source";
+  }
+
+  var textTitle = txtEl && txtEl.value ? txtEl.value.trim() : "";
+  var versesText = versesEl && versesEl.textContent ? versesEl.textContent.trim() : "";
+
+  function versesChosen(v) { return v && v.toLowerCase().indexOf("select") === -1; }
+
+  if (textTitle) {
+    if (versesChosen(versesText)) {
+      txtOut.textContent = textTitle + ": " + versesText;
+    } else {
+      txtOut.textContent = textTitle + ":";
+    }
+  } else {
+    txtOut.textContent = "Select Text";
+  }
+
+  // Determine tune title to show in summary:
+  // prefer selected label stored in data-tunelabel; otherwise show visible input value (filter) if it looks like a selection
+  var tuneTitle = "";
+  if (tuneEl) {
+    if (tuneEl.dataset && tuneEl.dataset.tunelabel) {
+      tuneTitle = tuneEl.dataset.tunelabel;
+    } else if (tuneEl.value && tuneEl.value.trim()) {
+      tuneTitle = tuneEl.value.trim();
+    } else {
+      tuneTitle = "";
+    }
+  }
+  tuneOut.textContent = tuneTitle || "Select Tune";
+
+  var ready = !!(sourceVal && textTitle && ( (tuneEl && tuneEl.dataset && tuneEl.dataset.tuneid) || tuneTitle ));
+  ensureSummaryGoButton(ready);
+}
+
+function domContentLoadedHandler1639() {
+  updateSelectionSummary();
+  var srcEl = document.getElementById("pssource");
+  if (srcEl) {
+    srcEl.addEventListener("change", updateSelectionSummary);
+    srcEl.addEventListener("input", updateSelectionSummary);
+  }
+  var txtEl = document.getElementById("pstext");
+  if (txtEl) {
+    txtEl.addEventListener("change", updateSelectionSummary);
+    txtEl.addEventListener("input", updateSelectionSummary);
+  }
+  var tuneEl = document.getElementById("pstune");
+  if (tuneEl) {
+    tuneEl.addEventListener("change", updateSelectionSummary);
+    tuneEl.addEventListener("input", updateSelectionSummary);
+  }
+  document.addEventListener("click", function (e) {
+    if (e.target && (e.target.closest("#indVerses") || e.target.id === "selectAll")) {
+      setTimeout(updateSelectionSummary, 0);
+    }
+  });
+}
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', domContentLoadedHandler1639);
+} else {
+  domContentLoadedHandler1639();
+}
+
+/* ----------------------------- NEXT buttons ----------------------------- */
+function switchToTab(tabKey) {
+  const tabEl = document.querySelector(`.top-tab[data-tab="${tabKey}"], .sidenav-tab[data-tab="${tabKey}"]`);
+  if (tabEl) tabEl.click();
+}
+
+const NEXT_SVG = `
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" aria-hidden="true">
+  <path d="M566.6 342.6C579.1 330.1 579.1 309.8 566.6 297.3L406.6 137.3C394.1 124.8 373.8 124.8 361.3 137.3C348.8 149.8 348.8 170.1 361.3 182.6L466.7 288L96 288C78.3 288 64 302.3 64 320C64 337.7 78.3 352 96 352L466.7 352L361.3 457.4C348.8 469.9 348.8 490.2 361.3 502.6C373.8 515.1 394.1 515.1 406.6 502.6L566.6 342.6z"/>
+</svg>`.trim();
+
+function ensureNextButton(containerEl, id, onClick) {
+  if (!containerEl) return null;
+  let row = containerEl.querySelector('.next-btn-row');
+  if (!row) {
+    row = document.createElement('div');
+    row.className = 'next-btn-row';
+    containerEl.appendChild(row);
+  }
+  let btn = document.getElementById(id);
+  // ← CHANGED: Remove span wrapper, use plain text like original
+  const html = NEXT_SVG + 'Next';
+  if (!btn) {
+    btn = document.createElement('button');
+    btn.id = id;
+    btn.type = 'button';
+    btn.className = 'next-btn';
+    btn.innerHTML = html;
+    row.appendChild(btn);
+  } else {
+    btn.innerHTML = html;
+    btn.style.display = 'inline-flex';
+    if (btn.parentElement !== row) row.appendChild(btn);
+  }
+  btn.onclick = onClick;
+  return btn;
+}
+
+function ensureNextButtonAfter(anchorEl, id, onClick) {
+  if (!anchorEl || !anchorEl.parentElement) return null;
+  let row = anchorEl.nextElementSibling;
+  const desiredClass = 'next-btn-row';
+  if (!row || !row.classList || !row.classList.contains(desiredClass)) {
+    row = document.createElement('div');
+    row.className = desiredClass;
+    anchorEl.parentElement.insertBefore(row, anchorEl.nextSibling);
+  }
+  let btn = document.getElementById(id);
+  // ← CHANGED: Remove span wrapper
+  const html = NEXT_SVG + 'Next';
+  if (!btn) {
+    btn = document.createElement('button');
+    btn.id = id;
+    btn.type = 'button';
+    btn.className = 'next-btn';
+    btn.innerHTML = html;
+    row.appendChild(btn);
+  } else {
+    btn.innerHTML = html;
+    btn.style.display = 'inline-flex';
+    if (btn.parentElement !== row) row.appendChild(btn);
+  }
+  btn.onclick = onClick;
+  return btn;
+}
+
+function ensureClearButton(containerEl, id, onClick) {
+  if (!containerEl) return null;
+  
+  // Look for clear-next-btn-row specifically
+  let row = containerEl. classList && containerEl.classList.contains('clear-next-btn-row') 
+    ? containerEl 
+    : containerEl.querySelector('. clear-next-btn-row');
+  
+  // If no row exists, create one with the NEW class
+  if (!row) {
+    row = document.createElement('div');
+    row.className = 'clear-next-btn-row';  // ← Changed class name
+    containerEl. appendChild(row);
+  }
+  
+  let btn = document. getElementById(id);
+  const clearSVG = `
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" aria-hidden="true">
+  <path d="M431.2 476.5L163.5 208.8C141.1 240.2 128 278.6 128 320C128 426 214 512 320 512C361.5 512 399.9 498.9 431.2 476.5zM476.5 431.2C498.9 399.8 512 361.4 512 320C512 214 426 128 320 128C278.5 128 240.1 141.1 208.8 163.5L476.5 431.2zM64 320C64 178.6 178.6 64 320 64C461.4 64 576 178.6 576 320C576 461.4 461.4 576 320 576C178.6 576 64 461.4 64 320z"/>
+</svg>`.trim();
+  
+  const html = clearSVG + 'Clear<br>Selection';
+  
+  if (! btn) {
+    btn = document.createElement('button');
+    btn.id = id;
+    btn.type = 'button';
+    btn.className = 'clear-btn';
+    btn.innerHTML = html;
+    row.insertBefore(btn, row.firstChild);
+  } else {
+    btn.innerHTML = html;
+    btn.className = 'clear-btn';
+    btn.style.display = 'inline-flex';
+    if (btn.parentElement === row) {
+      row.removeChild(btn);
+    }
+    row.insertBefore(btn, row.firstChild);
+  }
+  
+  btn.onclick = onClick;
+  return btn;
+}
+
+function hideClearButton(id) {
+  const btn = document.getElementById(id);
+  if (btn) btn.style.display = 'none';
+}
+
+function domContentLoadedHandler1734() {
+  const src = document.getElementById('pssource');
+  if (!src) return;
+  const container = src.closest('.menu-item') || document.getElementById('panel-source');
+  function maybeShowNextForSource() {
+    if (src.value && src.value.trim().length) {
+      ensureNextButton(container, 'next-btn-source', () => switchToTab('text'));
+    } else {
+      hideNextButton('next-btn-source');
+    }
+  }
+  src.addEventListener('change', maybeShowNextForSource);
+  src.addEventListener('input', maybeShowNextForSource);
+}
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', domContentLoadedHandler1734);
+} else {
+  domContentLoadedHandler1734();
+}
+
+let versesObserver;
+function watchForVersesAndShowNext() {
+  const verses = document.getElementById('verses');
+  if (!verses) return;
+  if (versesObserver) versesObserver.disconnect();
+  versesObserver = new MutationObserver(function () {
+    if (verses.childElementCount > 0 || verses.textContent.trim().length > 0) {
+      const verseSection = document.getElementById('VerseSection') || verses.parentElement;
+      ensureNextButton(verseSection, 'next-btn-text', () => validateAndSwitchToTune());
+      try { updateSelectionSummary(); } catch (_) {}
+      versesObserver.disconnect();
+    }
+  });
+  versesObserver.observe(verses, { childList: true, subtree: true, characterData: true });
+}
+
+// Validate verse selection before switching to tune tab
+function validateAndSwitchToTune() {
+  const verses = document.getElementById('verses');
+  if (!verses) {
+    switchToTab('tune');
+    return;
+  }
+
+  // Get all verse buttons
+  const verseBtns = verses.querySelectorAll('.verse-btn');
+  const selectedVerseBtns = Array.from(verseBtns).filter(btn => btn.dataset.selected === 'true');
+  
+  if (selectedVerseBtns.length < 2) {
+    // Show error message
+    alert('You must select at least two stanzas. Please select another and try again.');
+    return;
+  }
+
+  // Validation passed, proceed to tune tab
+  switchToTab('tune');
+}
+
+document.addEventListener('awesomplete-selectcomplete', function (e) {
+  if (e.target && e.target.id === 'pstext') watchForVersesAndShowNext();
+}, true);
+
+document.addEventListener('input', function (e) {
+  if (e.target && e.target.id === 'pstext') {
+    if (!e.target.value.trim()) hideNextButton('next-btn-text');
+  }
+});
+
+function maybeShowNextForTune() {
+
+  const tuneInput = document.getElementById('pstune');
+  const anchor = document. getElementById('tunes');
+
+
+  if (!tuneInput || !anchor) {
+    console.warn('Missing required elements');
+    return;
+  }
+  
+  const chosen = (tuneInput.dataset && tuneInput. dataset.tuneid) || tuneInput.value.trim();
+
+
+
+  if (chosen) {
+
+    // Create or get the row with the clear-next-btn-row class
+    let btnRow = anchor.nextElementSibling;
+    if (!btnRow || !btnRow.classList.contains('clear-next-btn-row')) {
+      btnRow = document.createElement('div');
+      btnRow.className = 'clear-next-btn-row';
+      anchor.parentElement.insertBefore(btnRow, anchor.nextSibling);
+    }
+
+    // Show Clear button first (goes to left)
+    ensureClearButton(btnRow, 'clear-btn-tune', () => {
+
+      // Clear the tune selection
+      if (tuneInput) {
+        tuneInput.value = '';
+        tuneInput.dataset.tuneid = '';
+        tuneInput.dataset.tunelabel = '';
+      }
+      window.globalPsTune = '';
+      
+      // Get the selected text's metre to restore filtered view
+      const psTextInput = document.getElementById('pstext');
+      let currentMetre = '';
+      if (psTextInput && psTextInput.dataset && psTextInput.dataset.psdata) {
+        const psdata = psTextInput.dataset.psdata. split(';');
+        currentMetre = psdata[1] || '';
+      }
+
+      // Deactivate all tune buttons
+      const tuneButtonsContainer = document. getElementById('tuneButtons');
+      if (tuneButtonsContainer) {
+        tuneButtonsContainer.querySelectorAll('.tune-btn, .verse-btn').forEach(b => {
+          b. classList.remove('active');
+        });
+      }
+      
+      // Re-run getTunes to restore the original filtered list by metre
+      // Pass empty string so suggTune falls back to psData[2] (the actual suggested tune)
+      try {
+        getTunes('');  // ← Pass empty string to preserve suggested tune from psData[2]
+      } catch(e) {
+        console.warn('Error calling getTunes:', e);
+      }
+      
+      // Hide both buttons and remove the row
+      hideNextButton('next-btn-tune');
+      hideClearButton('clear-btn-tune');
+      if (btnRow && btnRow.parentElement) {
+        btnRow.parentElement.removeChild(btnRow);
+      }
+      
+      // Update summary
+      try { updateSelectionSummary(); } catch(_) {}
+      
+      // Re-run maybeShowNextForTune to ensure buttons are hidden
+      setTimeout(() => maybeShowNextForTune(), 100);
+    });
+
+    // Create Next button directly in the btnRow
+    let nextBtn = document.getElementById('next-btn-tune');
+    if (!nextBtn) {
+      nextBtn = document.createElement('button');
+      nextBtn.id = 'next-btn-tune';
+      nextBtn.type = 'button';
+      nextBtn.className = 'next-btn';
+      nextBtn.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" aria-hidden="true">
+          <path d="M566.6 342.6C579.1 330.1 579.1 309.8 566.6 297.3L406.6 137.3C394.1 124.8 373.8 124.8 361.3 137.3C348.8 149.8 348.8 170.1 361.3 182.6L466.7 288L96 288C78.3 288 64 302.3 64 320C64 337.7 78.3 352 96 352L466.7 352L361.3 457.4C348.8 469.9 348.8 490.2 361.3 502.6C373.8 515.1 394.1 515.1 406.6 502.6L566.6 342.6z"/>
+        </svg>
+        Next
+      `;
+      btnRow.appendChild(nextBtn);
+    } else {
+      nextBtn.style.display = 'inline-flex';
+      if (nextBtn.parentElement !== btnRow) {
+        btnRow.appendChild(nextBtn);
+      }
+    }
+    nextBtn.onclick = () => switchToTab('options');
+
+  } else {
+
+    hideNextButton('next-btn-tune');
+    hideClearButton('clear-btn-tune');
+    // Clean up the row
+    const btnRow = anchor.nextElementSibling;
+    if (btnRow && btnRow.classList.contains('clear-next-btn-row')) {
+      btnRow.parentElement.removeChild(btnRow);
+    }
+  }
+
+}
+
+document.addEventListener('awesomplete-selectcomplete', function (e) {
+  if (e.target && e.target.id === 'pstune') maybeShowNextForTune();
+}, true);
+
+document.addEventListener('change', function (e) {
+  if (e.target && e.target.id === 'pstune') maybeShowNextForTune();
+}, true);
+
+document.addEventListener('input', function (e) {
+  if (e.target && e.target.id === 'pstune') maybeShowNextForTune();
+}, true);
+
+function domContentLoadedHandler1799() {
+  const tunesContainer = document.getElementById('tunes');
+  if (!tunesContainer) return;
+  const ob = new MutationObserver(() => { maybeShowNextForTune(); });
+  ob.observe(tunesContainer, { childList: true, subtree: true });
+}
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', domContentLoadedHandler1799);
+} else {
+  domContentLoadedHandler1799();
+}
+
+function ensureSummaryGoButton(shouldShow) {
+  const holder = document.getElementById('summaryBtn');
+  if (!holder) return;
+
+  if (!shouldShow) {
+    holder.style.display = 'none';
+    holder.innerHTML = '';
+    return;
+  }
+
+  holder.style.display = 'block';
+  // ← CHANGED: Match original structure exactly - no nested indentation, text directly after SVG
+  holder.innerHTML =
+    "<button type='button' class='submitbtn' id='summaryGoBtn' onclick='loadFile(); closeNav();'>" +
+      "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'>" +
+        "<path d='M21,4 C21.5128358,4 21.9355072,4.38604019 21.9932723,4.88337887 L22,5 L22,11.5 C22,13.3685634 20.5357224,14.8951264 18.6920352,14.9948211 L18.5,15 L5.415,15 L8.70710678,18.2928932 C9.06759074,18.6533772 9.09532028,19.2206082 8.79029539,19.6128994 L8.70710678,19.7071068 C8.34662282,20.0675907 7.77939176,20.0953203 7.38710056,19.7902954 L7.29289322,19.7071068 L2.29289322,14.7071068 C2.25749917,14.6717127 2.22531295,14.6343256 2.19633458,14.5953066 L2.12467117,14.4840621 L2.12467117,14.4840621 L2.07122549,14.371336 L2.07122549,14.371336 L2.03584514,14.265993 L2.03584514,14.265993 L2.0110178,14.1484669 L2.0110178,14.1484669 L2.00397748,14.0898018 L2.00397748,14.0898018 L2,14 L2.00278786,13.9247615 L2.00278786,13.9247615 L2.02024007,13.7992742 L2.02024007,13.7992742 L2.04973809,13.6878575 L2.04973809,13.6878575 L2.09367336,13.5767785 L2.09367336,13.5767785 L2.14599545,13.4792912 L2.14599545,13.4792912 L2.20970461,13.3871006 L2.20970461,13.3871006 L2.29289322,13.2928932 L2.29289322,13.2928932 L7.29289322,8.29289322 C7.68341751,7.90236893 8.31658249,7.90236893 8.70710678,8.29289322 C9.06759074,8.65337718 9.09532028,9.22060824 8.79029539,9.61289944 L8.70710678,9.70710678 L5.415,13 L18.5,13 C19.2796961,13 19.9204487,12.4051119 19.9931334,11.64446 L20,11.5 L20,5 C20,4.44771525 20.4477153,4 21,4 Z'></path>" +
+      "</svg>" +
+      "Go" +
+    "</button>";
+  
+  // Note: onclick in HTML above handles the click, but keeping this for compatibility
+  const btn = document.getElementById('summaryGoBtn');
+  if (btn && !btn.onclick) {
+    btn.onclick = function () {
+      try { loadFile(); } catch(_) {}
+      try { closeNav(); } catch(_) {}
+    };
+  }
+}
+
+/* ----------------------------- Tab tooltip helpers ----------------------------- */
+function addTopTabTooltips() {
+  const labelMap = {
+    source: "Source",
+    text: "Text",
+    tune: "Tune",
+    options: "Options"
+  };
+  const tabs = document.querySelectorAll('.sidenav-top-tabs .top-tab');
+  tabs.forEach(tab => {
+    const key = tab.getAttribute('data-tab');
+    const label = labelMap[key] || (key ? key.charAt(0).toUpperCase() + key.slice(1) : "Tab");
+    tab.setAttribute('data-tooltip', label);
+    tab.setAttribute('title', label);
+    tab.setAttribute('aria-label', label);
+  });
+}
+function domContentLoadedHandler1853() {
+  try { addTopTabTooltips(); } catch(e) {}
+}
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', domContentLoadedHandler1853);
+} else {
+  domContentLoadedHandler1853();
+}
+
+function wireTopTabTooltipDismissal() {
+  const tabs = document.querySelectorAll('.sidenav-top-tabs .top-tab');
+  tabs.forEach(tab => {
+    tab.addEventListener('click', function (e) {
+      if (e && e.detail > 0) {
+        tab.classList.add('no-tooltip');
+        setTimeout(() => tab.blur(), 0);
+        setTimeout(() => tab.classList.remove('no-tooltip'), 300);
+      }
+    });
+    tab.addEventListener('mouseleave', function () {
+      tab.classList.add('no-tooltip');
+    });
+    tab.addEventListener('mouseenter', function () {
+      tab.classList.remove('no-tooltip');
+    });
+    tab.addEventListener('focus', function () {
+      tab.classList.remove('no-tooltip');
+    });
+    tab.addEventListener('blur', function () {
+      tab.classList.add('no-tooltip');
+    });
+  });
+}
+function domContentLoadedHandler1881() {
+  try { wireTopTabTooltipDismissal(); } catch(e) {}
+}
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', domContentLoadedHandler1881);
+} else {
+  domContentLoadedHandler1881();
+}
+
+/* ----------------------------- Startup: fetch consolidated data ----------------------------- */
+function domContentLoadedHandler1886() {
+  try { fetchConsolidatedData(); } catch (e) { console.warn('fetchConsolidatedData failed', e); }
+}
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', domContentLoadedHandler1886);
+} else {
+  domContentLoadedHandler1886();
+}
+
+function initializeTextAccordion() {
+  const selectPsalm = document.getElementById('selectPsalm');
+  const psalmButtons = document.getElementById('psalmButtons');
+  
+  if (!selectPsalm || !psalmButtons) {
+    return;
+  }
+  
+  // Add caret indicator if not already present
+  if (!selectPsalm.querySelector('.accordion-caret')) {
+    const caret = document.createElement('span');
+    caret.className = 'accordion-caret';
+    selectPsalm.insertBefore(caret, selectPsalm.firstChild);
+  }
+  
+  // Toggle function
+  const toggleTextAccordion = function(e) {
+    if (e) e.preventDefault();
+    const isExpanded = psalmButtons.classList.contains('expanded');
+    
+    if (isExpanded) {
+      psalmButtons.classList.remove('expanded');
+      selectPsalm.classList.remove('open');
+      selectPsalm.setAttribute('aria-expanded', 'false');
+    } else {
+      psalmButtons.classList.add('expanded');
+      selectPsalm.classList.add('open');
+      selectPsalm.setAttribute('aria-expanded', 'true');
+    }
+  };
+  
+  // Wire up click handlers
+  selectPsalm.addEventListener('click', toggleTextAccordion);
+  selectPsalm.addEventListener('keydown', function(e) {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      toggleTextAccordion(e);
+    }
+  });
+
+}
+
+function initializeVerseAccordion() {
+  const selectVerses = document.getElementById('selectVerses');
+  const versesContainer = document.getElementById('verses');
+ 
+  
+  // Add caret indicator if not already present
+  if (!selectVerses.querySelector('.accordion-caret')) {
+    const caret = document.createElement('span');
+    caret.className = 'accordion-caret';
+    selectVerses.insertBefore(caret, selectVerses.firstChild);
+  }
+  
+  // Toggle function
+  const toggleVerseAccordion = function(e) {
+    if (e) e.preventDefault();
+    const isExpanded = versesContainer.classList.contains('expanded');
+    
+    if (isExpanded) {
+      versesContainer.classList.remove('expanded');
+      selectVerses.classList.remove('open');
+      selectVerses.setAttribute('aria-expanded', 'false');
+    } else {
+      versesContainer.classList.add('expanded');
+      selectVerses.classList.add('open');
+      selectVerses.setAttribute('aria-expanded', 'true');
+    }
+  };
+  
+  // Wire up click handlers
+  selectVerses.addEventListener('click', toggleVerseAccordion);
+  selectVerses.addEventListener('keydown', function(e) {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      toggleVerseAccordion(e);
+    }
+  });
+}
+
+function domContentLoadedHandler1971() {
+  // Use a slight delay to ensure all dynamic content is loaded first
+  setTimeout(function() {
+    initializeTextAccordion();
+    initializeVerseAccordion();
+  }, 100);
+}
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', domContentLoadedHandler1971);
+} else {
+  domContentLoadedHandler1971();
+}
+
+/* ----------------------------- Text Search Modal ----------------------------- */
+function domContentLoadedHandler1980() {
+  // Helper function to normalize strings (for accent-insensitive search)
+  // Reusing the same pattern as the tune search normalizeString function
+  function normalizeStringForSearch(str) {
+    return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  }
+  const searchLink = document.getElementById("searchPhraseLink");
+  const searchModal = document.getElementById("searchModal");
+  const searchInput = document.getElementById("searchInput");
+  const searchResults = document.getElementById("searchResults");
+  const closeSearchBtn = document.getElementById("closeSearchModalBtn");
+
+  // Setup modal close on outside click
+  function setupSearchModalCloseOnOutsideClick() {
+    if (!searchModal) return;
+    searchModal.addEventListener("click", function(e) {
+      if (e.target === searchModal) {
+        searchModal.style.display = "none";
+        searchInput.value = "";
+        searchResults.innerHTML = "";
+      }
+    });
+  }
+  setupSearchModalCloseOnOutsideClick();
+
+  // Open modal
+  if (searchLink) {
+    searchLink.addEventListener("click", function(e) {
+      e.preventDefault();
+      if (searchModal) {
+        populateSearchModalSourceList();
+        searchModal.style.display = "flex";
+        searchInput.focus();
+        showSearchInstructions();
+      }
+    });
+  }
+
+  // Close button
+  if (closeSearchBtn) {
+    closeSearchBtn.addEventListener("click", function() {
+      if (searchModal) {
+        searchModal.style.display = "none";
+        searchInput.value = "";
+        searchResults.innerHTML = "";
+      }
+    });
+  }
+
+  // ESC key to close
+  document.addEventListener("keydown", function(e) {
+    if (e.key === "Escape" && searchModal && searchModal.style.display === "flex") {
+      searchModal.style.display = "none";
+      searchInput.value = "";
+      searchResults.innerHTML = "";
+    }
+  });
+
+  // Show initial instructions
+  function showSearchInstructions() {
+    if (!searchResults) return;
+    searchResults.innerHTML = '<div style="padding:20px;text-align:center;color:#555;">Type a word or phrase to search through all psalm texts in the selected source.</div>';
+  }
+  
+  // Populate search modal source list with checkboxes
+  function populateSearchModalSourceList() {
+    const searchSourcesList = document.getElementById('searchSourcesList');
+    if (!searchSourcesList) {
+      console.warn('populateSearchModalSourceList: searchSourcesList element not found');
+      return;
+    }
+    
+    searchSourcesList.innerHTML = '';
+    
+    const availableSources = Object.keys(window.sourceMap || {});
+
+    if (availableSources.length === 0) {
+      // Show message if no sources available yet
+      const msgDiv = document.createElement('div');
+      msgDiv.style.cssText = 'color:#888;font-style:italic;padding:5px 0;';
+      msgDiv.textContent = 'No sources available. Please select a source from the EDITION tab first.';
+      searchSourcesList.appendChild(msgDiv);
+      console.warn('populateSearchModalSourceList: No sources in sourceMap');
+      return;
+    }
+    
+    // Get currently selected sources from hidden input
+    const psSourceInput = document.getElementById('pssource');
+    const selectedSources = psSourceInput && psSourceInput.value ? 
+      psSourceInput.value.split(',').map(s => s.trim()).filter(Boolean) : [];
+    
+    // Container for "All sources" button (on its own line)
+    const allButtonContainer = document.createElement('div');
+    allButtonContainer.style.cssText = 'margin-top: 8px; margin-bottom: 8px; text-align: center;';
+    
+    // Add "All sources" button
+    const allButton = document.createElement('button');
+    allButton.type = 'button';
+    allButton.id = 'search-source-all';
+    allButton.className = 'search-source-button search-source-all';
+    allButton.textContent = 'All sources';
+    allButton.style.cssText = 'padding: 8px 16px; border: 1px solid #ccc; border-radius: 4px; background: #d8e5d3; cursor: pointer; font-size: 0.95em;';
+    
+    // Set initial active state
+    if (selectedSources.length === 0 || selectedSources.length === availableSources.length) {
+      allButton.classList.add('active');
+      allButton.style.background = '#6fc252';
+      allButton.style.color = 'white';
+    }
+    
+    allButtonContainer.appendChild(allButton);
+    searchSourcesList.appendChild(allButtonContainer);
+    
+    // Container for individual source buttons (on separate line)
+    const sourcesButtonContainer = document.createElement('div');
+    sourcesButtonContainer.style.cssText = 'display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;';
+    
+    // Add individual source buttons
+    availableSources.forEach(function(source) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'search-source-button search-source-item';
+      button.setAttribute('data-source', source);
+      
+      // Split source title into year and remainder
+      // Typical format: "1564 Psalm Buik" or "1650 Scottish Metrical"
+      const yearMatch = source.match(/^(\d{4})\s+(.+)$/);
+      if (yearMatch) {
+        // Create two-line structure: year on first line, rest on second
+        const yearSpan = document.createElement('div');
+        yearSpan.textContent = yearMatch[1];
+        yearSpan.style.cssText = 'font-weight: bold; font-size: 1.1em;';
+        
+        const titleSpan = document.createElement('div');
+        titleSpan.textContent = yearMatch[2];
+        titleSpan.style.cssText = 'font-size: 0.85em; margin-top: 2px;';
+        
+        button.appendChild(yearSpan);
+        button.appendChild(titleSpan);
+      } else {
+        // Fallback if format doesn't match
+        button.textContent = source;
+      }
+      
+      button.style.cssText = 'padding: 8px 16px; border: 1px solid #ccc; border-radius: 4px; background: #d8e5d3; cursor: pointer; font-size: 0.95em; text-align: center; min-width: 120px;';
+      
+      // Set initial active state
+      if (selectedSources.length === 0 || selectedSources.includes(source)) {
+        button.classList.add('active');
+        button.style.background = '#6fc252';
+        button.style.color = 'white';
+      }
+      
+      sourcesButtonContainer.appendChild(button);
+    });
+    
+    searchSourcesList.appendChild(sourcesButtonContainer);
+    
+    // Wire up "All sources" toggle
+    allButton.addEventListener('click', function() {
+      const isActive = allButton.classList.contains('active');
+      
+      if (isActive) {
+        // Deactivate all
+        allButton.classList.remove('active');
+        allButton.style.background = '#d8e5d3';
+        allButton.style.color = '';
+        
+        searchSourcesList.querySelectorAll('.search-source-item').forEach(function(btn) {
+          btn.classList.remove('active');
+          btn.style.background = '#d8e5d3';
+          btn.style.color = '';
+        });
+      } else {
+        // Activate all
+        allButton.classList.add('active');
+        allButton.style.background = '#6fc252';
+        allButton.style.color = 'white';
+        
+        searchSourcesList.querySelectorAll('.search-source-item').forEach(function(btn) {
+          btn.classList.add('active');
+          btn.style.background = '#6fc252';
+          btn.style.color = 'white';
+        });
+      }
+    });
+    
+    // Wire up individual buttons
+    searchSourcesList.querySelectorAll('.search-source-item').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        // Toggle this button
+        const isActive = btn.classList.contains('active');
+        
+        if (isActive) {
+          btn.classList.remove('active');
+          btn.style.background = '#d8e5d3';
+          btn.style.color = '';
+        } else {
+          btn.classList.add('active');
+          btn.style.background = '#6fc252';
+          btn.style.color = 'white';
+        }
+        
+        // Update "All sources" button state
+        const allItemButtons = Array.from(searchSourcesList.querySelectorAll('.search-source-item'));
+        const allActive = allItemButtons.every(function(b) { return b.classList.contains('active'); });
+        const noneActive = allItemButtons.every(function(b) { return !b.classList.contains('active'); });
+        
+        if (allActive) {
+          allButton.classList.add('active');
+          allButton.style.background = '#6fc252';
+          allButton.style.color = 'white';
+        } else {
+          allButton.classList.remove('active');
+          allButton.style.background = '#d8e5d3';
+          allButton.style.color = '';
+        }
+      });
+    });
+  }
+
+  // Search through psalms using server-side XQuery
+  async function searchPsalms(query) {
+    if (!query || query.trim().length === 0) {
+      showSearchInstructions();
+      return;
+    }
+
+    // Show loading state
+    searchResults.innerHTML = '<div style="padding:20px;text-align:center;color:#555;">Searching...</div>';
+
+    try {
+      // Collect selected sources from buttons in search modal
+      const sourceAllBtn = document.getElementById('search-source-all');
+      let selectedSources = [];
+      
+      if (sourceAllBtn && sourceAllBtn.classList.contains('active')) {
+        // "All sources" is active - search all sources (pass empty array)
+        selectedSources = [];
+      } else {
+        // Collect individually active sources
+        const activeButtons = Array.from(document.querySelectorAll('#searchSourcesList button.search-source-item.active'))
+          .map(btn => btn.getAttribute('data-source'))
+          .filter(Boolean);
+        selectedSources = activeButtons;
+      }
+      
+      // Build the query URL with optional source filter
+      let url = `searchTexts.xq?query=${encodeURIComponent(query.trim())}`;
+      if (selectedSources && selectedSources.length > 0) {
+        url += `&source=${encodeURIComponent(selectedSources.join(','))}`;
+      }
+      
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`Search failed: ${response.status} ${response.statusText}`);
+      }
+      
+      const results = await response.json();
+      displaySearchResults(results, query);
+      
+    } catch (error) {
+      console.error('Search error:', error);
+      searchResults.innerHTML = '<div style="padding:20px;text-align:center;color:#555;">Search failed. Please try again.</div>';
+    }
+  }
+
+  // Display search results
+  function displaySearchResults(results, query) {
+    if (!searchResults) return;
+
+    if (!results || results.length === 0) {
+      searchResults.innerHTML = '<div style="padding:20px;text-align:center;color:#555;">No results found for "' + query + '"</div>';
+      return;
+    }
+
+    let html = '<div style="margin-bottom:10px;color:#555;font-size:0.9em;">Found ' + results.length + ' result' + (results.length > 1 ? 's' : '') + '</div>';
+    
+    results.forEach(result => {
+      // Highlight the match in the snippet
+      const snippet = highlightMatchInSnippet(result.snippet, query);
+      
+      html += '<div class="search-result-item" data-label="' + result.label + '" data-psdata="' + result.data + '" data-source="' + (result.source || '') + '" data-source-short="' + (result.sourceShort || '') + '" data-verse-num="' + (result.verseNum || '') + '" style="padding:12px;margin:8px 0;background:#f5f5f5;border-radius:6px;cursor:pointer;border:1px solid #ddd;">';
+      html += '<div style="font-weight:700;margin-bottom:6px;color:#333;">' + result.label + '</div>';
+      html += '<div style="color:#555;font-size:0.9em;">' + snippet + '</div>';
+      if (result.source) {
+        html += '<div style="color:#888;font-size:0.8em;margin-top:4px;">' + result.source + '</div>';
+      }
+      html += '</div>';
+    });
+
+    searchResults.innerHTML = html;
+
+    // Add click handlers to results
+    const resultItems = searchResults.querySelectorAll('.search-result-item');
+    resultItems.forEach(item => {
+      item.addEventListener('click', function() {
+        const label = this.getAttribute('data-label');
+        const psdata = this.getAttribute('data-psdata');
+        const source = this.getAttribute('data-source');
+        const sourceShort = this.getAttribute('data-source-short');
+        const verseNum = this.getAttribute('data-verse-num');
+        selectPsalmFromSearch(label, psdata, source, sourceShort, verseNum);
+      });
+      
+      // Hover effect
+      item.addEventListener('mouseenter', function() {
+        this.style.background = '#e8e8e8';
+      });
+      item.addEventListener('mouseleave', function() {
+        this.style.background = '#f5f5f5';
+      });
+    });
+  }
+
+  // Helper function to highlight match in snippet
+  function highlightMatchInSnippet(snippet, query) {
+    if (!snippet || !query) return snippet;
+    
+    const normalizedSnippet = normalizeStringForSearch(snippet);
+    const normalizedQuery = normalizeStringForSearch(query.trim());
+    const matchStartInSnippet = normalizedSnippet.indexOf(normalizedQuery);
+    
+    if (matchStartInSnippet === -1) return snippet;
+    
+    // Find the match length in the original text
+    let matchEnd = matchStartInSnippet;
+    let normalizedCharsMatched = 0;
+    
+    while (normalizedCharsMatched < normalizedQuery.length && matchEnd < snippet.length) {
+      const char = snippet[matchEnd];
+      const normalizedChar = normalizeStringForSearch(char);
+      if (normalizedChar.length > 0) {
+        normalizedCharsMatched += normalizedChar.length;
+      }
+      matchEnd++;
+    }
+    
+    const beforeMatch = snippet.substring(0, matchStartInSnippet);
+    const match = snippet.substring(matchStartInSnippet, matchEnd);
+    const afterMatch = snippet.substring(matchEnd);
+    return beforeMatch + '<mark style="background:#ffd966;">' + match + '</mark>' + afterMatch;
+  }
+
+  // Select psalm from search results
+  function selectPsalmFromSearch(label, psdata, source, sourceShort, verseNum) {
+
+    // Close modal
+    if (searchModal) {
+      searchModal.style.display = "none";
+      searchInput.value = "";
+      searchResults.innerHTML = "";
+    }
+
+    // First, select the source if provided
+    // Use sourceShort to match the button's data-source-label (which is the short title)
+    if (sourceShort) {
+
+      const sourceContainer = document.getElementById('sourceButtonContainer');
+      if (sourceContainer) {
+        const sourceButtons = sourceContainer.querySelectorAll('.source-button');
+        let sourceFound = false;
+        sourceButtons.forEach(btn => {
+          const btnLabel = btn.getAttribute('data-source-label');
+
+          if (btnLabel === sourceShort) {
+
+            sourceFound = true;
+            // Always click to ensure it's selected (single-select now)
+            btn.click();
+          }
+        });
+        if (!sourceFound) {
+          console.warn('Source button not found with short title:', sourceShort);
+        }
+      } else {
+        console.warn('sourceButtonContainer not found');
+      }
+    }
+
+    // Wait a moment for the source selection to populate texts, then find and click the psalm
+    setTimeout(function() {
+
+      const textsContainer = document.getElementById('texts');
+      if (textsContainer) {
+        const psalms = textsContainer.querySelectorAll('.psalm-btn');
+
+        let psalmFound = false;
+        psalms.forEach(btn => {
+          if (btn.dataset.label === label) {
+
+            psalmFound = true;
+            btn.click();
+            
+            // After selecting the psalm, switch to TEXT tab and select only the matching verse
+            setTimeout(function() {
+
+              // Switch to TEXT tab
+              switchToTab('text');
+              
+              // Find and select only the verse with the matching verse number
+              if (verseNum) {
+                selectVerseByNumber(verseNum);
+              } else {
+                // Fallback to selecting first verse if no verse number
+                selectVerseByNumber('1');
+              }
+            }, 200);
+            
+            return;
+          }
+        });
+        if (!psalmFound) {
+          console.warn('Psalm button not found with label:', label);
+        }
+      } else {
+        console.warn('texts container not found');
+      }
+    }, 200);
+  }
+
+  // Select only the verse with the given verse number
+  function selectVerseByNumber(verseNum) {
+
+    const verses = document.getElementById('verses');
+    if (!verses) {
+      console.warn('verses element not found');
+      return;
+    }
+
+    // Get all verse buttons
+    const verseBtns = verses.querySelectorAll('.verse-btn');
+    if (verseBtns.length === 0) {
+      console.warn('No verse buttons found');
+      return;
+    }
+
+    // First, deselect all verses (don't set inline styles - let CSS handle appearance)
+    verseBtns.forEach(btn => {
+      btn.dataset.selected = 'false';
+      btn.classList.remove('active');
+      // Remove any inline styles that may have been set
+      btn.style.background = '';
+      btn.style.color = '';
+    });
+
+    // Deselect any "Select All" button(s)
+    const selectAllBtns = verses.querySelectorAll('.stanza-control-btn');
+    selectAllBtns.forEach(btn => {
+      btn.classList.remove('active');
+    });
+
+    // Find the verse button with matching verse number
+    // The verse button text should contain the verse number
+    let foundVerse = false;
+    for (let btn of verseBtns) {
+      const verseText = btn.textContent || '';
+      // Try to extract the verse number/designation from the button text
+      // Common patterns: "1", "1.", "Verse 1", "20-21", "16a", etc.
+      // Look for patterns like: digit(s), optionally followed by letter or hyphen+digit(s)
+      const match = verseText.match(/\b(\d+(?:[a-z]|-\d+)?)\b/i);
+      if (match && match[1] === verseNum) {
+
+        // Select this verse (let CSS handle the styling via .active class)
+        btn.dataset.selected = 'true';
+        btn.classList.add('active');
+        foundVerse = true;
+        break;
+      }
+    }
+
+    if (!foundVerse) {
+      console.warn('No verse found with number:', verseNum, 'selecting first verse as fallback');
+      // Fallback: select the first verse
+      if (verseBtns.length > 0) {
+        verseBtns[0].dataset.selected = 'true';
+        verseBtns[0].classList.add('active');
+      }
+    }
+
+    // Update the summary display
+    const selectVersesEl = document.getElementById('selectVerses');
+    if (selectVersesEl) {
+      const selectedCount = Array.from(verseBtns).filter(btn => btn.dataset.selected === 'true').length;
+      selectVersesEl.innerHTML = selectedCount === verseBtns.length ? 'All' : `${selectedCount} selected`;
+    }
+  }
+
+  // Search button click handler
+  const executeSearchBtn = document.getElementById('executeSearchBtn');
+  if (executeSearchBtn && searchInput) {
+    executeSearchBtn.addEventListener('click', function() {
+      searchPsalms(searchInput.value);
+    });
+  }
+  
+  // Also allow Enter key in search input to trigger search
+  if (searchInput) {
+    searchInput.addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') {
+        searchPsalms(this.value);
+      }
+    });
+  }
+}
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', domContentLoadedHandler1980);
+} else {
+  domContentLoadedHandler1980();
+}
+
+/* ----------------------------- Melody Search Modal ----------------------------- */
+function domContentLoadedHandlerMelodySearch() {
+  // Translate pitch classes to signed intervals
+  function translatePitchClassesToSignedIntervals(pitchClasses) {
+    if (!Array.isArray(pitchClasses) || pitchClasses.length < 2) {
+      return [];
+    }
+    
+    const intervals = [];
+    for (let i = 1; i < pitchClasses.length; i++) {
+      const prev = pitchClasses[i - 1];
+      const curr = pitchClasses[i];
+      
+      // Calculate difference with octave wrapping
+      let diff = curr - prev;
+      
+      // Normalize to range [-6, +6] to handle octave wrapping
+      // If the interval is greater than 6 semitones, it's more likely the shorter way around
+      if (diff > 6) {
+        diff = diff - 12;
+      } else if (diff < -6) {
+        diff = diff + 12;
+      }
+      
+      intervals.push(diff);
+    }
+    
+    return intervals;
+  }
+  
+  // Format intervals with + prefix for positive numbers
+  function formatSignedInterval(interval) {
+    return interval >= 0 ? `+${interval}` : `${interval}`;
+  }
+  
+  const melodySearchLink = document.getElementById("searchMelodyLink");
+  const melodySearchModal = document.getElementById("melodySearchModal");
+  const melodySearchInput = document.getElementById("melodySearchInput");
+  const melodySearchResults = document.getElementById("melodySearchResults");
+  const closeMelodySearchBtn = document.getElementById("closeMelodySearchModalBtn");
+  const executeMelodySearchBtn = document.getElementById("executeMelodySearchBtn");
+
+  // Setup modal close on outside click
+  function setupMelodySearchModalCloseOnOutsideClick() {
+    const modal = document.getElementById('melodySearchModal');
+    if (!modal) return;
+    
+    modal.addEventListener('click', function(e) {
+        // Check if click is on the modal backdrop (not the content div inside)
+        if (e.target === modal) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // Stop any playing melody FIRST
+
+            if (window.melodyPlayer && window.melodyPlayer.isPlaying) {
+
+                window.melodyPlayer.stop();
+            }
+            
+            // Small delay to ensure stop completes before closing
+            setTimeout(() => {
+                modal.style.display = 'none';
+            }, 50);
+        }
+    });
+}
+  setupMelodySearchModalCloseOnOutsideClick();
+
+  // Open modal
+  if (melodySearchLink) {
+    melodySearchLink.addEventListener("click", function(e) {
+      e.preventDefault();
+      if (melodySearchModal) {
+        melodySearchModal.style.display = "flex";
+        melodySearchInput.focus();
+        showMelodySearchInstructions();
+        // Initialize piano keyboard and toggle buttons
+        if (window.initMelodyPiano) {
+          window.initMelodyPiano();
+        }
+      }
+    });
+  }
+
+  // Close button
+  if (closeMelodySearchBtn) {
+        closeMelodySearchBtn.addEventListener('click', function() {
+            // Stop any playing melody
+            if (window.melodyPlayer && window. melodyPlayer.isPlaying) {
+                window.melodyPlayer.stop();
+            }
+            
+            const modal = document.getElementById('melodySearchModal');
+            if (modal) {
+                modal.style. display = 'none';
+            }
+        });
+    }
+
+  // ESC key to close
+  document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            const modal = document.getElementById('melodySearchModal');
+            if (modal && modal. style.display !== 'none') {
+                e.preventDefault();
+                
+                // Stop any playing melody
+
+                if (window.melodyPlayer && window.melodyPlayer.isPlaying) {
+
+                    window.melodyPlayer. stop();
+                }
+                
+                setTimeout(() => {
+                    modal.style.display = 'none';
+                }, 50);
+            }
+        }
+    });
+
+  // Show initial instructions
+  function showMelodySearchInstructions() {
+    if (!melodySearchResults) return;
+    
+  }
+
+  // Search melodies using server-side XQuery with trigram (3-note n-gram) matching
+  async function searchMelodies(pitchClassInput) {
+    if (!pitchClassInput || pitchClassInput.trim().length === 0) {
+      showMelodySearchInstructions();
+      return;
+    }
+
+    // Parse pitch classes
+    const pitchClassStrings = pitchClassInput.trim().split(/\s+/);
+    const pitchClasses = pitchClassStrings.map(s => parseInt(s, 10));
+    
+    // Validate pitch classes
+    const invalidClasses = pitchClasses.filter(pc => isNaN(pc) || pc < 0 || pc > 11);
+    if (invalidClasses.length > 0) {
+      melodySearchResults.innerHTML = '<div style="padding:20px;text-align:center;color:#d32f2f;">Invalid pitch classes. Please enter numbers between 0 and 11.</div>';
+      return;
+    }
+    
+    if (pitchClasses.length < 2) {
+      melodySearchResults.innerHTML = '<div style="padding:20px;text-align:center;color:#d32f2f;">Please enter at least 2 pitch classes.</div>';
+      return;
+    }
+
+    // Translate to signed intervals
+    const intervals = translatePitchClassesToSignedIntervals(pitchClasses);
+    const intervalString = intervals.join(' ');
+
+    // Determine search mode
+    const useFuzzy = typeof window.isFuzzySearchMode === 'function' ? window.isFuzzySearchMode() : true;
+    const useIncipit = typeof window.isIncipitSearchMode === 'function' ? window.isIncipitSearchMode() : false;
+    
+    // Show loading state with the translated intervals
+    const searchType = useFuzzy ? 
+      (intervals.length >= 2 ? '3-note n-gram (trigram) matching' : 'exact matching') :
+      'exact interval matching';
+    const searchLocation = useIncipit ? 'incipit (starting notes)' : 'anywhere in melody';
+    melodySearchResults.innerHTML = '<div style="padding:20px;text-align:center;color:#555;">Searching using ' + searchType + ' in ' + searchLocation + ' for intervals: ' + intervals.map(formatSignedInterval).join(' ') + '...</div>';
+
+    try {
+      // Call server-side search using appropriate XQuery file
+      const xqueryFile = useFuzzy ? 'searchMelodies.xq' : 'searchMelodiesExact.xq';
+      const url = `${xqueryFile}?signedinterval=${encodeURIComponent(intervalString)}&incipit=${useIncipit}`;
+      const response = await fetch(url);
+      
+      if (!response.ok) {
+        throw new Error(`Search failed: ${response.status} ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      displayMelodySearchResults(data.results || [], intervals, pitchClasses);
+      
+    } catch (error) {
+      console.error('Melody search error:', error);
+      melodySearchResults.innerHTML = '<div style="padding:20px;text-align:center;color:#d32f2f;">Search failed. Please try again.</div>';
+    }
+  }
+
+  // Helper function to analyze PAE and find which bars contain matching notes
+  function extractNotesForDisplay(paeCode, matchPositions, maxNotes = 9) {
+    if (!matchPositions || matchPositions.length === 0) {
+      // No matches, extract first maxNotes notes
+      return extractFirstNNotes(paeCode, maxNotes, 0);
+    }
+    
+    // Find the first matching note position
+    const firstMatchPos = Math.min(...matchPositions);
+
+    // Extract maxNotes notes starting from firstMatchPos
+    return extractFirstNNotes(paeCode, maxNotes, firstMatchPos);
+  }
+  
+  function extractFirstNNotes(paeCode, maxNotes, startFromNote) {
+    // Parse PAE to find note positions and extract exactly maxNotes notes
+    // In PAE: first '/' is after time signature, then content follows
+    // Notes are indicated by capital letters A-G
+    
+    const firstSlashPos = paeCode.indexOf('/');
+    if (firstSlashPos === -1) {
+      console.warn('[Note Extraction] No slash found in PAE');
+      return { paeCode: paeCode, noteOffset: 0 };
+    }
+    
+    const header = paeCode.substring(0, firstSlashPos + 1);
+    const content = paeCode.substring(firstSlashPos + 1);
+    
+    // Find note positions in content
+    const notePositions = [];
+    for (let i = 0; i < content.length; i++) {
+      const char = content[i];
+      if (char >= 'A' && char <= 'G') {
+        notePositions.push(i);
+      }
+    }
+
+
+    if (notePositions.length === 0) {
+      console.warn('[Note Extraction] No notes found in PAE content');
+      return { paeCode: paeCode, noteOffset: 0 };
+    }
+    
+    // If startFromNote is beyond available notes, start from beginning
+    if (startFromNote >= notePositions.length) {
+      startFromNote = 0;
+    }
+    
+    // Calculate which notes to extract
+    const startNoteIndex = startFromNote;
+    const endNoteIndex = Math.min(startFromNote + maxNotes, notePositions.length);
+    const actualNotesExtracted = endNoteIndex - startNoteIndex;
+    
+    
+    if (startNoteIndex === 0 && endNoteIndex >= notePositions.length) {
+      // Using entire melody, no extraction needed
+
+      return { paeCode: paeCode, noteOffset: 0 };
+    }
+    
+    // Find the character positions to extract
+    const startCharPos = notePositions[startNoteIndex];
+    let endCharPos;
+    
+    if (endNoteIndex < notePositions.length) {
+      // Extract up to (but not including) the next note
+      endCharPos = notePositions[endNoteIndex];
+    } else {
+      // Extract to end of content
+      endCharPos = content.length;
+    }
+    
+    // For the start, we need to include any preceding modifiers (rhythms, accidentals, octaves)
+    // Back up to find the start of the note's expression
+    let actualStartPos = startCharPos;
+    while (actualStartPos > 0) {
+      const prevChar = content[actualStartPos - 1];
+      // If previous char is a note letter, a slash (bar line), or certain delimiters, stop backing up
+      if ((prevChar >= 'A' && prevChar <= 'G') || prevChar === '/' || prevChar === ' ') {
+        break;
+      }
+      // Otherwise, include it (it's a modifier like rhythm, accidental, octave mark)
+      actualStartPos--;
+    }
+    
+    const extractedContent = content.substring(actualStartPos, endCharPos);
+    const extractedPAE = header + extractedContent;
+
+
+    return {
+      paeCode: extractedPAE,
+      noteOffset: startNoteIndex
+    };
+  }
+  
+  // Helper function to highlight matching notes in SVG
+  function highlightMatchingNotes(svgElement, matchPositions, noteOffset) {
+    if (!svgElement || !matchPositions || matchPositions.length === 0) {
+      return;
+    }
+
+    // Find all note elements in the SVG
+    // Verovio uses <g class="note"> for note groups
+    const noteElements = svgElement.querySelectorAll('g.note');
+
+    // Highlight each matching note position
+    // Adjust positions by the note offset since we may not be showing the first bar
+    matchPositions.forEach(absolutePosition => {
+      const relativePosition = absolutePosition - noteOffset;
+
+      // Only highlight if within the displayed range
+      if (relativePosition >= 0 && relativePosition < noteElements.length) {
+        const noteGroup = noteElements[relativePosition];
+        
+        // Find the notehead within this note group
+        const notehead = noteGroup.querySelector('.notehead');
+        if (notehead) {
+          // Add highlighting by changing fill color to a highlight color
+          notehead.setAttribute('fill', '#ff6b6b'); // Red highlight
+          notehead.setAttribute('stroke', '#ff0000');
+          notehead.setAttribute('stroke-width', '2');
+
+        } else {
+          console.warn('[Note Highlighting] No notehead found in note group at position', relativePosition);
+        }
+      }
+    });
+  }
+
+  // Display melody search results
+function displayMelodySearchResults(results, searchIntervals, searchPitchClasses, searchContour) {
+    if (! melodySearchResults) return;
+    
+    if (results.length === 0) {
+        // Clear count display when no results
+        const countDiv = document.getElementById('melodySearchCount');
+        if (countDiv) {
+            countDiv.textContent = '';
+        }
+        melodySearchResults.innerHTML = '<div style="padding: 20px;text-align:center;color:#888;">No matching tunes found.  Try a different pattern.</div>';
+        return;
+    }
+    
+    // Store search parameters for highlighting
+    const searchQuery = {
+        intervals: searchIntervals || [],
+        pitchClasses: searchPitchClasses || [],
+        contour: searchContour || ''
+    };
+    
+    // Get the currently selected text's metre
+    const psTextInput = document.getElementById('pstext');
+    let currentMetre = '';
+    if (psTextInput && psTextInput.dataset && psTextInput.dataset.psdata) {
+        const psdata = psTextInput.dataset.psdata. split(';');
+        currentMetre = psdata[1] || ''; // metre is the second element
+    }
+
+    // Helper function to normalize metres for comparison
+    // Helper function to normalize metres for comparison
+function normalizeMetreForComparison(metre) {
+    if (!metre) return '';
+    
+    // Trim whitespace
+    let normalized = metre.trim();
+    
+    // Remove anything in parentheses (and the parentheses themselves)
+    // This handles cases like "8.6.8.6. (6.)"
+    normalized = normalized.replace(/\s*\([^)]*\)/g, '').trim();
+    
+    // Check if it ends with a period
+    if (! normalized.endsWith('.')) {
+        return normalized;
+    }
+    
+    // Remove the final period temporarily
+    normalized = normalized.slice(0, -1);
+    
+    // Check if the last character (before the period) is a letter
+    // This handles cases like "8.6.8.6. D" or "8.6.8.6. T"
+    while (normalized.length > 0 && /[a-zA-Z]/.test(normalized[normalized.length - 1])) {
+        // Remove the letter
+        normalized = normalized.slice(0, -1).trim();
+        
+        // Remove trailing period if it exists after removing the letter
+        if (normalized.endsWith('.')) {
+            normalized = normalized.slice(0, -1);
+        }
+    }
+    
+    // Add back the final period if normalized string doesn't end with one
+    if (normalized.length > 0 && !normalized.endsWith('.')) {
+        normalized += '.';
+    }
+    
+    return normalized;
+}
+    
+    melodySearchResults.innerHTML = '';
+    
+    // Update results count display in separate div (outside scrollable area)
+    const countDiv = document.getElementById('melodySearchCount');
+    if (countDiv) {
+        const resultText = results.length === 1 ? '1 result' : `${results.length} results`;
+        countDiv.textContent = resultText;
+    }
+    
+    // Initialize Verovio toolkit if needed
+    let verovioTk = null;
+
+
+    if (window.melodyPlayer && window.melodyPlayer.verovioToolkit) {
+        verovioTk = window.melodyPlayer.verovioToolkit;
+
+    } else if (typeof verovio !== 'undefined' && verovio.toolkit) {
+        // Create a toolkit instance for rendering notations
+        try {
+            verovioTk = new verovio.toolkit();
+        } catch (e) {
+            console.error('[Verovio Check] Error creating toolkit:', e);
+        }
+    } else {
+        console.warn('[Verovio Check] Verovio not available');
+    }
+    
+    results.forEach(result => {
+        const resultItem = document.createElement('div');
+        resultItem.style.cssText = 'padding:12px;margin:8px 0;background:#f5f5f5;border-radius:6px;cursor:pointer;display:flex;align-items:center;gap:12px;transition:background 0.2s;';
+        resultItem.addEventListener('mouseenter', () => resultItem.style.background = '#e8e8e8');
+        resultItem.addEventListener('mouseleave', () => resultItem.style.background = '#f5f5f5');
+        
+        // Check if metres match using normalized comparison
+        const normalizedCurrentMetre = normalizeMetreForComparison(currentMetre);
+        const normalizedResultMetre = normalizeMetreForComparison(result.metre);
+        const metreMatches = normalizedCurrentMetre && normalizedResultMetre && 
+                            normalizedCurrentMetre === normalizedResultMetre;
+        
+        // Create full label with date (to match button labels)
+        const fullLabel = result.date ? `${result.title} (${result.date})` : result.title;
+
+        // Column 1: Create play button
+        const playBtn = window.melodyPlayer.createPlayButton();
+        playBtn.style.cssText = 'flex-shrink:0;width:40px;';
+        
+        // Column 2: Title, date, and metre
+        const textInfo = document.createElement('div');
+        textInfo.style.cssText = 'flex:1;min-width:0;';
+        
+        // Title and date on same line
+        const titleDateDiv = document.createElement('div');
+        titleDateDiv.style.cssText = 'font-size:1em;color:#333;margin-bottom:4px;';
+        
+        const titleSpan = document.createElement('span');
+        titleSpan.textContent = result.title;
+        titleSpan.style.fontWeight = 'bold';
+        
+        const dateSpan = document.createElement('span');
+        dateSpan.textContent = result.date ? ` (${result.date})` : '';
+        dateSpan.style.fontWeight = 'normal';
+        
+        titleDateDiv.appendChild(titleSpan);
+        titleDateDiv.appendChild(dateSpan);
+        
+        // Metre on second line with conditional styling
+        const metreDiv = document.createElement('div');
+        metreDiv.style.cssText = 'font-size:0.85em;';
+        
+        if (!metreMatches && currentMetre) {
+            metreDiv.style.color = '#d32f2f'; // Red
+            metreDiv.textContent = (result.metre || 'Unknown metre') + ' *';
+        } else {
+            metreDiv.style.color = '#666';
+            metreDiv.textContent = result.metre || 'Unknown metre';
+        }
+        
+        textInfo.appendChild(titleDateDiv);
+        textInfo.appendChild(metreDiv);
+        
+        // Column 3: Music notation SVG
+        const notationContainer = document.createElement('div');
+        notationContainer.className = 'melody-notation-container';
+        notationContainer.style.cssText = 'width:250px;height:70px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:white;border:1px solid #ddd;border-radius:4px;overflow:hidden;';
+
+
+
+        // Generate SVG from PAE code using Verovio
+        if (result.plaineAndEasie && verovioTk) {
+            try {
+                let paeCode = result.plaineAndEasie.trim();
+
+                // Extract exactly 9 notes starting from the first match position
+                const extractionResult = extractNotesForDisplay(paeCode, result.matchPositions || [], 9);
+                paeCode = extractionResult.paeCode;
+                const noteOffset = extractionResult.noteOffset;
+
+
+                // Set Verovio options before loading data
+
+                verovioTk.setOptions({
+                    inputFrom: 'pae',
+                    scale: 40,
+                    pageHeight: 400,
+                    pageWidth: 1000,
+                    pageMarginTop: 0,
+                    pageMarginBottom: 0,
+                    adjustPageHeight: true,
+                    evenNoteSpacing: true,
+                    spacingLinear: 0.5,
+                    breaks: 'none',
+                    header: 'none',
+                    footer: 'none'
+                });
+                
+                // Load PAE data directly (no MEI wrapper needed with inputFrom: 'pae')
+
+                verovioTk.loadData(paeCode);
+
+                const svg = verovioTk.renderToSVG(1);
+
+                if (svg) {
+                    notationContainer.innerHTML = svg;
+                    const svgElement = notationContainer.querySelector('svg');
+                    if (svgElement) {
+                        svgElement.style.cssText = 'max-width:100%;max-height:100%;';
+
+                        // Highlight matching notes if we have search query information and match positions
+                        if (result.matchPositions && result.matchPositions.length > 0) {
+                            if (searchQuery.intervals && searchQuery.intervals.length > 0) {
+                                // Pitch-based search highlighting
+                                highlightMatchingNotes(svgElement, result.matchPositions, noteOffset);
+                            } else if (searchQuery.contour && searchQuery.contour.length > 0) {
+                                // Contour search highlighting
+                                highlightMatchingNotes(svgElement, result.matchPositions, noteOffset);
+                            }
+                        }
+                    } else {
+                        console.warn('[Notation Render] No SVG element found after insertion');
+                    }
+                } else {
+                    console.warn('[Notation Render] Verovio returned empty SVG');
+                    notationContainer.innerHTML = '<span style="color:#999;font-size:0.8em;">Notation unavailable</span>';
+                }
+            } catch (e) {
+                console.error('[Notation Render] Error rendering notation:', e);
+                console.error('[Notation Render] Error stack:', e.stack);
+                notationContainer.innerHTML = '<span style="color:#999;font-size:0.8em;">Error rendering notation</span>';
+            }
+        } else {
+            if (!result.plaineAndEasie) {
+                console.warn('[Notation Render] No PAE code available for:', result.title);
+            }
+            if (!verovioTk) {
+                console.warn('[Notation Render] Verovio toolkit not available');
+            }
+            notationContainer.innerHTML = '<span style="color:#999;font-size:0.8em;">Notation unavailable</span>';
+        }
+        
+        resultItem.appendChild(playBtn);
+        resultItem.appendChild(textInfo);
+        resultItem.appendChild(notationContainer);
+        
+        // Play button click handler
+        playBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            
+            // Pass the plaineAndEasie code directly instead of fetching the MEI file
+            window.melodyPlayer.play(
+                result.plaineAndEasie,
+                result.title,
+                playBtn
+            );
+        });
+        
+        // Click on result item to select the tune
+        resultItem.addEventListener('click', function() {
+            // Stop any playing melody
+            if (window.melodyPlayer) {
+                window.melodyPlayer. stop();
+            }
+            
+            // If metre matches, auto-select the tune and close modal
+            if (metreMatches) {
+
+                selectTuneFromMelodySearch(fullLabel, result.meiFilePath);  // Use fullLabel here
+                
+                // Close the search modal
+                const modal = document.getElementById('melodySearchModal');
+                if (modal) {
+                    modal. style.display = 'none';
+                }
+            } else {
+                // Metre doesn't match - just show a warning, don't auto-select
+
+                alert(`This tune (${result.metre || 'unknown metre'}) does not match your text's metre (${currentMetre}). Please select a matching tune or change your text selection.`);
+            }
+        });
+        
+        melodySearchResults.appendChild(resultItem);
+    });
+    
+    // After all results are populated, scroll to the results area
+    // This helps mobile users see that results have been loaded
+    // Use scrollIntoView on the results container to handle complex flexbox layout
+    if (melodySearchResults) {
+        // Use setTimeout to ensure DOM has been fully updated with all results
+        setTimeout(() => {
+            // Scroll the results container into view with smooth behavior
+            melodySearchResults.scrollIntoView({
+                behavior: 'smooth',
+                block: 'end',
+                inline: 'nearest'
+            });
+        }, 100);
+    }
+}
+
+  // Highlight the matching portion of the interval sequence
+  function highlightMelodyMatch(fullIntervals, searchIntervals) {
+    // fullIntervals is a string like "2 0 2 1 2 -2 5" (raw format from MEI)
+    // searchIntervals is an array like [2, 0, 2] (raw numbers)
+    // We need to match using raw format (without + prefix)
+    const searchString = searchIntervals.join(' ');
+    const fullString = fullIntervals;
+    
+    // Find the match and highlight it
+    // Use word boundary checking to avoid false positives like "12 0" matching "2 0"
+    let matchIndex = -1;
+    let searchIndex = 0;
+    
+    while (searchIndex <= fullString.length - searchString.length) {
+      const testIndex = fullString.indexOf(searchString, searchIndex);
+      if (testIndex === -1) break;
+      
+      // Check if this is a word boundary match (start of string or preceded by space)
+      const isStartBoundary = testIndex === 0 || fullString[testIndex - 1] === ' ';
+      // Check if followed by space or end of string
+      const endPos = testIndex + searchString.length;
+      const isEndBoundary = endPos === fullString.length || fullString[endPos] === ' ';
+      
+      if (isStartBoundary && isEndBoundary) {
+        matchIndex = testIndex;
+        break;
+      }
+      
+      searchIndex = testIndex + 1;
+    }
+    
+    if (matchIndex === -1) {
+      return fullString;
+    }
+    
+    const beforeMatch = fullString.substring(0, matchIndex);
+    const match = fullString.substring(matchIndex, matchIndex + searchString.length);
+    const afterMatch = fullString.substring(matchIndex + searchString.length);
+    
+    return beforeMatch + '<mark style="background:#ffd966;">' + match + '</mark>' + afterMatch;
+  }
+
+  // Select tune from melody search results
+  function selectTuneFromMelodySearch(tuneTitle, meiFilePath) {
+
+
+
+    // Switch to TUNE tab
+    switchToTab('tune');
+    
+    // Wait for tune UI to be ready
+    setTimeout(function() {
+
+        const tuneInput = document. getElementById('pstune');
+        const tuneButtonsContainer = document. getElementById('tuneButtons');
+
+
+        if (! tuneInput || !tuneButtonsContainer) {
+            console.error('Required elements not found');
+            return;
+        }
+        
+        // Extract tune ID from file path
+        const fileName = meiFilePath. split('/').pop();
+        const tuneId = fileName.replace('. xml', '');
+
+        // Check if renderTuneButtons function exists
+
+
+
+        // First, ensure all tune buttons are visible
+
+        if (typeof renderTuneButtons === 'function') {
+            renderTuneButtons('');
+        }
+        
+        // Wait a moment for buttons to render
+        setTimeout(function() {
+            console. log('Step 3: Searching for tune button');
+            
+            // Find all tune buttons
+            const allButtons = tuneButtonsContainer.querySelectorAll('button');
+
+            // Log details about each button
+            allButtons. forEach((btn, index) => {
+            });
+            
+            // Try to find the matching button
+            let foundButton = null;
+            
+            allButtons.forEach(btn => {
+                if (btn.dataset.label === tuneTitle) {
+                    foundButton = btn;
+
+                }
+            });
+            
+            if (!foundButton) {
+                console.error('✗ NO MATCH FOUND for:', tuneTitle);
+                console.error('Searched among labels:', Array.from(allButtons).map(b => b.dataset.label));
+                return;
+            }
+
+            const mappingId = foundButton.dataset.tuneid || '';
+
+            // Apply the selection
+            tuneInput.dataset. tuneid = mappingId;
+            tuneInput.dataset.tunelabel = tuneTitle;
+            tuneInput.value = tuneTitle;
+            window.globalPsTune = mappingId;
+            
+            console. log('tuneInput.dataset after update:', tuneInput.dataset);
+
+
+            // Mark button as active
+
+            allButtons.forEach(b => {
+                if (b.classList.contains('active')) {
+
+                }
+                b.classList.remove('active');
+            });
+            foundButton.classList.add('active');
+
+            // Filter to show only this tune
+
+            if (typeof renderTuneButtons === 'function') {
+                renderTuneButtons(tuneTitle);
+
+            }
+            
+            // Scroll into view
+            foundButton. scrollIntoView({ behavior: 'smooth', block: 'center' });
+            
+            // Update UI
+            try { updateSelectionSummary(); } catch(e) { console.warn('updateSelectionSummary error:', e); }
+            try { maybeShowNextForTune(); } catch(e) { console.warn('maybeShowNextForTune error:', e); }
+
+        }, 300);
+    }, 200);
+    
+    try { maybeShowNextForTune(); } catch(e) { console.warn('maybeShowNextForTune error:', e); }
+}
+
+  // ===== CONTOUR SEARCH FUNCTIONALITY =====
+  
+  let currentSearchMode = 'pitch'; // 'pitch' or 'contour'
+  
+  // Setup search mode toggle buttons
+  const pitchSearchModeBtn = document.getElementById('pitchSearchModeBtn');
+  const contourSearchModeBtn = document.getElementById('contourSearchModeBtn');
+  const pitchSearchInterface = document.getElementById('pitchSearchInterface');
+  const contourSearchInterface = document.getElementById('contourSearchInterface');
+  
+  // Helper function to update button styles
+  function updateSearchModeButtons(activeBtn, inactiveBtn) {
+    activeBtn.classList.add('active');
+    inactiveBtn.classList.remove('active');
+    activeBtn.style.background = '#6fc252';
+    activeBtn.style.color = 'white';
+    inactiveBtn.style.background = 'white';
+    inactiveBtn.style.color = '#6fc252';
+  }
+  
+  if (pitchSearchModeBtn && contourSearchModeBtn) {
+    pitchSearchModeBtn.addEventListener('click', function() {
+      currentSearchMode = 'pitch';
+      updateSearchModeButtons(pitchSearchModeBtn, contourSearchModeBtn);
+      if (pitchSearchInterface) pitchSearchInterface.style.display = 'block';
+      if (contourSearchInterface) contourSearchInterface.style.display = 'none';
+    });
+    
+    contourSearchModeBtn.addEventListener('click', function() {
+      currentSearchMode = 'contour';
+      updateSearchModeButtons(contourSearchModeBtn, pitchSearchModeBtn);
+      if (pitchSearchInterface) pitchSearchInterface.style.display = 'none';
+      if (contourSearchInterface) contourSearchInterface.style.display = 'block';
+    });
+  }
+  
+  // Contour input handling
+  let contourPattern = '';
+  const contourSearchInput = document.getElementById('contourSearchInput');
+  const contourUpBtn = document.getElementById('contourUpBtn');
+  const contourDownBtn = document.getElementById('contourDownBtn');
+  const contourSameBtn = document.getElementById('contourSameBtn');
+  const deleteContourBtn = document.getElementById('deleteContourBtn');
+  const clearContourBtn = document.getElementById('clearContourBtn');
+  
+  function updateContourDisplay() {
+    if (contourSearchInput) {
+      contourSearchInput.value = contourPattern;
+    }
+  }
+  
+  if (contourUpBtn) {
+    contourUpBtn.addEventListener('click', function() {
+      contourPattern += '+';
+      updateContourDisplay();
+    });
+  }
+  
+  if (contourDownBtn) {
+    contourDownBtn.addEventListener('click', function() {
+      contourPattern += '-';
+      updateContourDisplay();
+    });
+  }
+  
+  if (contourSameBtn) {
+    contourSameBtn.addEventListener('click', function() {
+      contourPattern += '=';
+      updateContourDisplay();
+    });
+  }
+  
+  if (deleteContourBtn) {
+    deleteContourBtn.addEventListener('click', function() {
+      if (contourPattern.length > 0) {
+        contourPattern = contourPattern.slice(0, -1);
+        updateContourDisplay();
+      }
+    });
+  }
+  
+  if (clearContourBtn) {
+    clearContourBtn.addEventListener('click', function() {
+      contourPattern = '';
+      updateContourDisplay();
+    });
+  }
+  
+  // Search by contour
+  async function searchMelodiesByContour(contour) {
+    if (!contour || contour.trim().length === 0) {
+      melodySearchResults.innerHTML = '<div style="padding:20px;text-align:center;color:#555;">Build a contour pattern using the buttons above to search for matching melodies.</div>';
+      return;
+    }
+    
+    if (contour.length < 2) {
+      melodySearchResults.innerHTML = '<div style="padding:20px;text-align:center;color:#d32f2f;">Please enter at least 2 contour symbols.</div>';
+      return;
+    }
+    
+    // Check if fuzzy search mode is enabled
+    const useFuzzy = typeof window.isFuzzySearchMode === 'function' ? window.isFuzzySearchMode() : true;
+    const useIncipit = typeof window.isIncipitSearchMode === 'function' ? window.isIncipitSearchMode() : false;
+    
+    // Show loading state
+    const searchLocation = useIncipit ? 'incipit (starting pattern)' : 'anywhere in melody';
+    melodySearchResults.innerHTML = '<div style="padding:20px;text-align:center;color:#555;">Searching for contour in ' + searchLocation + ': ' + contour + '...</div>';
+    
+    try {
+      // Call appropriate server-side search based on mode
+      const xqueryFile = useFuzzy ? 'searchMelodiesContour.xq' : 'searchMelodiesContourExact.xq';
+      const url = `${xqueryFile}?contour=${encodeURIComponent(contour)}&incipit=${useIncipit}`;
+      const response = await fetch(url);
+      
+      if (!response.ok) {
+        throw new Error(`Search failed: ${response.status} ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      displayMelodySearchResults(data.results || [], null, null, contour);
+      
+    } catch (error) {
+      console.error('Contour search error:', error);
+      melodySearchResults.innerHTML = '<div style="padding:20px;text-align:center;color:#d32f2f;">Search failed. Please try again.</div>';
+    }
+  }
+
+  // Search button click handler
+  if (executeMelodySearchBtn && melodySearchInput) {
+    executeMelodySearchBtn.addEventListener('click', function() {
+      if (currentSearchMode === 'pitch') {
+        searchMelodies(melodySearchInput.value);
+      } else if (currentSearchMode === 'contour') {
+        searchMelodiesByContour(contourPattern);
+      }
+    });
+  }
+  
+  // Also allow Enter key in search input to trigger search
+  if (melodySearchInput) {
+    melodySearchInput.addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') {
+        searchMelodies(this.value);
+      }
+    });
+  }
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', domContentLoadedHandlerMelodySearch);
+} else {
+  domContentLoadedHandlerMelodySearch();
 }
