@@ -1766,6 +1766,7 @@ function populateVersesFromSelectedText(rawObj) {
     switchToTab('tune');
   }); 
 } catch (_) {}
+  try { ensureTextOnlyButton(verseSection || versesEl.parentElement); } catch (_) {}
   try { updateSelectionSummary(); } catch (_) {}
 }
 
