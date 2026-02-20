@@ -603,7 +603,8 @@ function getTunes(tuneLabel) {
           const input = document.getElementById('pstune');
           const tuneButtonsContainer = document.getElementById('tuneButtons');
           const lbl = suggTuneBtn.dataset.label || '';
-          const mappingId = suggTuneBtn.dataset.tuneid || '';
+          // Use the same lookup mechanism as regular tune buttons
+          const mappingId = window._pstuneMap[lbl] || '';
 
           if (input) {
             // Store selection in dataset
