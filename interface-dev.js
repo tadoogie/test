@@ -2191,6 +2191,13 @@ function fetchAndRenderTextOnly(teiID, selStanzas) {
 
       const wrapper = document.createElement('div');
       wrapper.className = 'cetei-text-output';
+      const titleEl = xmlDoc.getElementsByTagName('title')[0];
+      if (titleEl) {
+        const h2 = document.createElement('h2');
+        h2.className = 'cetei-title';
+        h2.textContent = titleEl.textContent.trim();
+        wrapper.appendChild(h2);
+      }
       const lgs = xmlDoc.getElementsByTagName('lg');
       for (let i = 0; i < lgs.length; i++) {
         const verseDiv = document.createElement('div');
