@@ -360,8 +360,9 @@ declare function local:generate-contour($doc as node()) as xs:string {
  :  - Always regenerates plaineAndEasie to apply corrected accidental logic
  :  - Generates missing pitchclass, signedinterval, and contour codes
  :)
-for $doc in collection("/db/tunes/8.8.8.8/")//mei:mei
-let $uri := document-uri(root($doc))
+let $results :=
+    for $doc in collection("/db/tunes/8.8.8.8/")//mei:mei
+    let $uri := document-uri(root($doc))
 
 (: Find the work element containing incipCodes :)
 let $work := $doc//mei:workList/mei:work[mei:incip]
@@ -415,5 +416,13 @@ return
             {$contour-incipit}
         </incip>
     
-    return
-        update replace $incip with $new-incip
+    return (
+        update replace $incip with $new-incip,
+        <updated-file>{$uri}</updated-file>
+    )
+
+return
+<update-summary>
+    <files-processed>{count($results)}</files-processed>
+    <files>{$results}</files>
+</update-summary>
