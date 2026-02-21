@@ -69,6 +69,36 @@ declare function local:get-time-sig-code($count as xs:string?, $unit as xs:strin
 };
 
 (: ~
+ :  Function to check if an accidental is covered by the key signature
+ :  @param $pname pitch name (c, d, e, f, g, a, b)
+ :  @param $accid accidental (s, f, n, or empty)
+ :  @param $key-sig key signature (e.g., "1f", "2s", "")
+ :  @return true if the accidental is covered by the key signature, false otherwise
+ :)
+declare function local:is-accidental-in-key-sig($pname as xs:string, $accid as xs:string?, $key-sig as xs:string?) as xs:boolean {
+    if (not($accid) or $accid = "") then false()
+    else if (not($key-sig) or $key-sig = "" or $key-sig = "0") then false()
+    else
+        let $pname-upper := upper-case($pname)
+        return
+            if ($key-sig = "1f") then ($accid = "f" and $pname-upper = "B")
+            else if ($key-sig = "2f") then ($accid = "f" and ($pname-upper = "B" or $pname-upper = "E"))
+            else if ($key-sig = "3f") then ($accid = "f" and ($pname-upper = "B" or $pname-upper = "E" or $pname-upper = "A"))
+            else if ($key-sig = "4f") then ($accid = "f" and ($pname-upper = "B" or $pname-upper = "E" or $pname-upper = "A" or $pname-upper = "D"))
+            else if ($key-sig = "5f") then ($accid = "f" and ($pname-upper = "B" or $pname-upper = "E" or $pname-upper = "A" or $pname-upper = "D" or $pname-upper = "G"))
+            else if ($key-sig = "6f") then ($accid = "f" and ($pname-upper = "B" or $pname-upper = "E" or $pname-upper = "A" or $pname-upper = "D" or $pname-upper = "G" or $pname-upper = "C"))
+            else if ($key-sig = "7f") then ($accid = "f" and ($pname-upper = "B" or $pname-upper = "E" or $pname-upper = "A" or $pname-upper = "D" or $pname-upper = "G" or $pname-upper = "C" or $pname-upper = "F"))
+            else if ($key-sig = "1s") then ($accid = "s" and $pname-upper = "F")
+            else if ($key-sig = "2s") then ($accid = "s" and ($pname-upper = "F" or $pname-upper = "C"))
+            else if ($key-sig = "3s") then ($accid = "s" and ($pname-upper = "F" or $pname-upper = "C" or $pname-upper = "G"))
+            else if ($key-sig = "4s") then ($accid = "s" and ($pname-upper = "F" or $pname-upper = "C" or $pname-upper = "G" or $pname-upper = "D"))
+            else if ($key-sig = "5s") then ($accid = "s" and ($pname-upper = "F" or $pname-upper = "C" or $pname-upper = "G" or $pname-upper = "D" or $pname-upper = "A"))
+            else if ($key-sig = "6s") then ($accid = "s" and ($pname-upper = "F" or $pname-upper = "C" or $pname-upper = "G" or $pname-upper = "D" or $pname-upper = "A" or $pname-upper = "E"))
+            else if ($key-sig = "7s") then ($accid = "s" and ($pname-upper = "F" or $pname-upper = "C" or $pname-upper = "G" or $pname-upper = "D" or $pname-upper = "A" or $pname-upper = "E" or $pname-upper = "B"))
+            else false()
+};
+
+(: ~
  : Function to determine barline type for a measure
  :   @param $measure MEI measure element
  :   @param $is-last whether this is the last measure
@@ -94,9 +124,10 @@ declare function local:get-measure-barline($measure as element()?, $is-last as x
  :  Function to process notes in a measure
  :  @param $notes sequence of note elements
  :  @param $first-note-in-piece whether the first note is the first in the entire piece
+ :  @param $key-sig key signature (e.g., "1f", "2s", "")
  : @return sequence of PAE note codes
  :)
-declare function local:process-notes($notes as element()*, $first-note-in-piece as xs:boolean) as xs:string* {
+declare function local:process-notes($notes as element()*, $first-note-in-piece as xs:boolean, $key-sig as xs:string?) as xs:string* {
     for $note at $pos in $notes
     let $dur := local:duration-to-plaine-easie(string($note/@dur))
     let $dots := if ($note/@dots) then string($note/@dots) else ""
@@ -133,10 +164,13 @@ declare function local:process-notes($notes as element()*, $first-note-in-piece 
     
     let $pitch-upper := upper-case($pname)
     
+    (: Only include accidental if it's NOT covered by the key signature :)
     let $accid-char := 
-        if ($accid = "s") then "x"
-        else if ($accid = "f") then "b"
-        else if ($accid = "n") then "n"
+        if ($accid and not(local:is-accidental-in-key-sig($pname, $accid, $key-sig))) then
+            if ($accid = "s") then "x"
+            else if ($accid = "f") then "b"
+            else if ($accid = "n") then "n"
+            else ""
         else ""
     
     (:  Order: octave + duration+dots + accidental + pitch :)
@@ -171,8 +205,8 @@ declare function local:extract-melody($doc as node()) as xs:string {
         (: Get notes from staff 1, layer 1 in this measure :)
         let $notes := $measure//mei:staff[@n="1"]//mei:layer[@n="1"]//mei:note
         
-        (: Process notes :)
-        let $note-codes := local:process-notes($notes, $is-first-measure)
+        (: Process notes with key signature :)
+        let $note-codes := local:process-notes($notes, $is-first-measure, $key-sig)
         
         (:  Get barline (except after the last measure) :)
         let $barline := if (not($is-last-measure)) then 
@@ -322,9 +356,11 @@ declare function local:generate-contour($doc as node()) as xs:string {
 };
 
 (: ~
- :  Main processing:  Add incipCode elements to each MEI document that doesn't have them
+ :  Main processing:  Update/add incipCode elements to each MEI document
+ :  - Always regenerates plaineAndEasie to apply corrected accidental logic
+ :  - Generates missing pitchclass, signedinterval, and contour codes
  :)
-for $doc in collection("/db/tunes/8.8.8.8/")//mei:mei
+for $doc in collection("/db/tunes/5.5.5.5/")//mei:mei
 let $uri := document-uri(root($doc))
 
 (: Find the work element containing incipCodes :)
@@ -337,19 +373,17 @@ let $has-pc := exists($incip/mei:incipCode[@form="pitchclass"])
 let $has-si := exists($incip/mei:incipCode[@form="signedinterval"])
 let $has-contour := exists($incip/mei:incipCode[@form="contour"])
 
-(: Only process if at least one is missing :)
-where not($has-pae) or not($has-pc) or not($has-si) or not($has-contour)
+(: Process all files to ensure plaineAndEasie uses corrected accidental logic :)
+(: Note: plaineAndEasie will always be regenerated, others only if missing :)
+where $incip
 
 return
     let $existing-incipCodes := $incip/mei:incipCode
     
-    (: Generate missing incipCodes :)
+    (: Always regenerate plaineAndEasie to apply corrected accidental logic :)
     let $pae-incipit := 
-        if (not($has-pae)) then
-            let $melody := local:extract-melody($doc)
-            return <incipCode xmlns="http://www.music-encoding.org/ns/mei" form="plaineAndEasie">{$melody}</incipCode>
-        else
-            $incip/mei:incipCode[@form="plaineAndEasie"]
+        let $melody := local:extract-melody($doc)
+        return <incipCode xmlns="http://www.music-encoding.org/ns/mei" form="plaineAndEasie">{$melody}</incipCode>
     
     let $pc-incipit : =
         if (not($has-pc)) then
