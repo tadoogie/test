@@ -39,6 +39,10 @@ This update includes:
 
 ⚠️ **IMPORTANT**: Use eXide (the web-based IDE) to run these scripts, NOT the REST API or direct file access.
 
+⚠️ **FIXED**: Previous syntax errors that prevented the script from running have been corrected. If the script wasn't working before, please pull the latest version.
+
+📖 **First time?** See [QUICK-START.md](QUICK-START.md) for step-by-step instructions on how to upload your MEI files and run the script.
+
 ### Step 0: Access eXide
 
 1. Open your browser
