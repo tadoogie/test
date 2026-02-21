@@ -3129,7 +3129,7 @@ function domContentLoadedHandlerMelodySearch() {
 
     // Translate to signed intervals
     const intervals = translatePitchClassesToSignedIntervals(pitchClasses);
-    const intervalString = intervals.map(formatSignedInterval).join(' ');
+    const intervalString = intervals.join(' ');
 
     // Determine search mode
     const useFuzzy = typeof window.isFuzzySearchMode === 'function' ? window.isFuzzySearchMode() : true;
