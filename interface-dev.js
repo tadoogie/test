@@ -2212,6 +2212,33 @@ function fetchAndRenderTextOnly(teiID, selStanzas) {
         wrapper.appendChild(verseDiv);
       }
       container.appendChild(wrapper);
+
+      // Source footer: **Source:** title @main (date)
+      try {
+        const editions = xmlDoc.getElementsByTagName('edition');
+        if (editions.length) {
+          const edTitles = editions[0].getElementsByTagName('title');
+          let mainTitle = '';
+          for (let t = 0; t < edTitles.length; t++) {
+            if (edTitles[t].getAttribute('type') === 'main') {
+              mainTitle = edTitles[t].textContent.trim();
+              break;
+            }
+          }
+          if (!mainTitle && edTitles.length) mainTitle = edTitles[0].textContent.trim();
+          const edDates = editions[0].getElementsByTagName('date');
+          const edDate = edDates.length ? edDates[0].textContent.trim() : '';
+          if (mainTitle) {
+            const sourceP = document.createElement('p');
+            sourceP.className = 'cetei-source';
+            const bold = document.createElement('strong');
+            bold.textContent = 'Source:';
+            sourceP.appendChild(bold);
+            sourceP.appendChild(document.createTextNode(' ' + mainTitle + (edDate ? ' (' + edDate + ')' : '')));
+            wrapper.appendChild(sourceP);
+          }
+        }
+      } catch(_) {}
     })
     .catch(function(err) {
       console.error('Error loading text:', err);
