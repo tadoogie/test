@@ -82,6 +82,8 @@ function setupShareModal() {
     if (window.globalSelStanzas && window.globalSelStanzas.length > 0) {
       params.append('selStanzas', window.globalSelStanzas.join(','));
     }
+    const psModeEl = document.getElementById('psMode');
+    if (psModeEl && psModeEl.checked) params.append('presentation', 'on');
     params.append('autoGen', 'true');
     return `${baseUrl}?${params.toString()}`;
   }

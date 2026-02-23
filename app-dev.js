@@ -372,6 +372,7 @@ async function URLVariableFunction() {
     let selStanzas = params.get('selStanzas') || params.get('selectVerses') || params.get('stanzas');
     let psTune = params.get('psTune');
     const textOnly = params.get('textOnly') === 'true';
+    const presentation = params.get('presentation') === 'on';
 
     let selStanzasArr = null;
     if (selStanzas) {
@@ -389,6 +390,7 @@ async function URLVariableFunction() {
         teiID: teiID,
         selStanzas: selStanzasArr,
         psTune: psTune,
+        presentation: presentation,
         autoGen: true
     });
 }
@@ -2119,7 +2121,24 @@ function renderPsalm(options = {}) {
 
     // Build text request
     const psText = "getVerses.xq?teiID=" + teiID + "&selStanzas=\"%20," + selStanzas.join(",") + ",%20\"";
-    const disOptions = document.getElementById("psMode") !== null ? document.getElementById("psMode").checked : false;
+    let disOptions;
+    if (isAutoGen && options.presentation !== undefined) {
+        disOptions = options.presentation === true;
+        // Sync the DOM toggle to match the URL parameter
+        const psModeEl = document.getElementById('psMode');
+        const psModeOn = document.getElementById('psModeOn');
+        const psModeOff = document.getElementById('psModeOff');
+        if (psModeEl) psModeEl.checked = disOptions;
+        if (disOptions) {
+            if (psModeOn) { psModeOn.style.background = '#6fc252'; psModeOn.classList.add('active'); }
+            if (psModeOff) { psModeOff.style.background = '#666'; psModeOff.classList.remove('active'); }
+        } else {
+            if (psModeOff) { psModeOff.style.background = '#6fc252'; psModeOff.classList.add('active'); }
+            if (psModeOn) { psModeOn.style.background = '#666'; psModeOn.classList.remove('active'); }
+        }
+    } else {
+        disOptions = document.getElementById("psMode") !== null ? document.getElementById("psMode").checked : false;
+    }
 
     const xmlhttp = new XMLHttpRequest();
     xmlhttp.open("GET", psText, true);
