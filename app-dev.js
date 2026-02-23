@@ -2587,7 +2587,10 @@ function renderPsalm(options = {}) {
                         finalBars[finalBarCount-1].setAttribute("right", "end");
                     } // end presentation mode
 
-                    document.getElementById("controls").style.display = "inline";
+                    const controlsEl = document.getElementById("controls");
+                    controlsEl.style.display = "inline";
+                    controlsEl.classList.remove("text-only-mode");
+                    window.globalTextOnly = false;
                     document.body.classList.add("controls-visible");
                     const textLicenseHTML = "<p><strong>Text Source:</strong>&nbsp;<em>" + textSource + "</em>&nbsp;(" + textSourceDate + ")<br/> <a href='" + textLicenseURL + "' target='_blank'>" + textLicense + "</a></p>"
                     const tuneLicenseHTML = "<p><strong>Tune Source:</strong>&nbsp;<em>" + tuneSource + "</em>&nbsp;(" + tuneSourceDate + ")<br/> <a href='" + tuneLicenseURL + "' target='_blank'>" + tuneLicense + "</a></p>"
