@@ -1,17 +1,46 @@
 window.INTERFACE_DEV_BUILD = '2025-12-06-1';
 /*This is my new comment to check if this is updated*/
 
-/* iOS Safari: force repaint of svg_output on orientation change.
-   Belt-and-suspenders alongside the CSS fixes in page.html. */
-window.addEventListener('orientationchange', function() {
-  setTimeout(function() {
+/* iOS Safari: fix svg_output content disappearing after scroll or orientation change.
+ *
+ * Root cause: the static CSS transform:translateZ(0) on #svg_output creates a GPU
+ * compositing layer at page load. When we dynamically replace the content via JS
+ * (container.innerHTML = '' then appendChild), iOS lazily updates the GPU layer —
+ * the first paint looks correct (CPU-painted), but the GPU layer remains stale.
+ * On scroll or orientation change, iOS switches to the GPU layer, which is empty
+ * or stale, so the content vanishes. SVG content (Verovio) is immune because iOS
+ * always treats <svg> elements as native GPU textures and rebuilds them eagerly.
+ *
+ * Fix: explicitly destroy and recreate the GPU layer after dynamic content changes
+ * by toggling the transform off (with a synchronous layout) and on (next frame).
+ * The display:none approach only triggers a layout, not a compositor layer rebuild.
+ *
+ * Also listen to 'resize' (fires AFTER the viewport is actually updated) rather than
+ * only 'orientationchange' (fires BEFORE the viewport resizes on iOS).
+ */
+(function() {
+  function repaintSvgOutput() {
     var el = document.getElementById('svg_output');
     if (!el) return;
-    el.style.display = 'none';
-    void el.offsetHeight; // force reflow
-    el.style.display = '';
-  }, 250);
-});
+    /* Remove inline transform → CSS transform:translateZ(0) is suppressed → layer destroyed */
+    el.style.webkitTransform = 'none';
+    el.style.transform = 'none';
+    void el.offsetHeight; /* synchronous layout so iOS processes the layer destruction */
+    requestAnimationFrame(function() {
+      /* Restore: remove inline override → CSS translateZ(0) takes over → fresh layer created */
+      el.style.webkitTransform = '';
+      el.style.transform = '';
+    });
+  }
+  window.addEventListener('orientationchange', function() {
+    setTimeout(repaintSvgOutput, 300);
+  });
+  var _iosResizeTimer;
+  window.addEventListener('resize', function() {
+    clearTimeout(_iosResizeTimer);
+    _iosResizeTimer = setTimeout(repaintSvgOutput, 200);
+  });
+}());
 
 /* ----------------------------- URL parameter application ----------------------------- */
 if (document.readyState === 'loading') {
@@ -2257,6 +2286,22 @@ function fetchAndRenderTextOnly(teiID, selStanzas) {
           }
         }
       } catch(_) {}
+      /* iOS Safari: force GPU compositing layer to be rebuilt with the new content.
+       * Static CSS transform:translateZ(0) creates the layer at page load; after we
+       * replace the DOM dynamically the layer is stale. Toggling it off (frame 1,
+       * with a synchronous layout) and on (frame 2) forces iOS to destroy the old
+       * layer and create a fresh one that contains the current DOM content. */
+      (function(el) {
+        requestAnimationFrame(function() {
+          el.style.webkitTransform = 'none';
+          el.style.transform = 'none';
+          void el.offsetHeight;
+          requestAnimationFrame(function() {
+            el.style.webkitTransform = '';
+            el.style.transform = '';
+          });
+        });
+      }(container));
     })
     .catch(function(err) {
       console.error('Error loading text:', err);
