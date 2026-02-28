@@ -1,56 +1,6 @@
 window.INTERFACE_DEV_BUILD = '2025-12-06-1';
 /*This is my new comment to check if this is updated*/
 
-/* iOS Safari: fix #svg_output content disappearing on scroll and orientation change.
- *
- * Root cause: iOS Safari's GPU compositing model. A PERMANENT transform:translateZ(0)
- * on a div containing HTML text creates a bitmap texture that iOS lazily discards under
- * viewport-resize and memory pressure (address bar show/hide, orientation change).
- * SVG content is immune because iOS re-rasterises vectors on demand; HTML bitmaps are not.
- *
- * Fix: NO permanent CSS GPU promotion on #svg_output.
- * Instead, use a TRANSIENT inline translateZ(0) fired on scroll/resize/orientationchange:
- *   1. Set inline webkitTransform = 'translateZ(0)'  → iOS creates a fresh GPU texture
- *      from the CURRENT DOM content at the CURRENT scroll position
- *   2. void offsetHeight                             → sync layout; iOS commits the texture
- *   3. rAF: clear inline style                      → return to normal compositing
- * This pattern forces a fresh rasterisation without leaving a stale permanent layer.
- */
-(function() {
-  function repaintSvgOutput() {
-    var el = document.getElementById('svg_output');
-    if (!el) return;
-    el.style.webkitTransform = 'translateZ(0)';
-    el.style.transform = 'translateZ(0)';
-    void el.offsetHeight;
-    requestAnimationFrame(function() {
-      el.style.webkitTransform = '';
-      el.style.transform = '';
-    });
-  }
-
-  /* orientationchange fires before the viewport resizes on iOS; wait for the
-     resize that follows to ensure dimensions are settled before repainting */
-  window.addEventListener('orientationchange', function() {
-    setTimeout(repaintSvgOutput, 300);
-  });
-
-  /* resize fires after the viewport is updated (address-bar hide/show included) */
-  var _resizeTimer;
-  window.addEventListener('resize', function() {
-    clearTimeout(_resizeTimer);
-    _resizeTimer = setTimeout(repaintSvgOutput, 150);
-  });
-
-  /* scroll: fire shortly after the user stops scrolling so the element is
-     rasterised at its final resting position */
-  var _scrollTimer;
-  window.addEventListener('scroll', function() {
-    clearTimeout(_scrollTimer);
-    _scrollTimer = setTimeout(repaintSvgOutput, 100);
-  }, { passive: true });
-}());
-
 /* ----------------------------- URL parameter application ----------------------------- */
 if (document.readyState === 'loading') {
   document.addEventListener("DOMContentLoaded", () => {
@@ -2295,21 +2245,6 @@ function fetchAndRenderTextOnly(teiID, selStanzas) {
           }
         }
       } catch(_) {}
-      /* iOS Safari: after dynamic content injection, do a transient GPU promotion to
-       * force iOS to rasterise the new HTML content. Without a permanent CSS transform,
-       * there is no stale layer — the inline transform is created fresh, committed, then
-       * released back to normal flow in the next animation frame. */
-      (function(el) {
-        requestAnimationFrame(function() {
-          el.style.webkitTransform = 'translateZ(0)';
-          el.style.transform = 'translateZ(0)';
-          void el.offsetHeight;
-          requestAnimationFrame(function() {
-            el.style.webkitTransform = '';
-            el.style.transform = '';
-          });
-        });
-      }(container));
     })
     .catch(function(err) {
       console.error('Error loading text:', err);

@@ -17,16 +17,7 @@
         <script src="resources/js/midi-bridge.js"/>
         
         <style>
-            /* Removed z-index:1 from body — it was creating a GPU compositing stacking context
-               that caused iOS Safari to drop the main content layer on scroll when
-               position:fixed elements (hamburger, controls, sidenav) are present */
             body, header, footer { position: relative; }
-            /* iOS Safari: keep transition scoped (not 'all') on the svg_output parent container
-               so the address-bar show/hide resize doesn't animate element dimensions */
-            section.container:not(.fluid) {
-                -webkit-transition: margin 0.3s ease !important;
-                transition: margin 0.3s ease !important;
-            }
             .title {
                 display:flex;
                 align-items: flex-end;
