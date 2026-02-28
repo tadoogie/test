@@ -18,6 +18,16 @@
         
         <style>
             body, header, footer { position: relative; z-index: 1; }
+            /* iOS Safari fix: promote svg_output to its own GPU compositing layer to prevent
+               content from disappearing on scroll and orientation change when position:fixed
+               elements (hamburger, sidenav, controls) are present alongside body z-index:1 */
+            #svg_output {
+                position: relative;
+                -webkit-transform: translateZ(0);
+                transform: translateZ(0);
+                -webkit-backface-visibility: hidden;
+                backface-visibility: hidden;
+            }
             .title {
                 display:flex;
                 align-items: flex-end;
