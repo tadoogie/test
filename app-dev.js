@@ -2585,7 +2585,7 @@ function renderPsalm(options = {}) {
                     } // end presentation mode
 
                     const controlsEl = document.getElementById("controls");
-                    controlsEl.style.display = "inline";
+                    controlsEl.style.display = "flex";
                     controlsEl.classList.remove("text-only-mode");
                     window.globalTextOnly = false;
                     document.body.classList.add("controls-visible");

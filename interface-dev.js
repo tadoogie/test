@@ -2214,7 +2214,7 @@ function fetchAndRenderTextOnly(teiID, selStanzas) {
 
   const controlsEl = document.getElementById('controls');
   if (controlsEl) {
-    controlsEl.style.display = 'inline';
+    controlsEl.style.display = 'flex';
     controlsEl.classList.add('text-only-mode');
     document.body.classList.add('controls-visible');
   }
