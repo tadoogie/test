@@ -1,6 +1,23 @@
 window.INTERFACE_DEV_BUILD = '2025-12-06-1';
 /*This is my new comment to check if this is updated*/
 
+/* iOS Safari: prevent automatic zoom-in when changing orientation.
+ * iOS applies a scale adjustment during rotation. Temporarily setting
+ * maximum-scale=1 in the viewport meta forces iOS to reset any auto-zoom
+ * it would apply, then we restore the original content so pinch-zoom
+ * remains available for the user. */
+(function() {
+  var vp = document.querySelector('meta[name="viewport"]');
+  if (!vp) return;
+  var original = vp.getAttribute('content');
+  window.addEventListener('orientationchange', function() {
+    vp.setAttribute('content', original + ', maximum-scale=1');
+    setTimeout(function() {
+      vp.setAttribute('content', original);
+    }, 500);
+  });
+}());
+
 /* ----------------------------- URL parameter application ----------------------------- */
 if (document.readyState === 'loading') {
   document.addEventListener("DOMContentLoaded", () => {
