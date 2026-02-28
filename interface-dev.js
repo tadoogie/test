@@ -2236,7 +2236,11 @@ function fetchAndRenderTextOnly(teiID, selStanzas) {
             const bold = document.createElement('strong');
             bold.textContent = 'Source:';
             sourceP.appendChild(bold);
-            sourceP.appendChild(document.createTextNode(' ' + mainTitle + (edDate ? ' (' + edDate + ')' : '')));
+            const em = document.createElement('em');
+            em.textContent = mainTitle;
+            sourceP.appendChild(document.createTextNode(' '));
+            sourceP.appendChild(em);
+            if (edDate) sourceP.appendChild(document.createTextNode(' (' + edDate + ')'));
             wrapper.appendChild(sourceP);
           }
         }
