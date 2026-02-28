@@ -1,45 +1,54 @@
 window.INTERFACE_DEV_BUILD = '2025-12-06-1';
 /*This is my new comment to check if this is updated*/
 
-/* iOS Safari: fix svg_output content disappearing after scroll or orientation change.
+/* iOS Safari: fix #svg_output content disappearing on scroll and orientation change.
  *
- * Root cause: the static CSS transform:translateZ(0) on #svg_output creates a GPU
- * compositing layer at page load. When we dynamically replace the content via JS
- * (container.innerHTML = '' then appendChild), iOS lazily updates the GPU layer —
- * the first paint looks correct (CPU-painted), but the GPU layer remains stale.
- * On scroll or orientation change, iOS switches to the GPU layer, which is empty
- * or stale, so the content vanishes. SVG content (Verovio) is immune because iOS
- * always treats <svg> elements as native GPU textures and rebuilds them eagerly.
+ * Root cause: iOS Safari's GPU compositing model. A PERMANENT transform:translateZ(0)
+ * on a div containing HTML text creates a bitmap texture that iOS lazily discards under
+ * viewport-resize and memory pressure (address bar show/hide, orientation change).
+ * SVG content is immune because iOS re-rasterises vectors on demand; HTML bitmaps are not.
  *
- * Fix: explicitly destroy and recreate the GPU layer after dynamic content changes
- * by toggling the transform off (with a synchronous layout) and on (next frame).
- * The display:none approach only triggers a layout, not a compositor layer rebuild.
- *
- * Also listen to 'resize' (fires AFTER the viewport is actually updated) rather than
- * only 'orientationchange' (fires BEFORE the viewport resizes on iOS).
+ * Fix: NO permanent CSS GPU promotion on #svg_output.
+ * Instead, use a TRANSIENT inline translateZ(0) fired on scroll/resize/orientationchange:
+ *   1. Set inline webkitTransform = 'translateZ(0)'  → iOS creates a fresh GPU texture
+ *      from the CURRENT DOM content at the CURRENT scroll position
+ *   2. void offsetHeight                             → sync layout; iOS commits the texture
+ *   3. rAF: clear inline style                      → return to normal compositing
+ * This pattern forces a fresh rasterisation without leaving a stale permanent layer.
  */
 (function() {
   function repaintSvgOutput() {
     var el = document.getElementById('svg_output');
     if (!el) return;
-    /* Remove inline transform → CSS transform:translateZ(0) is suppressed → layer destroyed */
-    el.style.webkitTransform = 'none';
-    el.style.transform = 'none';
-    void el.offsetHeight; /* synchronous layout so iOS processes the layer destruction */
+    el.style.webkitTransform = 'translateZ(0)';
+    el.style.transform = 'translateZ(0)';
+    void el.offsetHeight;
     requestAnimationFrame(function() {
-      /* Restore: remove inline override → CSS translateZ(0) takes over → fresh layer created */
       el.style.webkitTransform = '';
       el.style.transform = '';
     });
   }
+
+  /* orientationchange fires before the viewport resizes on iOS; wait for the
+     resize that follows to ensure dimensions are settled before repainting */
   window.addEventListener('orientationchange', function() {
     setTimeout(repaintSvgOutput, 300);
   });
-  var _iosResizeTimer;
+
+  /* resize fires after the viewport is updated (address-bar hide/show included) */
+  var _resizeTimer;
   window.addEventListener('resize', function() {
-    clearTimeout(_iosResizeTimer);
-    _iosResizeTimer = setTimeout(repaintSvgOutput, 200);
+    clearTimeout(_resizeTimer);
+    _resizeTimer = setTimeout(repaintSvgOutput, 150);
   });
+
+  /* scroll: fire shortly after the user stops scrolling so the element is
+     rasterised at its final resting position */
+  var _scrollTimer;
+  window.addEventListener('scroll', function() {
+    clearTimeout(_scrollTimer);
+    _scrollTimer = setTimeout(repaintSvgOutput, 100);
+  }, { passive: true });
 }());
 
 /* ----------------------------- URL parameter application ----------------------------- */
@@ -2286,15 +2295,14 @@ function fetchAndRenderTextOnly(teiID, selStanzas) {
           }
         }
       } catch(_) {}
-      /* iOS Safari: force GPU compositing layer to be rebuilt with the new content.
-       * Static CSS transform:translateZ(0) creates the layer at page load; after we
-       * replace the DOM dynamically the layer is stale. Toggling it off (frame 1,
-       * with a synchronous layout) and on (frame 2) forces iOS to destroy the old
-       * layer and create a fresh one that contains the current DOM content. */
+      /* iOS Safari: after dynamic content injection, do a transient GPU promotion to
+       * force iOS to rasterise the new HTML content. Without a permanent CSS transform,
+       * there is no stale layer — the inline transform is created fresh, committed, then
+       * released back to normal flow in the next animation frame. */
       (function(el) {
         requestAnimationFrame(function() {
-          el.style.webkitTransform = 'none';
-          el.style.transform = 'none';
+          el.style.webkitTransform = 'translateZ(0)';
+          el.style.transform = 'translateZ(0)';
           void el.offsetHeight;
           requestAnimationFrame(function() {
             el.style.webkitTransform = '';

@@ -21,20 +21,8 @@
                that caused iOS Safari to drop the main content layer on scroll when
                position:fixed elements (hamburger, controls, sidenav) are present */
             body, header, footer { position: relative; }
-            /* iOS Safari fix: promote svg_output to its own GPU compositing layer to prevent
-               content from disappearing on scroll and orientation change when position:fixed
-               elements (hamburger, sidenav, controls) are present alongside body z-index:1 */
-            #svg_output {
-                position: relative;
-                -webkit-transform: translateZ(0);
-                transform: translateZ(0);
-                -webkit-backface-visibility: hidden;
-                backface-visibility: hidden;
-            }
-            /* Override transition:all on the svg_output parent container (section.container,
-               not the .fluid one used by the sidenav). The CDN CSS applies transition:all
-               which causes iOS Safari to defer/drop the compositing layer on orientation
-               change, making svg_output disappear until the next forced repaint. */
+            /* iOS Safari: keep transition scoped (not 'all') on the svg_output parent container
+               so the address-bar show/hide resize doesn't animate element dimensions */
             section.container:not(.fluid) {
                 -webkit-transition: margin 0.3s ease !important;
                 transition: margin 0.3s ease !important;
