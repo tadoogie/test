@@ -18,6 +18,19 @@
         
         <style>
             body, header, footer { position: relative; }
+            /* iPhone portrait: controls sidebar overflows the bottom of the viewport because
+               the CDN CSS uses height:calc(100vh+12px) / height:100vh, but on iOS Safari
+               100vh = the large viewport height (address bar hidden). When the address bar is
+               visible the sidebar is ~50px taller than the screen (observed: bottom = -25px).
+               Fix: position:fixed with top:0 + bottom:0 + height:auto always fills exactly
+               the real visible viewport, adapting as the address bar shows/hides. */
+            @media (max-width: 800px) and (orientation: portrait) {
+                #controls {
+                    top: 0;
+                    bottom: 0;
+                    height: auto !important;
+                }
+            }
             .title {
                 display:flex;
                 align-items: flex-end;
