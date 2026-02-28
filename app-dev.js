@@ -137,7 +137,11 @@ document.addEventListener("DOMContentLoaded", () => {
     const generatePdfButton = document.getElementById('generatePdfButton');
 
     printPdfButton.addEventListener('click', () => {
-        paperSizeModal.style.display = 'flex';
+        if (window.globalTextOnly) {
+            generateTextOnlyPDF('LETTER');
+        } else {
+            paperSizeModal.style.display = 'flex';
+        }
     });
     cancelPdfButton.addEventListener('click', () => {
         paperSizeModal.style.display = 'none';
@@ -228,11 +232,6 @@ document.addEventListener("DOMContentLoaded", () => {
     // --- Keyboard navigation (arrows, zoom, etc.) ---
     window.addEventListener("keyup", function(event) {
         processBasicEvents(event);
-    });
-
-    // --- Respond to window resize with layout/zoom update ---
-    window.addEventListener("resize", () => {
-        applyZoom();
     });
 
     // --- Initial file load (or trigger via UI as desired) ---
@@ -367,16 +366,26 @@ async function URLVariableFunction() {
     let teiID = params.get('teiID') || params.get('teiID');
     let selStanzas = params.get('selStanzas') || params.get('selectVerses') || params.get('stanzas');
     let psTune = params.get('psTune');
+    const textOnly = params.get('textOnly') === 'true';
+    const presentation = params.get('presentation') === 'on';
 
     let selStanzasArr = null;
     if (selStanzas) {
         selStanzasArr = selStanzas.replace(/['"]/g, '').split(',').map(s => s.trim());
     }
 
+    if (textOnly) {
+        if (typeof loadTextOnlyAutoGen === 'function') {
+            loadTextOnlyAutoGen(teiID, selStanzasArr);
+        }
+        return;
+    }
+
     renderPsalm({
         teiID: teiID,
         selStanzas: selStanzasArr,
         psTune: psTune,
+        presentation: presentation,
         autoGen: true
     });
 }
@@ -1216,6 +1225,8 @@ function lastPage() {
     loadPage();
 }
 function applyZoom() {
+    // Do not re-render if no score is loaded or we are in text-only mode
+    if (!currentXmlData || window.globalTextOnly) return;
     setOptions();
     vrvToolkit.redoLayout();
     page = 1;
@@ -1472,6 +1483,97 @@ function renderAndDisplayMEI(meiXML) {
     }
 }
 
+
+// --- Text-only PDF generation ---
+async function generateTextOnlyPDF(selectedPaperSize) {
+    const container = document.getElementById('svg_output');
+    if (!container) { alert('No text content to print.'); return; }
+
+    // Collect verse lines from the cetei-text-output in svg_output
+    const verses = container.querySelectorAll('.cetei-verse');
+    if (!verses.length) { alert('No text content to print.'); return; }
+
+    try {
+        const paperSizeOptions = {
+            'LETTER': {
+                pdfkitSize: 'LETTER',
+                pdfKitMargins: { top: 50, bottom: 60, left: 60, right: 60 },
+                footerReservedHeight: 50
+            },
+            'A4': {
+                pdfkitSize: 'A4',
+                pdfKitMargins: { top: 50, bottom: 60, left: 60, right: 60 },
+                footerReservedHeight: 50
+            }
+        };
+        const settings = paperSizeOptions[selectedPaperSize] || paperSizeOptions['LETTER'];
+
+        const doc = new PDFDocument({
+            size: settings.pdfkitSize,
+            layout: 'portrait',
+            margins: settings.pdfKitMargins
+        });
+
+        const stream = doc.pipe(blobStream());
+
+        stream.on('finish', function() {
+            const blob = stream.toBlob('application/pdf');
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = `${globalTitle || 'text'}_${selectedPaperSize.toLowerCase()}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        });
+
+        stream.on('error', function(err) {
+            console.error('PDF stream error:', err);
+            alert('An error occurred during PDF creation.');
+        });
+
+        // Title
+        if (globalTitle) {
+            doc.font('Helvetica-Bold').fontSize(16);
+            doc.text(globalTitle, { align: 'center' });
+            doc.moveDown(0.5);
+        }
+
+        // Verse text
+        doc.font('Helvetica').fontSize(12);
+        verses.forEach(function(verseEl) {
+            const lines = verseEl.querySelectorAll('.cetei-line');
+            lines.forEach(function(lineEl) {
+                doc.text(lineEl.textContent.trim(), { align: 'left' });
+            });
+            doc.moveDown(0.5);
+        });
+
+        // Footer
+        const baseFooterY = doc.page.height - settings.pdfKitMargins.bottom - (settings.footerReservedHeight / 2);
+        doc.font('Helvetica').fontSize(9);
+        if (globalTextSource) {
+            doc.text(
+                `Text source: ${globalTextSource}${globalTextSourceDate ? ' (' + globalTextSourceDate + ')' : ''}`,
+                settings.pdfKitMargins.left,
+                baseFooterY - 20,
+                { align: 'center', width: doc.page.width - settings.pdfKitMargins.left - settings.pdfKitMargins.right }
+            );
+        }
+        doc.fontSize(9).text(
+            'Generated by the Digital Splitleaf (https://splitleaf.org)',
+            settings.pdfKitMargins.left,
+            baseFooterY - 8,
+            { align: 'center', width: doc.page.width - settings.pdfKitMargins.left - settings.pdfKitMargins.right }
+        );
+
+        doc.end();
+    } catch (error) {
+        alert('Failed to generate PDF: ' + error.message);
+    }
+}
 
 // --- PDF generation (unchanged from your code) ---
 async function generatePDF(selectedPaperSize) {
@@ -2016,7 +2118,24 @@ function renderPsalm(options = {}) {
 
     // Build text request
     const psText = "getVerses.xq?teiID=" + teiID + "&selStanzas=\"%20," + selStanzas.join(",") + ",%20\"";
-    const disOptions = document.getElementById("psMode") !== null ? document.getElementById("psMode").checked : false;
+    let disOptions;
+    if (isAutoGen && options.presentation !== undefined) {
+        disOptions = options.presentation === true;
+        // Sync the DOM toggle to match the URL parameter
+        const psModeEl = document.getElementById('psMode');
+        const psModeOn = document.getElementById('psModeOn');
+        const psModeOff = document.getElementById('psModeOff');
+        if (psModeEl) psModeEl.checked = disOptions;
+        if (disOptions) {
+            if (psModeOn) { psModeOn.style.background = '#6fc252'; psModeOn.classList.add('active'); }
+            if (psModeOff) { psModeOff.style.background = '#666'; psModeOff.classList.remove('active'); }
+        } else {
+            if (psModeOff) { psModeOff.style.background = '#6fc252'; psModeOff.classList.add('active'); }
+            if (psModeOn) { psModeOn.style.background = '#666'; psModeOn.classList.remove('active'); }
+        }
+    } else {
+        disOptions = document.getElementById("psMode") !== null ? document.getElementById("psMode").checked : false;
+    }
 
     const xmlhttp = new XMLHttpRequest();
     xmlhttp.open("GET", psText, true);
@@ -2465,7 +2584,10 @@ function renderPsalm(options = {}) {
                         finalBars[finalBarCount-1].setAttribute("right", "end");
                     } // end presentation mode
 
-                    document.getElementById("controls").style.display = "inline";
+                    const controlsEl = document.getElementById("controls");
+                    controlsEl.style.display = "flex";
+                    controlsEl.classList.remove("text-only-mode");
+                    window.globalTextOnly = false;
                     document.body.classList.add("controls-visible");
                     const textLicenseHTML = "<p><strong>Text Source:</strong>&nbsp;<em>" + textSource + "</em>&nbsp;(" + textSourceDate + ")<br/> <a href='" + textLicenseURL + "' target='_blank'>" + textLicense + "</a></p>"
                     const tuneLicenseHTML = "<p><strong>Tune Source:</strong>&nbsp;<em>" + tuneSource + "</em>&nbsp;(" + tuneSourceDate + ")<br/> <a href='" + tuneLicenseURL + "' target='_blank'>" + tuneLicense + "</a></p>"
