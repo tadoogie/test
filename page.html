@@ -30,6 +30,28 @@
                     bottom: 0;
                     height: auto !important;
                 }
+                /* Fix gap: CDN CSS applies margin-left:30px to both .container AND #svg_output,
+                   totalling 75px offset when the controls sidebar is only 60px wide (15px gap).
+                   Set container margin to exactly the sidebar width and neutralise the direct
+                   svg_output margin so content aligns flush with the right edge of the sidebar. */
+                body.controls-visible .container {
+                    margin-left: 60px !important;
+                    max-width: calc(100% - 60px) !important;
+                }
+                body.controls-visible #svg_output,
+                body.controls-visible .title {
+                    margin-left: 0 !important;
+                }
+            }
+            /* iPhone: prevent transition:all on containers during orientation change.
+               CDN CSS uses transition:all on .container/.row/.col-* which animates width and
+               max-width simultaneously as the viewport resizes, causing iOS Safari to
+               misread intermediate layout values and zoom in massively. */
+            @media (max-width: 900px) {
+                .container, .row, .col-sm-12, .col-lg-12 {
+                    -webkit-transition: margin-left 0.3s ease !important;
+                    transition: margin-left 0.3s ease !important;
+                }
             }
             .title {
                 display:flex;
