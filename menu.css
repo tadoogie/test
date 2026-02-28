@@ -1138,6 +1138,46 @@ dl dt { font-weight: bold; }
   }
 }
 
+/* Mobile landscape: keep controls as a fixed vertical sidebar matching portrait,
+   so the short landscape viewport height does not clip the icons. Allow scrolling
+   if there are more icons than fit in the available height. */
+@media (max-width: 1023px) and (orientation: landscape) {
+  #controls {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 60px;
+    height: auto;
+    flex-direction: column;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  #controls .vl {
+    display: block;
+    border-right: none;
+    border-bottom: 2px solid #000;
+    padding: 3px 2px 8px 0;
+  }
+  #controls a, #controls button {
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
+    padding: 0;
+  }
+  body.controls-visible .container {
+    margin-left: 60px;
+    max-width: calc(100% - 60px);
+  }
+  body.controls-visible #svg_output,
+  body.controls-visible .title {
+    margin-left: 0;
+  }
+}
+
 /* Switch to top tabs: hide the old vertical rail if it still exists */
 .sidenav-tabs { display: none !important; }
 

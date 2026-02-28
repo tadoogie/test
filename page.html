@@ -43,6 +43,33 @@
                     margin-left: 0 !important;
                 }
             }
+            /* iPhone landscape: controls sidebar is cut off because the landscape viewport
+               is shorter than portrait, and the CDN CSS reverts to position:absolute which
+               can be clipped by container overflow. Fix: use position:fixed pinned top+bottom
+               (escapes container clipping, fills exact visible viewport); keep column layout
+               matching the portrait sidebar; allow overflow-y scroll if icons don't all fit
+               in the shorter landscape viewport height. */
+            @media (max-width: 1023px) and (orientation: landscape) {
+                #controls {
+                    position: fixed !important;
+                    top: 0 !important;
+                    bottom: 0 !important;
+                    left: 0 !important;
+                    width: 60px !important;
+                    height: auto !important;
+                    flex-direction: column !important;
+                    overflow-y: auto !important;
+                    -webkit-overflow-scrolling: touch !important;
+                }
+                body.controls-visible .container {
+                    margin-left: 60px !important;
+                    max-width: calc(100% - 60px) !important;
+                }
+                body.controls-visible #svg_output,
+                body.controls-visible .title {
+                    margin-left: 0 !important;
+                }
+            }
             /* iPhone: prevent transition:all on containers during orientation change.
                CDN CSS uses transition:all on .container/.row/.col-* which animates width and
                max-width simultaneously as the viewport resizes, causing iOS Safari to
