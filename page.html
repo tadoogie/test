@@ -4,7 +4,7 @@
     <head>
         <meta charset="utf-8"/>
         <meta http-equiv="X-UA-Compatible" content="IE=EDGE,chrome=1"/>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, shrink-to-fit=no"/>
         <title>Splitleaf Psalter Viewer</title>
         <link rel="shortcut icon" href="/resources/images/leaf.ico"/>
         <link type="text/css" rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open+Sans:400,600,700|Fjalla+One|Roboto+Slab:300,400,500,700"/>
@@ -17,7 +17,42 @@
         <script src="resources/js/midi-bridge.js"/>
         
         <style>
-            body, header, footer { position: relative; z-index: 1; }
+            body, header, footer { position: relative; }
+            /* iPhone portrait: controls sidebar overflows the bottom of the viewport because
+               the CDN CSS uses height:calc(100vh+12px) / height:100vh, but on iOS Safari
+               100vh = the large viewport height (address bar hidden). When the address bar is
+               visible the sidebar is ~50px taller than the screen (observed: bottom = -25px).
+               Fix: position:fixed with top:0 + bottom:0 + height:auto always fills exactly
+               the real visible viewport, adapting as the address bar shows/hides. */
+            @media (max-width: 800px) and (orientation: portrait) {
+                #controls {
+                    top: 0;
+                    bottom: 0;
+                    height: auto !important;
+                }
+                /* Fix gap: CDN CSS applies margin-left:30px to both .container AND #svg_output,
+                   totalling 75px offset when the controls sidebar is only 60px wide (15px gap).
+                   Set container margin to exactly the sidebar width and neutralise the direct
+                   svg_output margin so content aligns flush with the right edge of the sidebar. */
+                body.controls-visible .container {
+                    margin-left: 60px !important;
+                    max-width: calc(100% - 60px) !important;
+                }
+                body.controls-visible #svg_output,
+                body.controls-visible .title {
+                    margin-left: 0 !important;
+                }
+            }
+            /* iPhone: prevent transition:all on containers during orientation change.
+               CDN CSS uses transition:all on .container/.row/.col-* which animates width and
+               max-width simultaneously as the viewport resizes, causing iOS Safari to
+               misread intermediate layout values and zoom in massively. */
+            @media (max-width: 900px) {
+                .container, .row, .col-sm-12, .col-lg-12 {
+                    -webkit-transition: margin-left 0.3s ease !important;
+                    transition: margin-left 0.3s ease !important;
+                }
+            }
             .title {
                 display:flex;
                 align-items: flex-end;
@@ -747,6 +782,72 @@
                 text-transform: uppercase;
                 font-size: 18px;
             }
+
+            /* Text-only mode: gray out music controls (2nd .vl onwards), keep PDF+Share active */
+            #controls.text-only-mode .vl:not(:first-child) {
+                opacity: 0.35;
+                pointer-events: none;
+            }
+            #controls.text-only-mode .vl:not(:first-child) .icon {
+                fill: #888 !important;
+                color: #888 !important;
+            }
+            #controls.text-only-mode .vl:not(:first-child) .icon path,
+            #controls.text-only-mode .vl:not(:first-child) .icon polygon,
+            #controls.text-only-mode .vl:not(:first-child) .icon rect,
+            #controls.text-only-mode .vl:not(:first-child) svg path,
+            #controls.text-only-mode .vl:not(:first-child) svg polygon {
+                fill: #888 !important;
+                stroke: none !important;
+            }
+            #controls.text-only-mode .vl:not(:first-child) .icon-TransposeUpArrow,
+            #controls.text-only-mode .vl:not(:first-child) .icon-TransposeDwnArrow {
+                color: #888 !important;
+            }
+
+            /* TEXT ONLY button — same style as GO button */
+            .text-only-btn {
+                display: inline-flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                gap: 6px;
+                padding: 8px 10px;
+                background: transparent;
+                color: #6fc252;
+                border: none;
+                cursor: pointer;
+                font-weight: 700;
+                text-transform: uppercase;
+                letter-spacing: 0.04em;
+            }
+            .text-only-btn svg {
+                width: 28px;
+                height: 28px;
+                fill: #6fc252;
+                stroke: #6fc252;
+                display: block;
+            }
+            .text-only-btn:hover { opacity: 0.9; }
+            .text-only-btn:active { transform: translateY(1px); }
+
+            /* Put TEXT ONLY on the left and NEXT on the right */
+            .next-btn-row.has-two-btns {
+                justify-content: space-between !important;
+                width: 100%;
+            }
+
+            /* Text-only output display */
+            .cetei-text-output {
+                padding: 20px;
+                font-size: 1.1em;
+                line-height: 1.8;
+                color: #222;
+            }
+            .cetei-verse { margin-bottom: 1.2em; }
+            .cetei-line { margin: 0; }
+            .cetei-title { margin: 0 0 0.8em 0; font-size: 1.4em; }
+            .cetei-source { margin-top: 1.5em; font-size: 0.95em; color: #444; border-top: 1px solid #ccc; padding-top: 0.6em; }
         </style>
     </head>
     <body>
@@ -1286,6 +1387,7 @@
         <div id="melodySearchResults" style="max-height:250px;overflow-y:auto;width:90%;"/>
       </div>
     </div>
+    <script src="https://unpkg.com/CETEIcean/src/CETEI.js"></script>
     <script src="https://www.verovio.org/javascript/latest/verovio-toolkit-wasm.js" defer="defer"/>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/awesomplete/1.1.5/awesomplete.min.js"/>
     <script src="resources/js/melody-player.js" defer="defer"/>
