@@ -234,11 +234,6 @@ document.addEventListener("DOMContentLoaded", () => {
         processBasicEvents(event);
     });
 
-    // --- Respond to window resize with layout/zoom update ---
-    window.addEventListener("resize", () => {
-        applyZoom();
-    });
-
     // --- Initial file load (or trigger via UI as desired) ---
     //loadFile();
 
@@ -1230,6 +1225,8 @@ function lastPage() {
     loadPage();
 }
 function applyZoom() {
+    // Do not re-render if no score is loaded or we are in text-only mode
+    if (!currentXmlData || window.globalTextOnly) return;
     setOptions();
     vrvToolkit.redoLayout();
     page = 1;
