@@ -1,6 +1,18 @@
 window.INTERFACE_DEV_BUILD = '2025-12-06-1';
 /*This is my new comment to check if this is updated*/
 
+/* iOS Safari: force repaint of svg_output on orientation change.
+   Belt-and-suspenders alongside the CSS fixes in page.html. */
+window.addEventListener('orientationchange', function() {
+  setTimeout(function() {
+    var el = document.getElementById('svg_output');
+    if (!el) return;
+    el.style.display = 'none';
+    void el.offsetHeight; // force reflow
+    el.style.display = '';
+  }, 250);
+});
+
 /* ----------------------------- URL parameter application ----------------------------- */
 if (document.readyState === 'loading') {
   document.addEventListener("DOMContentLoaded", () => {
