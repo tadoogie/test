@@ -1138,6 +1138,15 @@ dl dt { font-weight: bold; }
   }
 }
 
+/* iPhone landscape: the horizontal controls bar (position:absolute inside .col-sm-12)
+   is clipped — only ~1/3 of its height shows. The bar extends below .col-sm-12's bottom;
+   overflow:hidden on that column clips it. Override to visible so the bar is fully shown. */
+@media (max-width: 1023px) and (orientation: landscape) {
+  .col-sm-12 {
+    overflow: visible;
+  }
+}
+
 /* Switch to top tabs: hide the old vertical rail if it still exists */
 .sidenav-tabs { display: none !important; }
 
