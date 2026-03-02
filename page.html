@@ -25,18 +25,8 @@
                Fix: position:fixed with top:0 + bottom:0 + height:auto always fills exactly
                the real visible viewport, adapting as the address bar shows/hides. */
             @media (max-width: 800px) and (orientation: portrait) {
-                /* Prevent iOS Safari from zooming when rotating landscape→portrait.
-                   In landscape the CDN CSS has html{overflow-x:hidden;max-width:100vw}
-                   inside its own landscape @media block, so that rule drops away when
-                   entering portrait.  During the ~200ms debounce before applyZoom
-                   re-renders the SVG at portrait width, the landscape-width SVG
-                   (~625px) overflows a 375px html with no clip → Safari zooms out to
-                   fit, then zooms in once the SVG shrinks → user sees a full-page
-                   zoom.  Keeping html clipped to 100vw in portrait prevents this. */
-                html {
-                    overflow-x: hidden;
-                    max-width: 100vw;
-                }
+                /* (html overflow-x clip is in the max-width:900px block above, so it
+                   applies through the entire orientation-change transition.) */
                 #controls {
                     top: 0;
                     bottom: 0;
@@ -74,11 +64,23 @@
                     overflow-x: visible !important;
                 }
             }
-            /* iPhone: prevent transition:all on containers during orientation change.
+            /* iPhone: prevent transition:all on containers during orientation change, and keep
+               html clipped to the viewport at ALL times on mobile.
                CDN CSS uses transition:all on .container/.row/.col-* which animates width and
                max-width simultaneously as the viewport resizes, causing iOS Safari to
-               misread intermediate layout values and zoom in massively. */
+               misread intermediate layout values and zoom in massively.
+               The html clip MUST live here (orientation-agnostic) and not only inside the
+               portrait/landscape @media blocks: iOS fires orientationchange before the new
+               orientation's @media rules have settled, leaving a brief window where neither
+               block matches and html is unclipped.  Any content wider than the viewport in
+               that window triggers Safari's auto-zoom — which shows up as a zoom on roughly
+               every other portrait→landscape rotation (alternating because the previous
+               maximum-scale=1 trick had the same timing issue). */
             @media (max-width: 900px) {
+                html {
+                    overflow-x: hidden;
+                    max-width: 100vw;
+                }
                 .container, .row, .col-sm-12, .col-lg-12 {
                     -webkit-transition: margin-left 0.3s ease !important;
                     transition: margin-left 0.3s ease !important;
