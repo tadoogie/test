@@ -4,7 +4,14 @@
     <head>
         <meta charset="utf-8"/>
         <meta http-equiv="X-UA-Compatible" content="IE=EDGE,chrome=1"/>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0, shrink-to-fit=no"/>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, shrink-to-fit=no"/>
+        <!-- maximum-scale=1.0: prevents iOS Safari from auto-scaling the page during
+             orientation change (portrait→landscape). iOS sees the narrow portrait SVG
+             sitting in the wider landscape viewport during the ~200ms re-render debounce
+             and scales up to fill it — the user sees a full-page zoom. Setting
+             maximum-scale=1 suppresses this automatic scale adjustment. On iOS 10+
+             Apple ignores maximum-scale for intentional user pinch-zoom (accessibility
+             preserved), but still respects it for automatic orientation-change scaling. -->
         <title>Splitleaf Psalter Viewer</title>
         <link rel="shortcut icon" href="/resources/images/leaf.ico"/>
         <link type="text/css" rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open+Sans:400,600,700|Fjalla+One|Roboto+Slab:300,400,500,700"/>

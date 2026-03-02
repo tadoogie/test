@@ -186,6 +186,12 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
     // --- Navigation and Zoom controls ---
+    // Re-render the score on window resize (debounced to avoid thrashing).
+    // For orientation changes, also listen directly on orientationchange so the SVG
+    // is re-sized as soon as iOS has settled the new viewport dimensions (100ms after
+    // the event) — this minimises the window where the old-sized SVG sits in the new
+    // viewport, which is what triggers iOS Safari to auto-scale the page.
+    window.addEventListener('orientationchange', debounce(applyZoom, 100));
     window.addEventListener("resize", debounce(applyZoom, 200));
     const zoomInButton = document.getElementById("zoomIn");
         if (zoomInButton) {
