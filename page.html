@@ -25,6 +25,18 @@
                Fix: position:fixed with top:0 + bottom:0 + height:auto always fills exactly
                the real visible viewport, adapting as the address bar shows/hides. */
             @media (max-width: 800px) and (orientation: portrait) {
+                /* Prevent iOS Safari from zooming when rotating landscape→portrait.
+                   In landscape the CDN CSS has html{overflow-x:hidden;max-width:100vw}
+                   inside its own landscape @media block, so that rule drops away when
+                   entering portrait.  During the ~200ms debounce before applyZoom
+                   re-renders the SVG at portrait width, the landscape-width SVG
+                   (~625px) overflows a 375px html with no clip → Safari zooms out to
+                   fit, then zooms in once the SVG shrinks → user sees a full-page
+                   zoom.  Keeping html clipped to 100vw in portrait prevents this. */
+                html {
+                    overflow-x: hidden;
+                    max-width: 100vw;
+                }
                 #controls {
                     top: 0;
                     bottom: 0;

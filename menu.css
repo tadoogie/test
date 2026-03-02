@@ -1699,8 +1699,13 @@ div #tuneButtons button, .source-button {
   }
 }
 
-/* Fix the portrait height calculation */
+/* Fix the portrait height calculation; also prevent iOS Safari zoom on
+   landscape→portrait rotation (mirror the html clip from the landscape block). */
 @media (max-width: 800px) and (orientation: portrait) {
+  html {
+    overflow-x: hidden;
+    max-width: 100vw;
+  }
   #controls {
     height: 100vh; /* Remove the + 12px */
   }
