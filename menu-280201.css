@@ -1139,17 +1139,11 @@ dl dt { font-weight: bold; }
 }
 
 /* iPhone landscape: the horizontal controls bar (position:absolute inside .col-sm-12)
-   is clipped — only ~1/3 of its height shows. Root cause: overflow-x:hidden on
-   .container/.row in landscape forces overflow-y:auto (CSS spec: both axes must be
-   non-visible if one is), making section.container.fluid a height-bounded scroll
-   container that clips the absolutely-positioned bar. Fix: ensure all ancestors have
-   overflow:visible so nothing clips the bar. */
+   is clipped — only ~1/3 of its height shows. The bar extends below .col-sm-12's bottom;
+   overflow:hidden on that column clips it. Override to visible so the bar is fully shown. */
 @media (max-width: 1023px) and (orientation: landscape) {
-  .container, .row, .col-sm-12 {
+  .col-sm-12 {
     overflow: visible;
-  }
-  body {
-    overflow-x: visible;
   }
 }
 
@@ -1681,10 +1675,7 @@ div #tuneButtons button, .source-button {
 }
 
 @media (orientation: landscape) and (max-width: 900px) {
-  /* overflow-x:hidden on .container/.row forces overflow-y:auto (CSS spec), turning
-     section.container.fluid into a scroll container that clips the abs-positioned
-     controls bar. max-width:100vw alone prevents horizontal overflow. */
-  html {
+  body, html {
     overflow-x: hidden;
     max-width: 100vw;
   }
@@ -1696,6 +1687,7 @@ div #tuneButtons button, .source-button {
   
   .container, .row {
     max-width: 100vw;
+    overflow-x: hidden;
   }
 }
 
@@ -1723,8 +1715,7 @@ div #tuneButtons button, .source-button {
     max-width: calc(90vw - 60px); /* Account for tab bar */
   }
   
-  /* Same fix: only html needs overflow-x:hidden for viewport scroll control. */
-  html {
+  body, html {
     overflow-x: hidden;
     max-width: 100vw;
   }
