@@ -44,15 +44,22 @@
                 }
             }
             /* iPhone landscape: the horizontal controls bar (position:absolute inside
-               .col-sm-12) is cut off — only ~1/3 of its height is visible. The bar's
-               bottom portion extends past .col-sm-12's bottom edge; the CDN CSS has
-               overflow:hidden on that column, so only the ~15px padding-bottom strip
-               of the column shows the bar. Fix: override overflow to visible so the
-               bar can extend below the column boundary. The bar's z-index:10 already
-               ensures it paints above any following sections. */
+               .col-sm-12) is clipped — only ~1/3 of its height is visible.
+               Root cause: the CDN CSS has overflow-x:hidden on .container and .row
+               in landscape mode. The CSS spec requires that when overflow-x (or -y)
+               is non-visible, the other axis is also made non-visible (becomes auto).
+               This turns section.container.fluid into a height-bounded scroll container
+               (height = in-flow content only = just .title) that clips the
+               absolutely-positioned #controls bar extending below it.
+               Fix: force overflow:visible on .container, .row, .col-sm-12 so no
+               ancestor clips the bar. Also reset body (body{height:100%} +
+               overflow-x:hidden makes body a 375px scroll container in landscape). */
             @media (max-width: 1023px) and (orientation: landscape) {
-                .col-sm-12 {
+                .container, .row, .col-sm-12 {
                     overflow: visible !important;
+                }
+                body {
+                    overflow-x: visible !important;
                 }
             }
             /* iPhone: prevent transition:all on containers during orientation change.
