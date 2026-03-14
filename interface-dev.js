@@ -1027,6 +1027,33 @@ async function fetchConsolidatedData() {
   }
 }
 
+// Returns an array of all verse IDs for the given teiID from consolidated data,
+// or null if the data is not yet loaded or the teiID is not found.
+function getAllVersesForTeiID(teiID) {
+  if (!teiID || !window.consolidatedData || !Array.isArray(window.consolidatedData.sources)) return null;
+  for (var i = 0; i < window.consolidatedData.sources.length; i++) {
+    var src = window.consolidatedData.sources[i];
+    var texts = Array.isArray(src.texts) ? src.texts : [];
+    for (var j = 0; j < texts.length; j++) {
+      var t = texts[j];
+      if (t.id === teiID) {
+        if (Array.isArray(t.sections) && t.sections.length) {
+          var all = [];
+          t.sections.forEach(function(sec) {
+            if (Array.isArray(sec.verses)) all.push.apply(all, sec.verses);
+          });
+          return all.length ? all : null;
+        }
+        if (Array.isArray(t.verses) && t.verses.length) {
+          return t.verses.slice();
+        }
+        return null;
+      }
+    }
+  }
+  return null;
+}
+
 function initializeSourceButtons() {
   const sourceContainer = document.getElementById('sourceButtonContainer');
   if (!sourceContainer) {
@@ -2151,6 +2178,9 @@ function loadTextOnly() {
 // selStanzas may be null to indicate all stanzas should be loaded
 function loadTextOnlyAutoGen(teiID, selStanzas) {
   if (!teiID) return;
+  if (!selStanzas) {
+    selStanzas = getAllVersesForTeiID(teiID);
+  }
   fetchAndRenderTextOnly(teiID, selStanzas);
 }
 

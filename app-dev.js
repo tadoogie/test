@@ -2085,6 +2085,10 @@ function renderPsalm(options = {}) {
     let selStanzas;
     if (isAutoGen && options.selStanzas && Array.isArray(options.selStanzas)) {
         selStanzas = options.selStanzas;
+    } else if (isAutoGen) {
+        // No selStanzas provided via URL — look up all verse IDs from consolidated data so
+        // each stanza is passed individually to the parser (passing 'all' is not valid).
+        selStanzas = getAllVersesForTeiID(options.teiID) || [];
     } else {
         // Get selected verses from verse buttons
         const verseBtns = document.querySelectorAll('.verse-btn[data-selected="true"]');
@@ -2127,8 +2131,10 @@ function renderPsalm(options = {}) {
     }
     if (psTune) globalPsTune = psTune;
 
-    // Build text request
-    const psText = "getVerses.xq?teiID=" + teiID + "&selStanzas=\"%20," + selStanzas.join(",") + ",%20\"";
+    // Build text request — omit selStanzas when empty so the server returns all stanzas
+    const psText = selStanzas && selStanzas.length
+        ? "getVerses.xq?teiID=" + teiID + "&selStanzas=\"%20," + selStanzas.join(",") + ",%20\""
+        : "getVerses.xq?teiID=" + teiID;
     let disOptions;
     if (isAutoGen && options.presentation !== undefined) {
         disOptions = options.presentation === true;
