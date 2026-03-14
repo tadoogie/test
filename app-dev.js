@@ -363,17 +363,22 @@ document.addEventListener("DOMContentLoaded", () => {
     setTimeout(autoRenderPsalmFromURL, 800); // Adjust delay as needed for your content
 });
 
-// Main function: checks URL and triggers renderPsalm if autoGen is present
+// Main function: checks URL and triggers renderPsalm if teiID is present
 async function URLVariableFunction() {
     const params = new URLSearchParams(window.location.search);
 
-    if (!params.has('autoGen')) return;
+    if (!params.has('teiID')) return;
 
-    let teiID = params.get('teiID') || params.get('teiID');
+    let teiID = params.get('teiID');
     let selStanzas = params.get('selStanzas') || params.get('selectVerses') || params.get('stanzas');
     let psTune = params.get('psTune');
-    const textOnly = params.get('textOnly') === 'true';
+    let textOnly = params.get('textOnly') === 'true';
     const presentation = params.get('presentation') === 'on';
+
+    // If textOnly is requested but a tune is also provided, prefer the full rendering
+    if (textOnly && psTune) {
+        textOnly = false;
+    }
 
     let selStanzasArr = null;
     if (selStanzas) {

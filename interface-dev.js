@@ -2148,8 +2148,9 @@ function loadTextOnly() {
 }
 
 // Called from URLVariableFunction when textOnly=true in URL params
+// selStanzas may be null to indicate all stanzas should be loaded
 function loadTextOnlyAutoGen(teiID, selStanzas) {
-  if (!teiID || !selStanzas || !selStanzas.length) return;
+  if (!teiID) return;
   fetchAndRenderTextOnly(teiID, selStanzas);
 }
 
@@ -2171,7 +2172,9 @@ function fetchAndRenderTextOnly(teiID, selStanzas) {
 
   container.innerHTML = '<div style="padding:20px;color:#aaa;">Loading text\u2026</div>';
 
-  const url = 'getVerses.xq?teiID=' + teiID + '&selStanzas="%20,' + selStanzas.join(',') + ',%20"';
+  const url = selStanzas && selStanzas.length
+    ? 'getVerses.xq?teiID=' + teiID + '&selStanzas="%20,' + selStanzas.join(',') + ',%20"'
+    : 'getVerses.xq?teiID=' + teiID;
   fetch(url)
     .then(function(res) { return res.text(); })
     .then(function(xmlText) {
