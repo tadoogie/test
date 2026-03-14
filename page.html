@@ -8,7 +8,7 @@
         <title>Splitleaf Psalter Viewer</title>
         <link rel="shortcut icon" href="/resources/images/leaf.ico"/>
         <link type="text/css" rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open+Sans:400,600,700|Fjalla+One|Roboto+Slab:300,400,500,700"/>
-        <link rel="preload" href="resources/css/menu-070201.css" as="style" onload="this.onload=null;this.rel='stylesheet'"/>
+        <link rel="preload" href="resources/css/menu-280203.css" as="style" onload="this.onload=null;this.rel='stylesheet'"/>
         <noscript>
             <link rel="stylesheet" href="resources/css/menu.css"/>
         </noscript>
@@ -25,6 +25,11 @@
                Fix: position:fixed with top:0 + bottom:0 + height:auto always fills exactly
                the real visible viewport, adapting as the address bar shows/hides. */
             @media (max-width: 800px) and (orientation: portrait) {
+                 html {
+                    overflow-x: hidden;
+                    max-width: 100vw;
+                }
+                
                 #controls {
                     top: 0;
                     bottom: 0;
@@ -43,11 +48,31 @@
                     margin-left: 0 !important;
                 }
             }
+            /* iPhone landscape: the horizontal controls bar (position:absolute inside
+               .col-sm-12) is cut off — only ~1/3 of its height is visible. The bar's
+               bottom portion extends past .col-sm-12's bottom edge; the CDN CSS has
+               overflow:hidden on that column, so only the ~15px padding-bottom strip
+               of the column shows the bar. Fix: override overflow to visible so the
+               bar can extend below the column boundary. The bar's z-index:10 already
+               ensures it paints above any following sections. */
+            @media (max-width: 1023px) and (orientation: landscape) {
+                .container, .row, .col-sm-12 {
+                    overflow: visible !important;
+                }
+                body{
+                    overflow-x: visible !important;
+                }
+            }
             /* iPhone: prevent transition:all on containers during orientation change.
                CDN CSS uses transition:all on .container/.row/.col-* which animates width and
                max-width simultaneously as the viewport resizes, causing iOS Safari to
                misread intermediate layout values and zoom in massively. */
             @media (max-width: 900px) {
+                 html {
+                    overflow-x: hidden;
+                    max-width: 100vw;
+                }
+                
                 .container, .row, .col-sm-12, .col-lg-12 {
                     -webkit-transition: margin-left 0.3s ease !important;
                     transition: margin-left 0.3s ease !important;
@@ -1387,7 +1412,7 @@
         <div id="melodySearchResults" style="max-height:250px;overflow-y:auto;width:90%;"/>
       </div>
     </div>
-    <script src="https://unpkg.com/CETEIcean/src/CETEI.js"></script>
+    <script src="https://unpkg.com/CETEIcean/src/CETEI.js"/>
     <script src="https://www.verovio.org/javascript/latest/verovio-toolkit-wasm.js" defer="defer"/>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/awesomplete/1.1.5/awesomplete.min.js"/>
     <script src="resources/js/melody-player.js" defer="defer"/>
@@ -1542,6 +1567,9 @@
             </div>
             <div>
                 <a href="index.html?tab=tab-sources">Sources</a>
+            </div>
+            <div>
+                <a href="" disabled="disabled">Blog</a>
             </div>
             <div>
                 <a href="index.html?tab=tab-contact">Contact</a>
