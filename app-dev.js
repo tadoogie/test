@@ -363,17 +363,22 @@ document.addEventListener("DOMContentLoaded", () => {
     setTimeout(autoRenderPsalmFromURL, 800); // Adjust delay as needed for your content
 });
 
-// Main function: checks URL and triggers renderPsalm if autoGen is present
+// Main function: checks URL and triggers renderPsalm if autoGen and teiID are present
 async function URLVariableFunction() {
     const params = new URLSearchParams(window.location.search);
 
-    if (!params.has('autoGen')) return;
+    if (!params.has('autoGen') || !params.has('teiID')) return;
 
-    let teiID = params.get('teiID') || params.get('teiID');
+    let teiID = params.get('teiID');
     let selStanzas = params.get('selStanzas') || params.get('selectVerses') || params.get('stanzas');
     let psTune = params.get('psTune');
-    const textOnly = params.get('textOnly') === 'true';
+    let textOnly = params.get('textOnly') === 'true';
     const presentation = params.get('presentation') === 'on';
+
+    // If textOnly is requested but a tune is also provided, prefer the full rendering
+    if (textOnly && psTune) {
+        textOnly = false;
+    }
 
     let selStanzasArr = null;
     if (selStanzas) {
@@ -2080,6 +2085,10 @@ function renderPsalm(options = {}) {
     let selStanzas;
     if (isAutoGen && options.selStanzas && Array.isArray(options.selStanzas)) {
         selStanzas = options.selStanzas;
+    } else if (isAutoGen) {
+        // No selStanzas provided via URL — look up all verse IDs from consolidated data so
+        // each stanza is passed individually to the parser (passing 'all' is not valid).
+        selStanzas = getAllVersesForTeiID(options.teiID) || [];
     } else {
         // Get selected verses from verse buttons
         const verseBtns = document.querySelectorAll('.verse-btn[data-selected="true"]');
@@ -2122,8 +2131,10 @@ function renderPsalm(options = {}) {
     }
     if (psTune) globalPsTune = psTune;
 
-    // Build text request
-    const psText = "getVerses.xq?teiID=" + teiID + "&selStanzas=\"%20," + selStanzas.join(",") + ",%20\"";
+    // Build text request — omit selStanzas when empty so the server returns all stanzas
+    const psText = selStanzas && selStanzas.length
+        ? "getVerses.xq?teiID=" + teiID + "&selStanzas=\"%20," + selStanzas.join(",") + ",%20\""
+        : "getVerses.xq?teiID=" + teiID;
     let disOptions;
     if (isAutoGen && options.presentation !== undefined) {
         disOptions = options.presentation === true;
