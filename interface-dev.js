@@ -1435,10 +1435,12 @@ function setTexts() {
       btn.appendChild(labelSpan);
       btn.appendChild(numberSpan);
 
+      // Always create psalm-subline for consistent three-line layout
+      const sublineSpan = document.createElement('span');
+      sublineSpan.className = 'psalm-subline';
+      
       if (versionText) {
-        const sublineSpan = document.createElement('span');
-        sublineSpan.className = 'psalm-subline';
-        
+        // Version exists - show version number
         const versionMatch = versionText.match(/(First|Second|Third|Fourth|Fifth|Sixth|Seventh|Eighth|Ninth|Tenth)/i);
         if (versionMatch) {
           const versionWords = ['First', 'Second', 'Third', 'Fourth', 'Fifth', 'Sixth', 'Seventh', 'Eighth', 'Ninth', 'Tenth'];
@@ -1447,9 +1449,14 @@ function setTexts() {
         } else {
           sublineSpan.textContent = versionText.toUpperCase();
         }
-        
-        btn.appendChild(sublineSpan);
+      } else {
+        // No version - show metre from item.data
+        const parts = (item.data || '').split(';');
+        const metre = parts[1] || '';
+        sublineSpan.textContent = metre;
       }
+      
+      btn.appendChild(sublineSpan);
     } else {
       const labelSpan = document.createElement('span');
       labelSpan.className = 'psalm-label';
