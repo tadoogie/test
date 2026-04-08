@@ -1494,6 +1494,7 @@ async function generateTextOnlyPDF(selectedPaperSize) {
     if (!verses.length) { alert('No text content to print.'); return; }
 
     try {
+        const PDFDocument = window.PDFDocument;
         const paperSizeOptions = {
             'LETTER': {
                 pdfkitSize: 'LETTER',
@@ -1585,6 +1586,7 @@ async function generatePDF(selectedPaperSize) {
     }
 
     try {
+        const PDFDocument = window.PDFDocument;
         const originalPdfOptions = tk_pdf.getOptions();
 
         const paperSizeOptions = {
