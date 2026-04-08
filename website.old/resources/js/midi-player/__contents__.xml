@@ -1,0 +1,12 @@
+<collection xmlns="http://exist.sourceforge.net/NS/exist" name="/db/apps/digital-splitleaf/resources/js/midi-player" version="1" owner="admin" group="dba" mode="755" created="2025-08-25T23:18:51.418Z">
+    <acl entries="0" version="1"/>
+    <resource type="BinaryResource" name="midiplayer-old.js" skip="no" owner="admin" group="dba" mode="644" created="2025-08-25T23:18:51.42Z" modified="2025-08-25T23:18:51.42Z" filename="midiplayer-old.js" mimetype="application/javascript">
+        <acl entries="0" version="1"/>
+    </resource>
+    <resource type="BinaryResource" name="midiplayer.js" skip="no" owner="admin" group="dba" mode="644" created="2025-08-25T23:18:51.467Z" modified="2025-08-25T23:18:51.467Z" filename="midiplayer.js" mimetype="application/javascript">
+        <acl entries="0" version="1"/>
+    </resource>
+    <resource type="BinaryResource" name="wildwebmidi.js" skip="no" owner="admin" group="dba" mode="644" created="2025-08-25T23:18:51.689Z" modified="2025-08-25T23:18:51.689Z" filename="wildwebmidi.js" mimetype="application/javascript">
+        <acl entries="0" version="1"/>
+    </resource>
+</collection>

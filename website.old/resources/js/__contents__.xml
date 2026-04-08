@@ -1,0 +1,61 @@
+<collection xmlns="http://exist.sourceforge.net/NS/exist" name="/db/apps/digital-splitleaf/resources/js" version="1" owner="admin" group="dba" mode="755" created="2025-08-25T23:18:50.939Z">
+    <acl entries="0" version="1"/>
+    <resource type="BinaryResource" name="midi-bridge.js" skip="no" owner="admin" group="dba" mode="644" created="2025-09-27T20:32:36.886Z" modified="2025-09-27T20:32:36.886Z" filename="midi-bridge.js" mimetype="application/javascript">
+        <acl entries="0" version="1"/>
+    </resource>
+    <resource type="BinaryResource" name="accordion-interface.js" skip="no" owner="admin" group="dba" mode="644" created="2025-11-18T17:46:34.633Z" modified="2025-11-18T17:46:34.633Z" filename="accordion-interface.js" mimetype="application/javascript">
+        <acl entries="0" version="1"/>
+    </resource>
+    <resource type="BinaryResource" name="app-dev.js" skip="no" owner="admin" group="dba" mode="644" created="2025-08-25T23:18:51.063Z" modified="2026-01-16T16:27:42.542Z" filename="app-dev.js" mimetype="application/javascript">
+        <acl entries="0" version="1"/>
+    </resource>
+    <resource type="BinaryResource" name="app-dev-archive-Oct24" skip="no" owner="admin" group="dba" mode="644" created="2025-08-25T23:18:50.944Z" modified="2025-08-25T23:18:50.944Z" filename="app-dev-archive-Oct24" mimetype="application/octet-stream">
+        <acl entries="0" version="1"/>
+    </resource>
+    <resource type="BinaryResource" name="app-dev-archive.js" skip="no" owner="admin" group="dba" mode="644" created="2025-08-25T23:18:50.992Z" modified="2025-08-25T23:18:50.992Z" filename="app-dev-archive.js" mimetype="application/javascript">
+        <acl entries="0" version="1"/>
+    </resource>
+    <resource type="BinaryResource" name="blob-stream.js" skip="no" owner="admin" group="dba" mode="644" created="2025-08-25T23:18:51.175Z" modified="2025-08-25T23:18:51.175Z" filename="blob-stream.js" mimetype="application/javascript">
+        <acl entries="0" version="1"/>
+    </resource>
+    <resource type="BinaryResource" name="datalist.polyfill.js" skip="no" owner="admin" group="dba" mode="644" created="2025-08-25T23:18:51.211Z" modified="2025-08-25T23:18:51.211Z" filename="datalist.polyfill.js" mimetype="application/javascript">
+        <acl entries="0" version="1"/>
+    </resource>
+    <resource type="BinaryResource" name="datalist.polyfill.min.js" skip="no" owner="admin" group="dba" mode="644" created="2025-08-25T23:18:51.249Z" modified="2025-08-25T23:18:51.249Z" filename="datalist.polyfill.min.js" mimetype="application/javascript">
+        <acl entries="0" version="1"/>
+    </resource>
+    <resource type="BinaryResource" name="interface-dev-new.js" skip="no" owner="admin" group="dba" mode="644" created="2025-08-25T23:18:51.293Z" modified="2025-08-25T23:18:51.293Z" filename="interface-dev-new.js" mimetype="application/javascript">
+        <acl entries="0" version="1"/>
+    </resource>
+    <resource type="BinaryResource" name="menu.js" skip="no" owner="admin" group="dba" mode="644" created="2025-08-25T23:18:51.372Z" modified="2025-08-25T23:18:51.372Z" filename="menu.js" mimetype="application/javascript">
+        <acl entries="0" version="1"/>
+    </resource>
+    <resource type="BinaryResource" name="pdfkit.standalone.js" skip="no" owner="admin" group="dba" mode="644" created="2025-08-25T23:18:53.285Z" modified="2025-08-25T23:18:53.285Z" filename="pdfkit.standalone.js" mimetype="application/javascript">
+        <acl entries="0" version="1"/>
+    </resource>
+    <resource type="BinaryResource" name="render-dev.js" skip="no" owner="admin" group="dba" mode="644" created="2025-08-25T23:18:53.357Z" modified="2025-08-25T23:18:53.357Z" filename="render-dev.js" mimetype="application/javascript">
+        <acl entries="0" version="1"/>
+    </resource>
+    <resource type="BinaryResource" name="render-test.js" skip="no" owner="admin" group="dba" mode="644" created="2025-08-25T23:18:53.397Z" modified="2025-08-25T23:18:53.397Z" filename="render-test.js" mimetype="application/javascript">
+        <acl entries="0" version="1"/>
+    </resource>
+    <resource type="BinaryResource" name="svg-to-pdfkit.js" skip="no" owner="admin" group="dba" mode="644" created="2025-08-25T23:18:53.5Z" modified="2025-08-25T23:18:53.5Z" filename="svg-to-pdfkit.js" mimetype="application/javascript">
+        <acl entries="0" version="1"/>
+    </resource>
+    <resource type="BinaryResource" name="test.js" skip="no" owner="admin" group="dba" mode="644" created="2025-08-25T23:18:53.536Z" modified="2025-08-25T23:18:53.536Z" filename="test.js" mimetype="application/javascript">
+        <acl entries="0" version="1"/>
+    </resource>
+    <resource type="BinaryResource" name="verovio-app.js" skip="no" owner="admin" group="dba" mode="644" created="2025-08-25T23:18:53.578Z" modified="2025-08-25T23:18:53.578Z" filename="verovio-app.js" mimetype="application/javascript">
+        <acl entries="0" version="1"/>
+    </resource>
+    <resource type="BinaryResource" name="verovio-basic-events.js" skip="no" owner="admin" group="dba" mode="644" created="2025-08-25T23:18:53.616Z" modified="2025-08-25T23:18:53.616Z" filename="verovio-basic-events.js" mimetype="application/javascript">
+        <acl entries="0" version="1"/>
+    </resource>
+    <resource type="BinaryResource" name="verovio-controls.js" skip="no" owner="admin" group="dba" mode="644" created="2025-08-25T23:18:53.656Z" modified="2025-08-25T23:18:53.656Z" filename="verovio-controls.js" mimetype="application/javascript">
+        <acl entries="0" version="1"/>
+    </resource>
+    <resource type="BinaryResource" name="interface-dev.js" skip="no" owner="admin" group="dba" mode="644" created="2025-08-25T23:18:51.332Z" modified="2025-12-18T02:25:48.421Z" filename="interface-dev.js" mimetype="application/javascript">
+        <acl entries="0" version="1"/>
+    </resource>
+    <subcollection name="midi-player" filename="midi-player"/>
+</collection>
