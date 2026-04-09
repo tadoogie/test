@@ -1,0 +1,67 @@
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>TEI Upload</title>
+</head>
+<body style="font-family: Arial, sans-serif; margin: 2rem;">
+<main style="max-width: 52rem; margin: 0 auto;">
+    <h2>Generate TEI From Text File</h2>
+    <p>Upload a <code>.txt</code> file and run the TEI generator on the server.</p>
+
+    <section style="margin-top: 1rem; padding: 0.8rem; border: 1px solid #ddd; border-radius: 6px; background: #fafafa;">
+        <h3 style="margin-top: 0;">Formatting Guidelines</h3>
+        <ul style="margin: 0; padding-left: 1.1rem; line-height: 1.5;">
+            <li>Optional edition metadata can go at the top of the file (before the first psalm), with one key-value pair per line.</li>
+            <li>
+                        <code>Long Title:</code> full edition name shown in TEI header, e.g. <code>Long Title: The Psalms of David in Metre</code>.</li>
+            <li>
+                        <code>Short Title:</code> abbreviated citation title, e.g. <code>Short Title: Psalms in Metre</code>.</li>
+            <li>
+                        <code>Publisher:</code> publishing body or editor, e.g. <code>Publisher: Free Church of Scotland</code>.</li>
+            <li>
+                        <code>Date:</code> publication year or full date, e.g. <code>Date: 1650</code> or <code>Date: 1650-01-01</code>.</li>
+            <li>If a metadata field is omitted or left blank, a default value is used by the generator.</li>
+            <li>Each psalm must start with <code>Psalm &lt;id&gt; (&lt;metre&gt;)</code>, for example <code>Psalm 21 (CM)</code>.</li>
+            <li>Leave a blank line after each psalm header.</li>
+            <li>Separate stanzas with a blank line.</li>
+            <li>The first line of each verse should start with a number: <code>1 ...</code>, <code>1. ...</code>, or <code>1) ...</code>.</li>
+            <li>Valid metres are <code>CM</code>, <code>LM</code>, <code>SM</code>, or numeric patterns like <code>8.6.8.6</code>.</li>
+            <li>Use plain UTF-8 text without tabs.</li>
+        </ul>
+        <p style="margin: 0.7rem 0 0.35rem 0;">
+                    <strong>Example full file (metadata + psalm text):</strong>
+                </p>
+        <pre style="margin: 0; padding: 0.65rem; background: #fff; border: 1px solid #ddd; border-radius: 6px; overflow-x: auto;">Long Title: The Psalms of David in Metre
+Short Title: Psalms in Metre
+Publisher: Free Church of Scotland
+Date: 1650
+
+Psalm 21 (CM)
+
+1 The king in thy great strength, O Lord,
+Shall very joyful be;
+In thy salvation rejoice
+How vehemently shall he!
+
+2 Thou hast bestowed upon him all
+That his heart would request;
+And thou from him didst not withhold
+Whate'er his lips expressed.</pre>
+    </section>
+
+    <form id="teiUploadForm" action="run-tei-generator.xq" method="post" enctype="multipart/form-data" style="display: grid; gap: 0.75rem; margin-top: 1rem;">
+        <label for="textFile">Text file</label>
+        <input id="textFile" name="textFile" type="file" accept=".txt,text/plain" required="required"/>
+        <button id="submitBtn" type="submit" style="width: fit-content; padding: 0.45rem 0.8rem;">Run Generator</button>
+    </form>
+
+    <div id="validationResult" style="margin-top: 1rem; padding: 0.8rem; border-radius: 6px; display: none;"/>
+
+    <p style="margin-top: 1rem; font-size: 0.95rem;">
+        Backend paths are configured in <code>run-tei-generator.xq</code>.
+    </p>
+</main>
+<script src="resources/js/txt_validator.js"/>
+</body>
+</html>

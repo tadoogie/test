@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" id="Layer_1" data-name="Layer 1" viewBox="0 0 643.83 711.86">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #000;
+      }
+
+      .cls-1, .cls-2, .cls-3, .cls-4 {
+        stroke-miterlimit: 10;
+      }
+
+      .cls-1, .cls-2, .cls-4 {
+        stroke: #231f20;
+      }
+
+      .cls-2, .cls-3 {
+        fill: #fff;
+      }
+
+      .cls-3 {
+        stroke: #fff;
+      }
+
+      .cls-4 {
+        fill: #231f20;
+      }
+    </style>
+  </defs>
+  <rect class="cls-4" x="124.81" y=".5" width="394.21" height="453.45"/>
+  <polygon class="cls-1" points="321.91 711.22 1.4 449.86 642.43 449.86 321.91 711.22"/>
+  <g>
+    <ellipse class="cls-2" cx="321.91" cy="502.34" rx="131.2" ry="80.48" transform="translate(-168.8 162.97) rotate(-22.68)"/>
+    <rect class="cls-3" x="403.78" y="41.27" width="42.9" height="419.87"/>
+  </g>
+</svg>

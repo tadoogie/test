@@ -1,0 +1,13 @@
+<meta xmlns="http://exist-db.org/xquery/repo">
+    <description>Digital Splitleaf Psalter</description>
+    <author>Timothy Duguid</author>
+    <website/>
+    <status>alpha</status>
+    <license>GNU-LGPL</license>
+    <copyright>true</copyright>
+    <type>application</type>
+    <target>digital-splitleaf</target>
+    <prepare>pre-install.xql</prepare>
+    <finish/>
+<deployed>2026-04-07T14:07:35.442Z</deployed>
+</meta>

@@ -1,0 +1,42 @@
+<collection xmlns="http://exist.sourceforge.net/NS/exist" name="/db/apps/digital-splitleaf/resources/css" version="1" owner="admin" group="dba" mode="755" created="2026-03-12T14:17:25.59Z">
+    <acl entries="0" version="1"/>
+    <resource type="BinaryResource" name="toggle.css" skip="no" owner="admin" group="dba" mode="644" created="2026-03-12T14:17:25.603Z" modified="2026-03-12T14:17:25.603Z" filename="toggle.css" mimetype="text/css">
+        <acl entries="0" version="1"/>
+    </resource>
+    <resource type="BinaryResource" name="dropdown.css" skip="no" owner="admin" group="dba" mode="644" created="2026-03-12T14:17:25.609Z" modified="2026-03-12T14:17:25.609Z" filename="dropdown.css" mimetype="text/css">
+        <acl entries="0" version="1"/>
+    </resource>
+    <resource type="BinaryResource" name="midiplayer.css" skip="no" owner="admin" group="dba" mode="644" created="2026-03-12T14:17:25.612Z" modified="2026-03-12T14:17:25.612Z" filename="midiplayer.css" mimetype="text/css">
+        <acl entries="0" version="1"/>
+    </resource>
+    <resource type="BinaryResource" name="nav-responsive.css" skip="no" owner="admin" group="dba" mode="644" created="2026-03-12T14:17:25.615Z" modified="2026-03-12T14:17:25.615Z" filename="nav-responsive.css" mimetype="text/css">
+        <acl entries="0" version="1"/>
+    </resource>
+    <resource type="BinaryResource" name="wildwebmidi.data" skip="no" owner="admin" group="dba" mode="644" created="2026-03-12T14:17:25.618Z" modified="2026-03-12T14:17:25.618Z" filename="wildwebmidi.data" mimetype="application/octet-stream">
+        <acl entries="0" version="1"/>
+    </resource>
+    <resource type="BinaryResource" name="menu-v2.css" skip="no" owner="admin" group="dba" mode="644" created="2026-03-12T14:17:25.636Z" modified="2026-03-12T14:17:25.636Z" filename="menu-v2.css" mimetype="text/css">
+        <acl entries="0" version="1"/>
+    </resource>
+    <resource type="BinaryResource" name="nav.css" skip="no" owner="admin" group="dba" mode="644" created="2026-03-12T14:17:25.638Z" modified="2026-03-12T14:17:25.638Z" filename="nav.css" mimetype="text/css">
+        <acl entries="0" version="1"/>
+    </resource>
+    <resource type="BinaryResource" name="menu.css" skip="no" owner="admin" group="dba" mode="644" created="2026-03-12T14:17:25.642Z" modified="2026-03-12T14:17:25.642Z" filename="menu.css" mimetype="text/css">
+        <acl entries="0" version="1"/>
+    </resource>
+    <resource type="BinaryResource" name="menu-070201.css" skip="no" owner="admin" group="dba" mode="644" created="2026-03-12T14:17:25.645Z" modified="2026-03-12T14:17:25.645Z" filename="menu-070201.css" mimetype="text/css">
+        <acl entries="0" version="1"/>
+    </resource>
+    <resource type="BinaryResource" name="menu-280201.css" skip="no" owner="admin" group="dba" mode="644" created="2026-03-12T14:17:25.649Z" modified="2026-03-12T14:17:25.649Z" filename="menu-280201.css" mimetype="text/css">
+        <acl entries="0" version="1"/>
+    </resource>
+    <resource type="BinaryResource" name="menu-280202.css" skip="no" owner="admin" group="dba" mode="644" created="2026-03-12T14:17:25.652Z" modified="2026-03-12T14:17:25.652Z" filename="menu-280202.css" mimetype="text/css">
+        <acl entries="0" version="1"/>
+    </resource>
+    <resource type="BinaryResource" name="menu-280203.css" skip="no" owner="admin" group="dba" mode="644" created="2026-03-12T14:17:25.654Z" modified="2026-03-12T14:17:25.654Z" filename="menu-280203.css" mimetype="text/css">
+        <acl entries="0" version="1"/>
+    </resource>
+    <resource type="BinaryResource" name="style.css" skip="no" owner="admin" group="dba" mode="644" created="2026-03-12T14:17:25.606Z" modified="2026-03-14T14:30:03.507Z" filename="style.css" mimetype="text/css">
+        <acl entries="0" version="1"/>
+    </resource>
+</collection>

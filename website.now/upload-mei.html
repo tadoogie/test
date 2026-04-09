@@ -1,0 +1,39 @@
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>MEI Upload</title>
+</head>
+<body style="font-family: Arial, sans-serif; margin: 2rem;">
+<main style="max-width: 56rem; margin: 0 auto;">
+    <h2>Generate DS-Ready MEI</h2>
+    <p>Upload an MEI, MusicXML, or MuseScore file and generate a Digital Splitleaf compatible MEI file.</p>
+
+    <section style="margin-top: 1rem; padding: 0.8rem; border: 1px solid #ddd; border-radius: 6px; background: #fafafa;">
+        <h3 style="margin-top: 0;">What This Transformer Applies</h3>
+        <ul style="margin: 0; padding-left: 1.1rem; line-height: 1.5;">
+            <li>Creates/updates <code>workList/work</code> with title, metre (<code>otherChar</code>), and 4 incipit codes: <code>plaineAndEasie</code>, <code>pitchclass</code>, <code>signedinterval</code>, <code>contour</code>.</li>
+            <li>Replaces existing <code>layerDef</code> and <code>instrDef</code> within each <code>staffDef</code> using SATB mapping.</li>
+            <li>Normalizes lyric syllables to empty <code>&lt;syl/&gt;</code> elements.</li>
+            <li>Sets each <code>note/@class</code> to a URI reference based on <code>@xml:id</code> (for example, <code>#n123</code>).</li>
+        </ul>
+        <p style="margin: 0.7rem 0 0 0; font-size: 0.95rem;">
+            Recommended input is MEI Basic exported from MuseScore. MusicXML/MuseScore conversion requires converter binaries configured in <code>run-mei-generator.xq</code>.
+        </p>
+    </section>
+
+    <form action="run-mei-generator.xq" method="post" enctype="multipart/form-data" style="display: grid; gap: 0.75rem; margin-top: 1rem;">
+        <label for="musicFile">Music file</label>
+        <input id="musicFile" name="musicFile" type="file" accept=".mei,.xml,.musicxml,.mscz,.mscx,.mxl" required="required"/>
+
+        <label for="workTitle">Work title (for <code>workList/work/title</code>)</label>
+        <input id="workTitle" name="workTitle" type="text" placeholder="Ad-Mah" required="required"/>
+
+        <label for="metre">Metre (for <code>workList/work/otherChar</code>)</label>
+        <input id="metre" name="metre" type="text" placeholder="8.6.8.6. D." required="required"/>
+
+        <button type="submit" style="width: fit-content; padding: 0.45rem 0.8rem;">Generate MEI</button>
+    </form>
+</main>
+</body>
+</html>

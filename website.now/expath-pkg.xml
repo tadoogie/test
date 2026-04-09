@@ -1,0 +1,4 @@
+<package xmlns="http://expath.org/ns/pkg" name="http://splitleaf.org/" abbrev="Splitleaf Psalter" version="0.1" spec="1.0">
+    <title>Digital Splitleaf Psalter</title>
+    <dependency package="http://exist-db.org/apps/shared"/>
+</package>

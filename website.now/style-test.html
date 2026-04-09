@@ -1,0 +1,204 @@
+<!--[if lt IE 8 ]> <html class="no-js ie7 oldie" lang="en"> <![endif]--><!--[if IE 8]> <html class="no-js ie8 oldie" lang="en"> <![endif]--><!--[if IE 9]> <html class="no-js ie9" lang="en"> <![endif]--><!--[if (gt IE 9)|!(IE)]><!--><html class="no-jQuery" lang="en"> <!--<![endif]-->
+    <head>
+        <meta charset="utf-8"/>
+        <meta http-equiv="X-UA-Compatible" content="IE=EDGE,chrome=1"/>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+        <title>Responsive Menu</title>
+        <link rel="shortcut icon" href="/resources/images/leaf.ico"/>
+        <script src="https://www.verovio.org/javascript/develop/verovio-toolkit.js" type="text/javascript"/>
+        <script src="/resources/js/app-dev.js" type="text/javascript"/>
+        <script src="https://code.jquery.com/jquery-3.1.1.min.js" type="text/javascript"/>
+        <script src="/resources/js/interface-dev.js" type="text/javascript"/>
+        <script type="text/javascript" language="javascript" src="resources/js/midi-player/wildwebmidi.js"/>
+        <script type="text/javascript" language="javascript" src="resources/js/midi-player/midiplayer.js"/>
+        <link rel="stylesheet" href="resources/css/midiplayer.css"/>
+        <link type="text/css" rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open+Sans:400,600,700|Fjalla+One|Roboto+Slab:300,400,500,700"/>
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css"/>
+        <link rel="stylesheet" href="resources/css/menu.css"/>
+        <style>
+            .material-icons {
+                font-size: 34px;
+            }
+            
+            /* Tooltip container */
+            .tooltip {
+              position: relative;
+              display: inline-block;
+            }
+            
+            /* Tooltip text */
+            .tooltip .tooltiptext {
+              visibility: hidden;
+              background: rgba(0,0,0,0.7);
+              color: #fff;
+              text-align: center;
+              border-radius: 6px;
+              padding: 5px 8px;
+             
+              /* Position the tooltip text - see examples below! */
+              position: absolute;
+              z-index: 1;
+              top: 100%;
+              left: 50%;
+              margin-left: -30px;
+            }
+            
+            /* Show the tooltip text when you mouse over the tooltip container */
+            .tooltip:hover .tooltiptext {
+              visibility: visible;
+            }
+        </style>
+    </head>
+    <body>
+        <section class="container fluid">
+        <div class="col-sm-12">
+            <div class="title">
+                <div class="titleLogo">
+                    <a href="index.html">
+                            <img src="/resources/images/viewer-logo.png" alt="Splitleaf home"/>
+                        </a>
+                </div>
+                <div class="titleText">
+                    <h1>Digital Splitleaf Viewer</h1>
+                </div>
+            </div>
+        	<nav id="nav">
+        		<ul>
+        			<li>
+                        Text:<br/>
+        			    <datalist id="psList">
+                            <select name="psList">
+                                <div data-template="app:menu"/>
+                            </select>
+                        </datalist>
+                        <input type="text" class="initial" list="psList" title="Psalm Text" id="pstext" placeholder="[Select Psalm]" onfocus="this.value=''" onchange="getTunes()"/>
+                    </li>
+        			<li>
+        			    Metre:<br/>
+                         <datalist id="metList">
+                            <select name="metList">
+                                <div data-template="app:metres"/>
+                            </select>
+                        </datalist>
+                        <input type="text" class="initial" list="metList" title="Psalm Metre" id="selMet" placeholder="[Select Metre]" onfocus="this.value=''" onchange="setTexts()"/>
+        			</li>
+        			<li>
+        			    Verses:<br/>
+                        <span class="submenu">
+                                <div id="selectVerses">[Select Verses]</div>
+                            </span>
+        				<ul class="submenu">
+        					<li>
+                                <div id="verses">[Select Psalm text]</div>
+                            </li>
+        				</ul>
+        			</li>
+        			<li class="last">
+        			    Tune:<br/>
+        			    <div id="tunes" class="menuSpan">[Select Psalm]</div>
+                    </li>
+                    <li class="right">
+                        <div class="refreshBtn">
+                                <button onclick="window.location.href='app.html';" class="submitbtn">
+                                    <i class="fa fa-refresh fa-2x" aria-hidden="true"/>
+                                    <br/>Reset</button>
+                            </div>
+                        <div id="submit" class="goBtn"/>
+                    </li>
+        		</ul>
+        	</nav><!-- end of #nav -->
+        	<div id="controls">
+                <div class="vl">
+                    <a class="tooltip" onclick="play_midi()">
+                        <i class="fa fa-play fa-lg" aria-hidden="true"/>
+                        <span class="tooltiptext">Play</span>
+                    </a>
+                    <a class="tooltip" onclick="pause()">
+                        <i class="fa fa-pause fa-lg" aria-hidden="true"/>
+                        <span class="tooltiptext">Pause</span>
+                    </a>
+                </div>
+                <div class="vl">
+                    <a class="tooltip" onclick="zoomIn()">
+                        <i class="fa fa-search-plus fa-lg" aria-hidden="true"/>
+                        <span class="tooltiptext">Zoom In</span>
+                    </a>
+                    <a class="tooltip" onclick="zoomOut()">
+                        <i class="fa fa-search-minus fa-lg" aria-hidden="true"/>
+                        <span class="tooltiptext">Zoom Out</span>
+                    </a>
+                </div>
+                <div style="display: inline-block">
+                    <a class="tooltip" onclick="prevPage()">
+                        <i class="fa fa-chevron-left fa-lg" aria-hidden="true"/>
+                        <span class="tooltiptext">Prev Page</span>
+                    </a>
+                    <a class="tooltip" onclick="nextPage()">
+                        <i class="fa fa-chevron-right fa-lg" aria-hidden="true"/>
+                        <span class="tooltiptext">Next Page</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+             <div style="height: 0px">
+            <div id="player" style="z-index: 20; position: absolute; display: none;"/>
+        </div>
+        </section>
+<section class="container">
+    <div class="col-lg-12">
+    <div class="svg_output" id="svg_output">
+        <h2>Getting Started</h2>
+        <ol>
+            <li>Select the Psalm text or metre for the text you wish to sing by clicking on "Type here". Typing in either of these box will allow you to search the available options. (NOTE: Firefox users will need to press the enter key after selecting the text.)</li>
+            <li>Select a <strong>minimum of two</strong> verses you wish to sing from the "Verses" section. (NOTE: these are the biblical verses, not the stanzas)</li>
+            <li>Select a tune. When a tune has been suggested for a particular psalm, that is provided by default. However, you may select any other tune from the "Tune" dropdown.</li>
+            <li>Click on "View Psalm" to show your text and tune selections</li>
+        </ol>
+    </div>
+</div>
+</section>
+
+    <script>
+        var vrvToolkit = new verovio.toolkit();
+        var page = 1;
+        var zoom = 50;
+        var pageHeight = 2970;
+        var pageWidth = 2100;
+        var ids = [];
+        var isPlaying = false;
+        var DELAY = 600;
+        
+        function myFunction() {
+          var x = document.getElementById("myTopnav");
+          if (x.className === "topnav") {
+            x.className += " responsive";
+          } else {
+            x.className = "topnav";
+          }
+        }
+    </script>
+    <script type="text/javascript" src="resources/js/menu.js"/>
+
+</body>
+<footer>
+    <div class="footbar">
+        <div>
+            <a href="index.html?tab=tab-about">About</a>
+        </div>
+        <div>
+            <a href="index.html?tab=tab-sources">Sources</a>
+        </div>
+        <div>
+            <a href="index.html?tab=tab-contact">Contact</a>
+        </div>
+    </div>
+    <div id="textLicense" class="footbar-sm"/>
+    <div id="tuneLicense" class="footbar-sm"/>
+    <div class="footbar-sm">
+        Edition by Timothy Duguid, <a href="https://creativecommons.org/licenses/by-nc/4.0/" target="_blank">CC BY-NC</a> 2021
+    </div>
+    <div class="footbar-sm">
+        Music engraving by <a href="http://verovio.org" target="_blank">Verovio</a>.
+    </div>
+</footer>
+</html>

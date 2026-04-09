@@ -1,0 +1,15 @@
+<collection xmlns="http://exist.sourceforge.net/NS/exist" name="/db/apps/digital-splitleaf/resources/fonts/customIcons" version="1" owner="admin" group="dba" mode="755" created="2026-03-12T14:17:25.683Z">
+    <acl entries="0" version="1"/>
+    <resource type="XMLResource" name="icomoon.svg" skip="no" owner="admin" group="dba" mode="644" created="2026-03-12T14:17:25.685Z" modified="2026-03-12T14:17:25.684Z" filename="icomoon.svg" mimetype="image/svg+xml">
+        <acl entries="0" version="1"/>
+    </resource>
+    <resource type="BinaryResource" name="icomoon.eot" skip="no" owner="admin" group="dba" mode="644" created="2026-03-12T14:17:25.694Z" modified="2026-03-12T14:17:25.694Z" filename="icomoon.eot" mimetype="application/octet-stream">
+        <acl entries="0" version="1"/>
+    </resource>
+    <resource type="BinaryResource" name="icomoon.ttf" skip="no" owner="admin" group="dba" mode="644" created="2026-03-12T14:17:25.697Z" modified="2026-03-12T14:17:25.697Z" filename="icomoon.ttf" mimetype="application/octet-stream">
+        <acl entries="0" version="1"/>
+    </resource>
+    <resource type="BinaryResource" name="icomoon.woff" skip="no" owner="admin" group="dba" mode="644" created="2026-03-12T14:17:25.699Z" modified="2026-03-12T14:17:25.699Z" filename="icomoon.woff" mimetype="application/font-woff">
+        <acl entries="0" version="1"/>
+    </resource>
+</collection>

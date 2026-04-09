@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" id="Layer_1" data-name="Layer 1" viewBox="0 0 465.37 619.78">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #000;
+        stroke: #231f20;
+        stroke-miterlimit: 10;
+      }
+    </style>
+  </defs>
+  <g>
+    <ellipse class="cls-1" cx="82.91" cy="549.02" rx="87.83" ry="63.32" transform="translate(-263.4 115.01) rotate(-30)"/>
+    <rect class="cls-1" x="149.23" y="146.47" width="16.34" height="384"/>
+    <ellipse class="cls-1" cx="382.21" cy="490.37" rx="87.83" ry="63.32" transform="translate(-193.98 256.8) rotate(-30)"/>
+    <rect class="cls-1" x="448.53" y="87.82" width="16.34" height="384"/>
+    <polygon class="cls-1" points="464.87 145.66 149.73 206.36 149.26 142.64 464.87 83.82 464.87 145.66"/>
+  </g>
+  <polygon class="cls-1" points="232.68 .54 369.53 57.73 95.83 57.73 232.68 .54"/>
+</svg>
