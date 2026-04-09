@@ -1495,6 +1495,8 @@ async function generateTextOnlyPDF(selectedPaperSize) {
 
     try {
         const PDFDocument = window.PDFDocument;
+        console.log('[PDF DIAG] generateTextOnlyPDF called. window.PDFDocument:', typeof window.PDFDocument, '| window.blobStream:', typeof window.blobStream);
+        if (!PDFDocument) { throw new Error('PDFDocument is not available (window.PDFDocument is ' + typeof window.PDFDocument + ')'); }
         const paperSizeOptions = {
             'LETTER': {
                 pdfkitSize: 'LETTER',
@@ -1572,11 +1574,10 @@ async function generateTextOnlyPDF(selectedPaperSize) {
 
         doc.end();
     } catch (error) {
+        console.error('[PDF DIAG] generateTextOnlyPDF error:', error);
         alert('Failed to generate PDF: ' + error.message);
     }
 }
-
-// --- PDF generation (unchanged from your code) ---
 async function generatePDF(selectedPaperSize) {
 
     if (!tk_pdf || tk_pdf.getMEI() === '') {
@@ -1587,6 +1588,8 @@ async function generatePDF(selectedPaperSize) {
 
     try {
         const PDFDocument = window.PDFDocument;
+        console.log('[PDF DIAG] generatePDF called. window.PDFDocument:', typeof window.PDFDocument, '| window.blobStream:', typeof window.blobStream, '| window.SVGtoPDF:', typeof window.SVGtoPDF);
+        if (!PDFDocument) { throw new Error('PDFDocument is not available (window.PDFDocument is ' + typeof window.PDFDocument + ')'); }
         const originalPdfOptions = tk_pdf.getOptions();
 
         const paperSizeOptions = {
@@ -1769,11 +1772,10 @@ async function generatePDF(selectedPaperSize) {
         tk_pdf.setOptions(originalPdfOptions);
 
     } catch (error) {
+        console.error('[PDF DIAG] generatePDF error:', error);
         alert("Failed to generate PDF: " + error.message);
     }
 }
-
-// --- Utility: recursively change attribute (unchanged) ---
 function changeAttributeRecursively(node, attributeName, sequence) {
     for (let i = 0; i < node.childNodes.length; i++) {
         const childNode = node.childNodes[i];

@@ -1424,6 +1424,14 @@
     <script src="resources/js/pdfkit.standalone.js"></script>
     <script src="resources/js/blob-stream.js"></script>
     <script src="resources/js/svg-to-pdfkit.js"></script>
+    <script>
+        console.log('[PDF DIAG] window.PDFDocument after pdfkit load:', typeof window.PDFDocument);
+        console.log('[PDF DIAG] window.blobStream after blob-stream load:', typeof window.blobStream);
+        console.log('[PDF DIAG] window.SVGtoPDF after svg-to-pdfkit load:', typeof window.SVGtoPDF);
+        if (typeof window.PDFDocument === 'undefined') {
+            console.warn('[PDF DIAG] PDFDocument is NOT set on window - pdfkit may have taken AMD branch. typeof define:', typeof define);
+        }
+    </script>
     
     <!-- Define the expected JS build for runtime verification -->
     <script>window.EXPECTED_BUILD = '2025-10-28-2';</script>
