@@ -825,3 +825,22 @@ logo-link {
 
 } 
 
+.tab-container button {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px; 
+}
+
+.tab-container svg {
+  height:35px;
+  fill: #fff;
+}
+
+.tab-submenu button {
+    justify-content:left;
+}
+
+.st0 {
+        fill: none;
+      }
