@@ -844,3 +844,14 @@ logo-link {
 .st0 {
         fill: none;
       }
+
+/* Narrow portrait screens: hide button text labels, show icons only */
+@media (max-width: 34.374em) { /* up to 549px wide */
+  .tab-container > .tab-dropdown > button > .btn-label,
+  .tab-container > button > .btn-label {
+    display: none;
+  }
+  .tab-container button {
+    padding: 10px 6px;
+  }
+}
