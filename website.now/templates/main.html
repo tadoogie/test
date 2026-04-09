@@ -1,0 +1,52 @@
+<html>
+    <head>
+        <title data-template="app:page-title"/>
+        <meta name="viewport" content="width=device-width, initial-scale=1"/>
+        <!-- Global site tag (gtag.js) - Google Analytics -->
+        <script async="" src="https://www.googletagmanager.com/gtag/js?id=G-9HSZZ1BZCT"/>
+        <script>
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+        
+          gtag('config', 'G-9HSZZ1BZCT');
+        </script>
+                <link rel="stylesheet" type="text/css" href="resources/css/style.css"/>
+                <link rel="preconnect" href="https://fonts.gstatic.com"/>
+                <link type="text/css" rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open+Sans:400,600,700|Fjalla+One|Roboto+Slab:300,400,500,700"/>
+                <link rel="shortcut icon" href="/resources/images/leaf.ico"/>
+                <link rel="apple-touch-icon" sizes="152x152" href="/resources/images/logo-med.png"/>
+                <style>
+                    .tab-container { display: flex; width: 100%; }
+                    .tablink { flex: 1; }
+                    .tablink.active { background-color: white; color: black; }
+                </style>
+            </head>
+            <body>
+            <div class="content">
+                <div class="horizontal-center">
+                <object class="responsive" type="image/svg+xml" data="resources/images/header.svg" alt="Digital Splitleaf Psalter">
+                    <img src="resources/images/header.png" height="271" width="700" alt="Digital Splitleaf Psalter"/>
+                </object>
+                </div>
+        <div class="tab-container">
+            <button class="tablink active" onclick="location.href='index.html'">HOME</button>
+            <button class="tablink" onclick="location.href='about.html'">ABOUT</button>
+            <button class="tablink" onclick="location.href='events.html'">EVENTS</button>
+            <button class="tablink" onclick="" disabled="disabled">BLOG</button>
+            <button class="tablink" onclick="location.href='community.html'">COMMUNITY</button>
+            <button class="tablink" onclick="location.href='contact.html'">CONTACT</button>
+        </div>
+        
+        <div data-template="templates:insert" data-template-at="content"/>
+        
+        </div>
+    
+   
+    <footer style="background-color: #fff; margin-top:-20px">
+    <p align="center">Created by Timothy Duguid in 2021<br/>
+    The historical and descriptive content of this site is protected by Creative Commens License <a href="https://creativecommons.org/licenses/by-nc/4.0/" target="_blank">CC BY-NC</a>
+        </p>
+    </footer>
+   </body>
+</html>

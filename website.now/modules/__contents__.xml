@@ -1,0 +1,21 @@
+<collection xmlns="http://exist.sourceforge.net/NS/exist" name="/db/apps/digital-splitleaf/modules" version="1" owner="admin" group="dba" mode="755" created="2026-03-12T14:17:24.793Z">
+    <acl entries="0" version="1"/>
+    <resource type="BinaryResource" name="config.xqm" skip="no" owner="admin" group="dba" mode="755" created="2026-03-12T14:17:24.8Z" modified="2026-03-12T14:17:24.8Z" filename="config.xqm" mimetype="application/xquery">
+        <acl entries="0" version="1"/>
+    </resource>
+    <resource type="BinaryResource" name="diagnose-collection.xql" skip="no" owner="admin" group="dba" mode="755" created="2026-03-12T14:17:25.03Z" modified="2026-03-12T14:17:25.03Z" filename="diagnose-collection.xql" mimetype="application/xquery">
+        <acl entries="0" version="1"/>
+    </resource>
+    <resource type="BinaryResource" name="encode-melodies.xql" skip="no" owner="admin" group="dba" mode="755" created="2026-03-12T14:17:25.066Z" modified="2026-03-12T14:17:25.066Z" filename="encode-melodies.xql" mimetype="application/xquery">
+        <acl entries="0" version="1"/>
+    </resource>
+    <resource type="BinaryResource" name="view.xql" skip="no" owner="admin" group="dba" mode="755" created="2026-03-12T14:17:24.838Z" modified="2026-03-13T14:42:46.204Z" filename="view.xql" mimetype="application/xquery">
+        <acl entries="0" version="1"/>
+    </resource>
+    <resource type="BinaryResource" name="app.xql" skip="no" owner="admin" group="dba" mode="755" created="2026-03-12T14:17:25.208Z" modified="2026-03-12T14:18:34.971Z" filename="app.xql" mimetype="application/xquery">
+        <acl entries="0" version="1"/>
+    </resource>
+    <resource type="BinaryResource" name="upload-debug.xq" skip="no" owner="admin" group="dba" mode="755" created="2026-03-18T14:55:54.443Z" modified="2026-03-18T14:55:54.443Z" filename="upload-debug.xq" mimetype="application/xquery">
+        <acl entries="0" version="1"/>
+    </resource>
+</collection>
