@@ -41,6 +41,12 @@
     const DOH_FLATS = [0, 5, 10, 3, 8, 1, 6, 11];
 
     /**
+     * Semitones from Doh down to La (the tonic of a minor key).
+     * In tonic sol-fa: La is always 3 semitones below Doh (a minor third down).
+     */
+    const LA_BELOW_DOH = 3;
+
+    /**
      * Chromatic sol-fa syllables, indexed 0-11 semitones above Doh.
      * Ascending chromatic names are used for altered pitches.
      */
@@ -379,7 +385,7 @@
         /* Heading: fundamental note and whether it is Doh or La */
         const fundamental = isMinor ? 'La' : 'Doh';
         const fundamentalNote = isMinor
-            ? ALL_NOTE_NAMES[((doh - 3) % 12 + 12) % 12]  // La = 3 semitones below Doh
+            ? ALL_NOTE_NAMES[((doh - LA_BELOW_DOH) % 12 + 12) % 12]  // La = LA_BELOW_DOH semitones below Doh
             : dohLetterName(keySig);
 
         /* Build HTML */
