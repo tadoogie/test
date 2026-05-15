@@ -125,7 +125,7 @@
      * Map a pitch class to its sol-fa syllable given the Doh pitch class.
      */
     function toSolfa(pitchClass, doh) {
-        const interval = ((pitchClass - doh % 12 + 12) % 12);
+        const interval = ((pitchClass - (doh % 12) + 12) % 12);
         return CHROMATIC[interval] || '?';
     }
 
@@ -155,7 +155,7 @@
         if (sharps)     { names = minor ? MINOR_SHARP_NAMES : MAJOR_SHARP_NAMES; idx = sharps; }
         else if (flats) { names = minor ? MINOR_FLAT_NAMES  : MAJOR_FLAT_NAMES;  idx = flats;  }
         else            { return minor ? 'A minor' : 'C major'; }
-        return (names[Math.min(idx, names.length - 1)] || '?') + '\u00a0' + (minor ? 'minor' : 'major');
+        return (names[Math.min(idx, 7)] || '?') + '\u00a0' + (minor ? 'minor' : 'major');
     }
 
     /**
@@ -283,9 +283,11 @@
             } else if (tag === 'note') {
                 cells.push(makeNoteCell(el, refOct, doh, ksAcc));
             } else if (tag === 'chord') {
-                // Use the first (highest-in-score-order) child note
-                const firstNote = el.querySelector('note');
-                if (firstNote) cells.push(makeNoteCell(firstNote, refOct, doh, ksAcc));
+                // MEI orders chord notes from lowest to highest pitch;
+                // take the last child note (highest pitch, i.e. the treble voice)
+                const noteEls = el.querySelectorAll('note');
+                const topNote = noteEls.length > 0 ? noteEls[noteEls.length - 1] : null;
+                if (topNote) cells.push(makeNoteCell(topNote, refOct, doh, ksAcc));
             }
             // Other elements (slur, tie, dynam, tempo, dir, etc.) are ignored
         });
