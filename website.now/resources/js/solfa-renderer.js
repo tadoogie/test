@@ -323,15 +323,27 @@
             return '<div class="solfa-error">Could not parse the score data.</div>';
         }
 
-        /* Key signature: check scoreDef first, then first staffDef */
+        /* Key signature: check scoreDef first, then first staffDef.
+         * MEI encodes the key sig either as attributes (key.sig / key.mode) directly
+         * on scoreDef/staffDef, or as a <keySig sig="..." mode="..."/> child element. */
         const scoreDef  = doc.querySelector('scoreDef');
         const staffDefs = Array.from(doc.querySelectorAll('staffDef'));
         const firstSD   = staffDefs[0] || null;
 
-        const keySig = (scoreDef  && scoreDef .getAttribute('key.sig'))  ||
-                       (firstSD   && firstSD  .getAttribute('key.sig'))  || '0';
-        const modeAttr = (scoreDef && scoreDef.getAttribute('key.mode')) ||
-                         (firstSD  && firstSD .getAttribute('key.mode')) || 'major';
+        function getKeySigAttr(el, attr) {
+            if (!el) return '';
+            const v = el.getAttribute(attr);
+            if (v) return v;
+            // Fall back to the child <keySig> element (e.g. <keySig sig="1f" mode="major"/>)
+            const childAttr = attr.replace('key.', '');
+            const keySigEl = el.querySelector(':scope > keySig');
+            return (keySigEl && keySigEl.getAttribute(childAttr)) || '';
+        }
+
+        const keySig = getKeySigAttr(scoreDef, 'key.sig') ||
+                       getKeySigAttr(firstSD,   'key.sig') || '0';
+        const modeAttr = getKeySigAttr(scoreDef, 'key.mode') ||
+                         getKeySigAttr(firstSD,   'key.mode') || 'major';
         const isMinor  = modeAttr.toLowerCase() === 'minor';
 
         const doh    = computeDoh(keySig);
