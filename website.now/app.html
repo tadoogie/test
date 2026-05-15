@@ -872,6 +872,105 @@
             .cetei-line { margin: 0; }
             .cetei-title { margin: 0 0 0.8em 0; font-size: 1.4em; }
             .cetei-source { margin-top: 1.5em; font-size: 0.95em; color: #444; border-top: 1px solid #ccc; padding-top: 0.6em; }
+
+            /* ── Tonic Sol-fa output ─────────────────────────────────────────── */
+            .solfa-output {
+                padding: 20px;
+                font-family: 'Open Sans', 'Trebuchet MS', Arial, sans-serif;
+            }
+            .solfa-title {
+                font-size: 1.3em;
+                margin: 0 0 0.3em 0;
+                color: #222;
+            }
+            .solfa-meta {
+                font-size: 0.9em;
+                color: #555;
+                margin: 0 0 1.2em 0;
+            }
+            .solfa-scroll {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+            .solfa-table {
+                border-collapse: collapse;
+                border: none;
+                width: max-content;
+            }
+            .solfa-table td,
+            .solfa-table th {
+                border: none;
+                padding: 1px 3px;
+                text-align: center;
+                min-width: 22px;
+                vertical-align: bottom;
+            }
+            .solfa-label {
+                text-align: right;
+                padding-right: 10px;
+                font-size: 0.8em;
+                font-weight: 600;
+                color: #555;
+                white-space: nowrap;
+                vertical-align: middle;
+            }
+            .solfa-row-pitch .solfa-cell {
+                font-size: 1.15em;
+                font-weight: 700;
+                line-height: 1.6;
+                color: #111;
+            }
+            .solfa-row-text .solfa-cell.solfa-word {
+                font-size: 0.82em;
+                color: #333;
+                line-height: 1.4;
+            }
+            .solfa-bar {
+                border-left: 1.5px solid #333;
+                padding: 0 3px;
+                min-width: 6px;
+                width: 6px;
+            }
+            .solfa-rest {
+                color: #888;
+            }
+            .solfa-syl {
+                display: inline-block;
+            }
+            /* Octave markers: superscript primes for higher, subscript commas for lower */
+            .solfa-oct-hi {
+                font-size: 0.6em;
+                vertical-align: super;
+                font-weight: 400;
+                letter-spacing: -0.1em;
+            }
+            .solfa-oct-lo {
+                font-size: 0.6em;
+                vertical-align: sub;
+                font-weight: 400;
+                letter-spacing: -0.1em;
+            }
+            /* Spacer row between voice parts */
+            .solfa-spacer td {
+                height: 10px;
+            }
+            /* Error message */
+            .solfa-error {
+                padding: 20px;
+                color: #d32f2f;
+                font-size: 1em;
+            }
+            /* Sol-fa toggle button in the controls bar */
+            #solfaToggleBtn .solfa-btn-label {
+                display: block;
+                font-size: 0.65em;
+                text-align: center;
+                margin-top: 2px;
+                line-height: 1;
+            }
+            #solfaToggleBtn.active .icon path {
+                fill: #6fc252;
+            }
         </style>
     </head>
     <body>
@@ -1117,6 +1216,19 @@
                                 <path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM136 184c-13.3 0-24 10.7-24 24s10.7 24 24 24l144 0c13.3 0 24-10.7 24-24s-10.7-24-24-24l-144 0z"/>
                         </svg>
                         <span class="tooltiptext">Zoom Out</span>
+                    </a>
+                </div>
+                <div class="vl">
+                    <a class="tooltip" id="solfaToggleBtn" onclick="toggleSolfaView()" title="Switch to tonic sol-fa notation">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="icon" viewBox="0 0 640 640" aria-hidden="true">
+                            <!-- Four bars representing two sol-fa/text row pairs -->
+                            <path d="M80 130 h480 v36 h-480 z
+                                     M80 206 h300 v26 h-300 z
+                                     M80 360 h480 v36 h-480 z
+                                     M80 436 h300 v26 h-300 z"/>
+                        </svg>
+                        <span class="tooltiptext">Sol-fa</span>
+                        <span class="solfa-btn-label">Sol-fa</span>
                     </a>
                 </div>
                 <div style="display: inline-block">
@@ -1431,6 +1543,7 @@
     <script defer="defer" src="resources/js/app-dev.js?v=20260409-5"/>
     <script defer="defer" src="resources/js/interface-dev.js?v=20260324-1"/>
     <script defer="defer" src="resources/js/piano-interface.js"/>
+    <script defer="defer" src="resources/js/solfa-renderer.js"/>
     
     <!-- Script validation check - logs warnings but does not reload to prevent infinite loop -->
     <script>
