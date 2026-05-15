@@ -960,17 +960,6 @@
                 color: #d32f2f;
                 font-size: 1em;
             }
-            /* Sol-fa toggle button in the controls bar */
-            #solfaToggleBtn .solfa-btn-label {
-                display: block;
-                font-size: 0.65em;
-                text-align: center;
-                margin-top: 2px;
-                line-height: 1;
-            }
-            #solfaToggleBtn.active .icon path {
-                fill: #6fc252;
-            }
         </style>
     </head>
     <body>
@@ -1128,6 +1117,20 @@
                         <input id="psMode" name="presentation" type="checkbox" style="display: none;"/>
                         <div style="margin-left: 8px; font-size: 0.9em">By default, all stanzas are displayed together as a block within the music, just like a traditional hymnal. To show each stanza on its own line with the music repeated for every stanza, turn Presentation Mode <strong>On</strong>.</div>
                       </div>
+                      <div class="menu-item">
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-left:8px; margin-bottom: 15px;">
+                          <span class="displayGroup" style="font-size: 1.2em; font-weight: 600;">Notation</span>
+                          <div style="display: flex; gap: 0; width: 120px; border-radius: 8px; overflow: hidden;">
+                            <button id="notationStaff" class="search-mode-btn active" style="flex: 1; background: #6fc252; color: white; border: none; cursor: pointer; font-size: 0.9em; font-weight: 600; padding: 8px; transition: all 0.2s;">
+                              Staff
+                            </button>
+                            <button id="notationSolfa" class="search-mode-btn" style="flex: 1; background: #666; color: white; border: none; cursor: pointer; font-size: 0.9em; font-weight: 600; padding: 8px; transition: all 0.2s;">
+                              Sol-fa
+                            </button>
+                          </div>
+                        </div>
+                        <div style="margin-left: 8px; font-size: 0.9em">By default, the score is shown in standard staff notation. Select <strong>Sol-fa</strong> to display the score as Curwen tonic sol-fa instead.</div>
+                      </div>
                       <div class="menu-item right">
                         <div id="submit" class="goBtn"/>
                       </div>
@@ -1216,19 +1219,6 @@
                                 <path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM136 184c-13.3 0-24 10.7-24 24s10.7 24 24 24l144 0c13.3 0 24-10.7 24-24s-10.7-24-24-24l-144 0z"/>
                         </svg>
                         <span class="tooltiptext">Zoom Out</span>
-                    </a>
-                </div>
-                <div class="vl">
-                    <a class="tooltip" id="solfaToggleBtn" onclick="toggleSolfaView()" title="Switch to tonic sol-fa notation">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="icon" viewBox="0 0 640 640" aria-hidden="true">
-                            <!-- Four bars representing two sol-fa/text row pairs -->
-                            <path d="M80 130 h480 v36 h-480 z
-                                     M80 206 h300 v26 h-300 z
-                                     M80 360 h480 v36 h-480 z
-                                     M80 436 h300 v26 h-300 z"/>
-                        </svg>
-                        <span class="tooltiptext">Sol-fa</span>
-                        <span class="solfa-btn-label">Sol-fa</span>
                     </a>
                 </div>
                 <div style="display: inline-block">
@@ -1638,6 +1628,25 @@
              } else {
                updateToggleState(psModeOff, psModeOn);
              }
+           }
+
+           // Notation toggle buttons (Staff / Sol-fa)
+           var notationStaffBtn = document.getElementById("notationStaff");
+           var notationSolfaBtn = document.getElementById("notationSolfa");
+
+           if (notationStaffBtn &amp;&amp; notationSolfaBtn) {
+             notationStaffBtn.addEventListener("click", function() {
+               updateToggleState(notationStaffBtn, notationSolfaBtn);
+               if (typeof exitSolfaView === 'function') exitSolfaView();
+             });
+
+             notationSolfaBtn.addEventListener("click", function() {
+               updateToggleState(notationSolfaBtn, notationStaffBtn);
+               if (typeof loadSolfaView === 'function') loadSolfaView();
+             });
+
+             // Staff is the default active state (already set in HTML)
+             updateToggleState(notationStaffBtn, notationSolfaBtn);
            }
           });
 

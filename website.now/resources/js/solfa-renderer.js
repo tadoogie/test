@@ -448,24 +448,30 @@
 
     /* ── Public interface ────────────────────────────────────────────────── */
 
-    /** Toggle the sol-fa button appearance */
-    function updateSolfaBtn(active) {
-        const btn = document.getElementById('solfaToggleBtn');
-        if (!btn) return;
-        if (active) {
-            btn.classList.add('active');
-            btn.title = 'Switch back to staff notation';
+    /**
+     * Sync the sidenav Notation toggle buttons to reflect the current state.
+     * @param {boolean} solfaActive – true when sol-fa view is active
+     */
+    function syncNotationToggle(solfaActive) {
+        const staffBtn = document.getElementById('notationStaff');
+        const solfaBtn = document.getElementById('notationSolfa');
+        if (!staffBtn || !solfaBtn) return;
+        if (solfaActive) {
+            staffBtn.classList.remove('active');
+            staffBtn.style.background = '#666';
+            solfaBtn.classList.add('active');
+            solfaBtn.style.background = '#6fc252';
         } else {
-            btn.classList.remove('active');
-            btn.title = 'Switch to tonic sol-fa notation';
+            solfaBtn.classList.remove('active');
+            solfaBtn.style.background = '#666';
+            staffBtn.classList.add('active');
+            staffBtn.style.background = '#6fc252';
         }
-        const lbl = btn.querySelector('.solfa-btn-label');
-        if (lbl) lbl.textContent = active ? 'Score' : 'Sol-fa';
     }
 
     /**
      * Render the current score as tonic sol-fa and display it in #svg_output.
-     * Called by the "Sol-fa" toggle button in the controls bar.
+     * Called by the "Sol-fa" button in the sidenav Options panel.
      */
     global.loadSolfaView = function () {
         const container = document.getElementById('svg_output');
@@ -474,6 +480,7 @@
         const xml = global.currentXmlData;
         if (!xml) {
             alert('Please select a text and tune first, then click Go to generate the score before switching to Sol-fa view.');
+            syncNotationToggle(false); // reset toggle back to Staff
             return;
         }
 
@@ -483,7 +490,7 @@
         const controls = document.getElementById('controls');
         if (controls) controls.classList.add('solfa-mode');
 
-        updateSolfaBtn(true);
+        syncNotationToggle(true);
     };
 
     /**
@@ -495,7 +502,7 @@
         const controls = document.getElementById('controls');
         if (controls) controls.classList.remove('solfa-mode');
 
-        updateSolfaBtn(false);
+        syncNotationToggle(false);
 
         // Re-render the staff notation via the existing loadPage() function
         if (typeof loadPage === 'function') {
@@ -505,7 +512,6 @@
 
     /**
      * Toggle between sol-fa and staff notation views.
-     * Bound to the Sol-fa button in the controls bar.
      */
     global.toggleSolfaView = function () {
         if (global.globalSolfaMode) {
