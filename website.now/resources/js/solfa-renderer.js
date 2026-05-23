@@ -497,8 +497,11 @@
 
         const xml = global.originalXmlData;
         if (!xml) {
-            alert('Please select a text and tune first, then click Go to generate the score before switching to Sol-fa view.');
-            syncNotationToggle(false); // reset toggle back to Staff
+            // No score loaded yet — record the preference so that when Go is
+            // clicked and the MEI is ready, loadDataWithLayerVolumes will call
+            // loadSolfaView() automatically.
+            global.globalSolfaMode = true;
+            syncNotationToggle(true);
             return;
         }
 

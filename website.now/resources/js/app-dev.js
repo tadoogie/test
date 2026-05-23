@@ -976,6 +976,12 @@ function loadDataWithLayerVolumes(data) {
             // Display content immediately - no artificial delay
             clearTimeout(failsafeTimeout);
             loadPage();
+
+            // If Sol-fa mode was pre-selected (before Go was clicked), switch to
+            // it now that the MEI document is ready in window.originalXmlData.
+            if (window.globalSolfaMode && typeof loadSolfaView === 'function') {
+                loadSolfaView();
+            }
         } catch (error) {
             clearTimeout(failsafeTimeout);
             
