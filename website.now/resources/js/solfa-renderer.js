@@ -176,6 +176,104 @@
         return 'C';
     }
 
+    /* ── Rhythmic helpers ────────────────────────────────────────────────── */
+
+    /**
+     * Convert an MEI duration value + dot count to a count of sixteenth-note
+     * units (SSUs).  One SSU = one sixteenth note.
+     *
+     * @param {string|number} dur  – MEI @dur value: '1','2','4','8','16','breve'
+     * @param {string|number} dots – number of augmentation dots (0, 1, or 2)
+     * @returns {number} integer SSU count
+     */
+    function durationToSsu(dur, dots) {
+        const BASE = { '1': 16, '2': 8, '4': 4, '8': 2, '16': 1, 'breve': 32, 'long': 64 };
+        const base = BASE[String(dur)] || 4; // default: quarter = 4 SSUs
+        let total = base;
+        let add   = base;
+        const n   = parseInt(dots, 10) || 0;
+        for (let i = 0; i < n; i++) { add = add / 2; total += add; }
+        return Math.round(total);
+    }
+
+    /**
+     * Return rhythmic parameters for the given meter.
+     *
+     * @param {string|number} count  – @meter.count (number of beats per bar)
+     * @param {string|number} unit   – @meter.unit  (note value of one beat: 2, 4, 8 …)
+     * @returns {{ beatsPerBar, ssuPerBeat, tactusAfterBeat }}
+     *   beatsPerBar      – number of beat positions in one bar
+     *   ssuPerBeat       – SSUs (sixteenth-note units) in one beat
+     *   tactusAfterBeat  – 0-based beat index after which '|' replaces ':',
+     *                      or -1 if there is no intra-bar tactus mark
+     */
+    function getMeterInfo(count, unit) {
+        const c = parseInt(count, 10) || 4;
+        const u = parseInt(unit,  10) || 4;
+        const ssuPerBeat  = Math.max(1, Math.round(16 / u)); // 16ths per beat
+        const beatsPerBar = c;
+        // Tactus = midpoint of bar; only meaningful when there are 4+ beats
+        const tactusAfterBeat = (c % 2 === 0 && c >= 4) ? c / 2 : -1;
+        return { beatsPerBar, ssuPerBeat, tactusAfterBeat };
+    }
+
+    /**
+     * Expand the raw note/rest cells of one bar into a sequence of display
+     * items that include inter-beat separators.
+     *
+     * Each "beat slot" may contain:
+     *   - A single note/rest occupying the full beat
+     *   - Two (or more) notes sharing the beat (half-beat subdivisions),
+     *     to be displayed with '.' between them
+     *   - A hold mark ('–') because the previous note is still sounding
+     *
+     * @param {Array}  barCells  – cells collected for this bar (with ssuLen)
+     * @param {object} meterInfo – result of getMeterInfo()
+     * @returns {Array} display items:
+     *   { type: 'beat', cells: [cell, …] }
+     *   { type: 'hold' }
+     *   { type: 'sep',  sep: ':' | '|' }
+     */
+    function buildBarItems(barCells, meterInfo) {
+        const { beatsPerBar, ssuPerBeat, tactusAfterBeat } = meterInfo;
+        const totalSsu = beatsPerBar * ssuPerBeat;
+
+        /* Expand cells into a flat SSU-slot array */
+        const slots = []; // each entry: { cell, isStart }
+        for (const cell of barCells) {
+            if (slots.length >= totalSsu) break;
+            const len = Math.min(cell.ssuLen || ssuPerBeat, totalSsu - slots.length);
+            slots.push({ cell, isStart: true });
+            for (let i = 1; i < len; i++) slots.push({ cell, isStart: false });
+        }
+        /* Pad any unfilled tail with rests */
+        while (slots.length < totalSsu) {
+            slots.push({ cell: { type: 'rest', ssuLen: 1 }, isStart: true });
+        }
+
+        /* Group SSU slots into beats and build display items */
+        const items = [];
+        for (let b = 0; b < beatsPerBar; b++) {
+            /* Inter-beat separator (before every beat except the first) */
+            if (b > 0) {
+                items.push({ type: 'sep', sep: (b === tactusAfterBeat) ? '|' : ':' });
+            }
+
+            const beatStart = b * ssuPerBeat;
+            const beatSlots = slots.slice(beatStart, beatStart + ssuPerBeat);
+
+            if (!beatSlots[0] || !beatSlots[0].isStart) {
+                /* Entire beat is a continuation of the previous note */
+                items.push({ type: 'hold' });
+            } else {
+                /* Collect all note-starts within this beat */
+                const notes = beatSlots.filter(s => s.isStart).map(s => s.cell);
+                items.push({ type: 'beat', cells: notes });
+            }
+        }
+        return items;
+    }
+
     /** Minimal HTML entity escaping */
     function esc(s) {
         return String(s || '')
@@ -254,10 +352,17 @@
 
     /**
      * Build a cell descriptor for an MEI <note> element.
+     *
+     * @param {Element}      noteEl      – the <note> element
+     * @param {number}       refOct      – reference octave for this staff
+     * @param {number}       doh         – Doh pitch class (0-11)
+     * @param {object}       ksAcc       – key-signature accidentals map
+     * @param {string|null}  durOverride – @dur from a parent <chord>, if any
+     * @param {string|null}  dotsOverride – @dots from a parent <chord>, if any
      */
-    function makeNoteCell(noteEl, refOct, doh, ksAcc) {
+    function makeNoteCell(noteEl, refOct, doh, ksAcc, durOverride, dotsOverride) {
         const pname = noteEl.getAttribute('pname');
-        if (!pname) return { type: 'rest' }; // safety fallback
+        if (!pname) return { type: 'rest', ssuLen: durationToSsu(durOverride || '4', dotsOverride || '0') };
 
         const accidAttr  = noteEl.getAttribute('accid');
         const accidChild = noteEl.querySelector('accid');
@@ -274,7 +379,12 @@
         const sylText = sylEl ? sylEl.textContent.trim() : '';
         const con     = sylEl ? (sylEl.getAttribute('con') || '') : '';
 
-        return { type: 'note', solfa: solfaSyl, octMark, text: sylText, con };
+        // Duration: prefer parent chord's @dur, then the note's own @dur
+        const dur  = durOverride  || noteEl.getAttribute('dur')  || '4';
+        const dots = dotsOverride || noteEl.getAttribute('dots') || '0';
+        const ssuLen = durationToSsu(dur, dots);
+
+        return { type: 'note', solfa: solfaSyl, octMark, text: sylText, con, ssuLen };
     }
 
     /**
@@ -286,16 +396,22 @@
             const tag = (el.localName || el.tagName || '').toLowerCase();
             if (tag === 'beam' || tag === 'tuplet' || tag === 'ligature') {
                 collectCells(Array.from(el.children), cells, refOct, doh, ksAcc);
-            } else if (tag === 'rest' || tag === 'mrest' || tag === 'multirest' || tag === 'space') {
-                cells.push({ type: 'rest' });
+            } else if (tag === 'rest' || tag === 'space') {
+                const dur  = el.getAttribute('dur')  || '4';
+                const dots = el.getAttribute('dots') || '0';
+                cells.push({ type: 'rest', ssuLen: durationToSsu(dur, dots) });
+            } else if (tag === 'mrest' || tag === 'multirest') {
+                // Full-measure rest: use a large SSU so buildBarItems fills the whole bar
+                cells.push({ type: 'rest', ssuLen: 256 });
             } else if (tag === 'note') {
                 cells.push(makeNoteCell(el, refOct, doh, ksAcc));
             } else if (tag === 'chord') {
-                // MEI orders chord notes from lowest to highest pitch;
-                // take the last child note (highest pitch, i.e. the treble voice)
-                const noteEls = el.querySelectorAll('note');
-                const topNote = noteEls.length > 0 ? noteEls[noteEls.length - 1] : null;
-                if (topNote) cells.push(makeNoteCell(topNote, refOct, doh, ksAcc));
+                // Duration lives on the <chord> element; pitch on the highest <note>
+                const chordDur  = el.getAttribute('dur');
+                const chordDots = el.getAttribute('dots') || '0';
+                const noteEls   = el.querySelectorAll('note');
+                const topNote   = noteEls.length > 0 ? noteEls[noteEls.length - 1] : null;
+                if (topNote) cells.push(makeNoteCell(topNote, refOct, doh, ksAcc, chordDur, chordDots));
             }
             // Other elements (slur, tie, dynam, tempo, dir, etc.) are ignored
         });
@@ -377,17 +493,24 @@
             return '<div class="solfa-error">No voice parts found in the score.</div>';
         }
 
-        /* Build a lookup key and pre-allocate cell arrays */
+        /* Meter: @meter.count and @meter.unit, checked on scoreDef then first staffDef */
+        function getMeterAttr(el, attr) {
+            return (el && (el.getAttribute(attr) || el.getAttribute(attr.replace('.', '')) || '')) || '';
+        }
+        const meterCount = getMeterAttr(scoreDef, 'meter.count') || getMeterAttr(firstSD, 'meter.count') || '4';
+        const meterUnit  = getMeterAttr(scoreDef, 'meter.unit')  || getMeterAttr(firstSD, 'meter.unit')  || '4';
+        const meterInfo  = getMeterInfo(meterCount, meterUnit);
+
+        /* Build a lookup key and pre-allocate bar arrays per voice */
         function voiceKey(staffN, layerN) { return staffN + ':' + layerN; }
         const voiceIndex = {};
-        const voiceCells = voices.map((v, i) => {
+        const voiceBars  = voices.map((v, i) => {
             voiceIndex[voiceKey(v.staffN, v.layerN)] = i;
             return [];
         });
 
-        /* Walk all measures and collect note cells per voice */
-        const allMeasures     = Array.from(doc.querySelectorAll('measure'));
-        const firstMeasureSet = new Set(); // tracks which voices have had their first measure
+        /* Walk all measures and collect note cells per voice, one array per bar */
+        const allMeasures = Array.from(doc.querySelectorAll('measure'));
 
         allMeasures.forEach(measure => {
             Array.from(measure.querySelectorAll('staff')).forEach(staffEl => {
@@ -398,18 +521,21 @@
                     const vi     = voiceIndex[key];
                     if (vi === undefined) return;
 
-                    const cells  = voiceCells[vi];
-                    const refOct = voices[vi].refOct;
-
-                    /* Insert barline separator before every measure except the first */
-                    if (firstMeasureSet.has(key)) {
-                        cells.push({ type: 'bar' });
-                    }
-                    firstMeasureSet.add(key);
-
-                    collectCells(Array.from(layerEl.children), cells, refOct, doh, ksAcc);
+                    const barCells = [];
+                    collectCells(Array.from(layerEl.children), barCells, voices[vi].refOct, doh, ksAcc);
+                    voiceBars[vi].push(barCells);
                 });
             });
+        });
+
+        /* Convert per-bar cell arrays into flat display-item arrays */
+        const voiceItems = voiceBars.map(bars => {
+            const items = [];
+            bars.forEach((barCells, bi) => {
+                if (bi > 0) items.push({ type: 'bar' });
+                buildBarItems(barCells, meterInfo).forEach(it => items.push(it));
+            });
+            return items;
         });
 
         /* Title from MEI header */
@@ -437,45 +563,82 @@
         H.push('<table class="solfa-table" role="presentation">');
 
         voices.forEach((voice, vi) => {
-            const cells = voiceCells[vi];
-            if (cells.length === 0) return; // skip voices with no content
+            const items = voiceItems[vi];
+            if (items.length === 0) return; // skip voices with no content
 
-            /* ---- Sol-fa row ---- */
+            /* Helper: render one pitch cell from a beat's note/rest cell */
+            function pitchTd(c) {
+                if (c.type === 'rest') {
+                    return '<td class="solfa-cell solfa-rest">\u2013</td>';
+                }
+                let inner = '<span class="solfa-syl">' + esc(c.solfa) + '</span>';
+                if (c.octMark.text) {
+                    inner += '<span class="' + esc(c.octMark.cls) + '" aria-hidden="true">' +
+                             esc(c.octMark.text) + '</span>';
+                }
+                return '<td class="solfa-cell">' + inner + '</td>';
+            }
+
+            /* ---- Sol-fa (pitch) row ---- */
             H.push('<tr class="solfa-row-pitch">');
             H.push('<th class="solfa-label" rowspan="2" scope="row">' + esc(voice.label) + '</th>');
-            cells.forEach(c => {
-                if (c.type === 'bar') {
+            items.forEach(item => {
+                if (item.type === 'bar') {
                     H.push('<td class="solfa-bar" aria-hidden="true">&#x7c;</td>');
-                } else if (c.type === 'rest') {
-                    H.push('<td class="solfa-cell solfa-rest">&#x2013;</td>');
-                } else {
-                    let inner = '<span class="solfa-syl">' + esc(c.solfa) + '</span>';
-                    if (c.octMark.text) {
-                        inner += '<span class="' + esc(c.octMark.cls) + '" aria-hidden="true">' +
-                                 esc(c.octMark.text) + '</span>';
+                } else if (item.type === 'sep') {
+                    const cls = item.sep === '|' ? 'solfa-sep solfa-tactus' : 'solfa-sep';
+                    H.push('<td class="' + cls + '" aria-hidden="true">' + esc(item.sep) + '</td>');
+                } else if (item.type === 'hold') {
+                    H.push('<td class="solfa-cell solfa-hold">\u2013</td>');
+                } else if (item.type === 'beat') {
+                    const cs = item.cells;
+                    if (cs.length === 1) {
+                        H.push(pitchTd(cs[0]));
+                    } else {
+                        /* Multiple sub-beat notes joined by '.' */
+                        const parts = cs.map(c => {
+                            if (c.type === 'rest') return '\u2013';
+                            let s = '<span class="solfa-syl">' + esc(c.solfa) + '</span>';
+                            if (c.octMark.text) {
+                                s += '<span class="' + esc(c.octMark.cls) + '" aria-hidden="true">' +
+                                     esc(c.octMark.text) + '</span>';
+                            }
+                            return s;
+                        });
+                        H.push('<td class="solfa-cell">' +
+                               parts.join('<span class="solfa-dot" aria-hidden="true">.</span>') +
+                               '</td>');
                     }
-                    H.push('<td class="solfa-cell">' + inner + '</td>');
                 }
             });
             H.push('</tr>');
 
-            /* ---- Text row ---- */
+            /* ---- Text (lyric) row ---- */
             H.push('<tr class="solfa-row-text">');
-            cells.forEach(c => {
-                if (c.type === 'bar') {
+            items.forEach(item => {
+                if (item.type === 'bar') {
                     H.push('<td class="solfa-bar"></td>');
-                } else if (c.type === 'rest') {
+                } else if (item.type === 'sep') {
+                    H.push('<td class="solfa-sep"></td>');
+                } else if (item.type === 'hold') {
                     H.push('<td class="solfa-cell"></td>');
-                } else {
-                    const dash = (c.con === 'd') ? '-' : '';
-                    H.push('<td class="solfa-cell solfa-word">' + esc(c.text) + dash + '</td>');
+                } else if (item.type === 'beat') {
+                    const cs = item.cells;
+                    if (cs.length === 1) {
+                        const c    = cs[0];
+                        const dash = (c.type === 'note' && c.con === 'd') ? '-' : '';
+                        H.push('<td class="solfa-cell solfa-word">' + esc(c.text || '') + dash + '</td>');
+                    } else {
+                        const text = cs.map(c => (c.type === 'note' ? esc(c.text || '') : '')).join('.');
+                        H.push('<td class="solfa-cell solfa-word">' + text + '</td>');
+                    }
                 }
             });
             H.push('</tr>');
 
             /* Vertical spacer between voice parts (not after the last one) */
             if (vi < voices.length - 1) {
-                H.push('<tr class="solfa-spacer" aria-hidden="true"><td colspan="' + (cells.length + 1) + '"></td></tr>');
+                H.push('<tr class="solfa-spacer" aria-hidden="true"><td colspan="' + (items.length + 1) + '"></td></tr>');
             }
         });
 
