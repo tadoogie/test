@@ -67,13 +67,15 @@
     /* ── Internal helpers ────────────────────────────────────────────────── */
 
     /**
-     * Parse an MEI key.sig string (e.g. "2s", "3f", "0") and return
-     * { sharps, flats }.
+     * Parse an MEI key.sig / keysig string (e.g. "2s", "3F", "0") and return
+     * { sharps, flats }.  Comparison is case-insensitive.
      */
     function parseKeySig(sig) {
-        if (!sig || sig === '0') return { sharps: 0, flats: 0 };
-        if (sig.endsWith('s')) return { sharps: parseInt(sig, 10) || 0, flats: 0 };
-        if (sig.endsWith('f')) return { sharps: 0, flats: parseInt(sig, 10) || 0 };
+        if (!sig) return { sharps: 0, flats: 0 };
+        const s = sig.trim().toLowerCase();
+        if (!s || s === '0') return { sharps: 0, flats: 0 };
+        if (s.endsWith('s')) return { sharps: parseInt(s, 10) || 0, flats: 0 };
+        if (s.endsWith('f')) return { sharps: 0, flats: parseInt(s, 10) || 0 };
         return { sharps: 0, flats: 0 };
     }
 
@@ -324,25 +326,45 @@
         }
 
         /* Key signature: check scoreDef first, then first staffDef.
-         * MEI encodes the key sig either as attributes (key.sig / key.mode) directly
-         * on scoreDef/staffDef, or as a <keySig sig="..." mode="..."/> child element. */
+         *
+         * Priority order:
+         *   1. @keysig attribute directly on <scoreDef>  (combined-MEI format, no dot)
+         *   2. @key.sig attribute on <scoreDef> or first <staffDef>  (dotted MEI format)
+         *   3. Child <keySig sig="..."> element of <scoreDef> or first <staffDef>
+         *
+         * All attribute lookups are case-insensitive so '2F'/'2f' both work.
+         * Missing, empty, or '0' values all default to C major / a minor. */
         const scoreDef  = doc.querySelector('scoreDef');
         const staffDefs = Array.from(doc.querySelectorAll('staffDef'));
         const firstSD   = staffDefs[0] || null;
 
+        /** Case-insensitive getAttribute helper. */
+        function getAttrCI(el, name) {
+            if (!el) return '';
+            // Try exact name first, then uppercase variant (XML is case-sensitive,
+            // but the authoring tool may vary capitalisation).
+            const v = el.getAttribute(name) || el.getAttribute(name.toLowerCase()) || el.getAttribute(name.toUpperCase());
+            return v || '';
+        }
+
         function getKeySigAttr(el, attr) {
             if (!el) return '';
-            const v = el.getAttribute(attr);
+            const v = getAttrCI(el, attr);
             if (v) return v;
             // Fall back to the child <keySig> element (e.g. <keySig sig="1f" mode="major"/>)
             const childAttr = attr.replace('key.', '');
-            const keySigEl = el.querySelector(':scope > keySig');
-            return (keySigEl && keySigEl.getAttribute(childAttr)) || '';
+            // Use getElementsByTagName to avoid any :scope CSS-selector compatibility issues.
+            const keySigEls = el.getElementsByTagName('keySig');
+            const keySigEl  = keySigEls && keySigEls[0];
+            return (keySigEl && getAttrCI(keySigEl, childAttr)) || '';
         }
 
-        const keySig = getKeySigAttr(scoreDef, 'key.sig') ||
+        // Primary: bare @keysig / @keymode attributes on <scoreDef> (combined-MEI format)
+        const keySig = getAttrCI(scoreDef, 'keysig') ||
+                       getKeySigAttr(scoreDef, 'key.sig') ||
                        getKeySigAttr(firstSD,   'key.sig') || '0';
-        const modeAttr = getKeySigAttr(scoreDef, 'key.mode') ||
+        const modeAttr = getAttrCI(scoreDef, 'keymode') ||
+                         getKeySigAttr(scoreDef, 'key.mode') ||
                          getKeySigAttr(firstSD,   'key.mode') || 'major';
         const isMinor  = modeAttr.toLowerCase() === 'minor';
 
