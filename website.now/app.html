@@ -960,29 +960,12 @@
                 color: #d32f2f;
                 font-size: 1em;
             }
-            /* Inter-beat separator cells (':' and '|' tactus) */
-            .solfa-sep {
-                font-size: 0.95em;
-                color: #888;
-                padding: 0 1px;
-                min-width: 6px;
-                width: 6px;
-                text-align: center;
-                vertical-align: bottom;
-            }
-            .solfa-sep.solfa-tactus {
-                color: #444;
-                font-weight: 600;
-            }
-            /* Hold mark: note sustained into this beat */
-            .solfa-hold {
-                color: #999;
-            }
-            /* Half-beat dot between sub-beat notes */
-            .solfa-dot {
+            /* Beat-position prefix inside note cells (':' / '|' / '.') */
+            .solfa-beat-pre {
                 font-size: 0.8em;
                 color: #888;
-                padding: 0 1px;
+                font-weight: 400;
+                margin-right: 1px;
             }
         </style>
     </head>

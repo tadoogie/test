@@ -218,60 +218,38 @@
     }
 
     /**
-     * Expand the raw note/rest cells of one bar into a sequence of display
-     * items that include inter-beat separators.
+     * Annotate each cell in a bar with a beat-position prefix character that
+     * is rendered INSIDE the note cell (not as a separate column).
      *
-     * Each "beat slot" may contain:
-     *   - A single note/rest occupying the full beat
-     *   - Two (or more) notes sharing the beat (half-beat subdivisions),
-     *     to be displayed with '.' between them
-     *   - A hold mark ('–') because the previous note is still sounding
+     * Prefix values:
+     *   ''  – first position in the bar (the bar separator already marks it)
+     *   ':' – start of any other beat (except the bar midpoint)
+     *   '|' – bar midpoint (beat beatsPerBar/2 in even meters with ≥ 4 beats)
+     *   '.' – sub-beat position (note starts partway through a beat)
      *
-     * @param {Array}  barCells  – cells collected for this bar (with ssuLen)
+     * @param {Array}  barCells  – cells with ssuLen from collectCells()
      * @param {object} meterInfo – result of getMeterInfo()
-     * @returns {Array} display items:
-     *   { type: 'beat', cells: [cell, …] }
-     *   { type: 'hold' }
-     *   { type: 'sep',  sep: ':' | '|' }
+     * @returns {Array} same cells, each extended with a `beatPrefix` string
      */
-    function buildBarItems(barCells, meterInfo) {
-        const { beatsPerBar, ssuPerBeat, tactusAfterBeat } = meterInfo;
-        const totalSsu = beatsPerBar * ssuPerBeat;
-
-        /* Expand cells into a flat SSU-slot array */
-        const slots = []; // each entry: { cell, isStart }
-        for (const cell of barCells) {
-            if (slots.length >= totalSsu) break;
-            const len = Math.min(cell.ssuLen || ssuPerBeat, totalSsu - slots.length);
-            slots.push({ cell, isStart: true });
-            for (let i = 1; i < len; i++) slots.push({ cell, isStart: false });
-        }
-        /* Pad any unfilled tail with rests */
-        while (slots.length < totalSsu) {
-            slots.push({ cell: { type: 'rest', ssuLen: 1 }, isStart: true });
-        }
-
-        /* Group SSU slots into beats and build display items */
-        const items = [];
-        for (let b = 0; b < beatsPerBar; b++) {
-            /* Inter-beat separator (before every beat except the first) */
-            if (b > 0) {
-                items.push({ type: 'sep', sep: (b === tactusAfterBeat) ? '|' : ':' });
-            }
-
-            const beatStart = b * ssuPerBeat;
-            const beatSlots = slots.slice(beatStart, beatStart + ssuPerBeat);
-
-            if (!beatSlots[0] || !beatSlots[0].isStart) {
-                /* Entire beat is a continuation of the previous note */
-                items.push({ type: 'hold' });
+    function assignBeatPrefixes(barCells, meterInfo) {
+        const { ssuPerBeat, tactusAfterBeat } = meterInfo;
+        let curSsu = 0;
+        return barCells.map(cell => {
+            const beatIndex = Math.floor(curSsu / ssuPerBeat); // 0-based beat
+            const subBeat   = curSsu % ssuPerBeat;             // offset within beat
+            let prefix;
+            if (curSsu === 0) {
+                prefix = ''; // first note in bar — no marker needed
+            } else if (subBeat !== 0) {
+                prefix = '.'; // inside a beat (sub-beat subdivision)
+            } else if (beatIndex === tactusAfterBeat) {
+                prefix = '|'; // bar midpoint
             } else {
-                /* Collect all note-starts within this beat */
-                const notes = beatSlots.filter(s => s.isStart).map(s => s.cell);
-                items.push({ type: 'beat', cells: notes });
+                prefix = ':'; // other beat start
             }
-        }
-        return items;
+            curSsu += (cell.ssuLen || ssuPerBeat);
+            return Object.assign({}, cell, { beatPrefix: prefix });
+        });
     }
 
     /** Minimal HTML entity escaping */
@@ -401,7 +379,7 @@
                 const dots = el.getAttribute('dots') || '0';
                 cells.push({ type: 'rest', ssuLen: durationToSsu(dur, dots) });
             } else if (tag === 'mrest' || tag === 'multirest') {
-                // Full-measure rest: use a large SSU so buildBarItems fills the whole bar
+                // Full-measure rest: large SSU so it occupies the whole bar in beat counting
                 cells.push({ type: 'rest', ssuLen: 256 });
             } else if (tag === 'note') {
                 cells.push(makeNoteCell(el, refOct, doh, ksAcc));
@@ -528,12 +506,14 @@
             });
         });
 
-        /* Convert per-bar cell arrays into flat display-item arrays */
+        /* Convert per-bar cell arrays into flat display-item arrays.
+         * Each note/rest becomes exactly one item (one table column).
+         * Beat-position prefix characters are embedded inside the cell. */
         const voiceItems = voiceBars.map(bars => {
             const items = [];
             bars.forEach((barCells, bi) => {
                 if (bi > 0) items.push({ type: 'bar' });
-                buildBarItems(barCells, meterInfo).forEach(it => items.push(it));
+                assignBeatPrefixes(barCells, meterInfo).forEach(cell => items.push(cell));
             });
             return items;
         });
@@ -566,49 +546,27 @@
             const items = voiceItems[vi];
             if (items.length === 0) return; // skip voices with no content
 
-            /* Helper: render one pitch cell from a beat's note/rest cell */
-            function pitchTd(c) {
-                if (c.type === 'rest') {
-                    return '<td class="solfa-cell solfa-rest">\u2013</td>';
-                }
-                let inner = '<span class="solfa-syl">' + esc(c.solfa) + '</span>';
-                if (c.octMark.text) {
-                    inner += '<span class="' + esc(c.octMark.cls) + '" aria-hidden="true">' +
-                             esc(c.octMark.text) + '</span>';
-                }
-                return '<td class="solfa-cell">' + inner + '</td>';
-            }
-
             /* ---- Sol-fa (pitch) row ---- */
             H.push('<tr class="solfa-row-pitch">');
             H.push('<th class="solfa-label" rowspan="2" scope="row">' + esc(voice.label) + '</th>');
             items.forEach(item => {
                 if (item.type === 'bar') {
                     H.push('<td class="solfa-bar" aria-hidden="true">&#x7c;</td>');
-                } else if (item.type === 'sep') {
-                    const cls = item.sep === '|' ? 'solfa-sep solfa-tactus' : 'solfa-sep';
-                    H.push('<td class="' + cls + '" aria-hidden="true">' + esc(item.sep) + '</td>');
-                } else if (item.type === 'hold') {
-                    H.push('<td class="solfa-cell solfa-hold">\u2013</td>');
-                } else if (item.type === 'beat') {
-                    const cs = item.cells;
-                    if (cs.length === 1) {
-                        H.push(pitchTd(cs[0]));
-                    } else {
-                        /* Multiple sub-beat notes joined by '.' */
-                        const parts = cs.map(c => {
-                            if (c.type === 'rest') return '\u2013';
-                            let s = '<span class="solfa-syl">' + esc(c.solfa) + '</span>';
-                            if (c.octMark.text) {
-                                s += '<span class="' + esc(c.octMark.cls) + '" aria-hidden="true">' +
-                                     esc(c.octMark.text) + '</span>';
-                            }
-                            return s;
-                        });
-                        H.push('<td class="solfa-cell">' +
-                               parts.join('<span class="solfa-dot" aria-hidden="true">.</span>') +
-                               '</td>');
+                } else if (item.type === 'rest') {
+                    const pre = item.beatPrefix
+                        ? '<span class="solfa-beat-pre" aria-hidden="true">' + esc(item.beatPrefix) + '</span>'
+                        : '';
+                    H.push('<td class="solfa-cell solfa-rest">' + pre + '\u2013</td>');
+                } else {
+                    const pre = item.beatPrefix
+                        ? '<span class="solfa-beat-pre" aria-hidden="true">' + esc(item.beatPrefix) + '</span>'
+                        : '';
+                    let inner = pre + '<span class="solfa-syl">' + esc(item.solfa) + '</span>';
+                    if (item.octMark.text) {
+                        inner += '<span class="' + esc(item.octMark.cls) + '" aria-hidden="true">' +
+                                 esc(item.octMark.text) + '</span>';
                     }
+                    H.push('<td class="solfa-cell">' + inner + '</td>');
                 }
             });
             H.push('</tr>');
@@ -618,20 +576,11 @@
             items.forEach(item => {
                 if (item.type === 'bar') {
                     H.push('<td class="solfa-bar"></td>');
-                } else if (item.type === 'sep') {
-                    H.push('<td class="solfa-sep"></td>');
-                } else if (item.type === 'hold') {
+                } else if (item.type === 'rest') {
                     H.push('<td class="solfa-cell"></td>');
-                } else if (item.type === 'beat') {
-                    const cs = item.cells;
-                    if (cs.length === 1) {
-                        const c    = cs[0];
-                        const dash = (c.type === 'note' && c.con === 'd') ? '-' : '';
-                        H.push('<td class="solfa-cell solfa-word">' + esc(c.text || '') + dash + '</td>');
-                    } else {
-                        const text = cs.map(c => (c.type === 'note' ? esc(c.text || '') : '')).join('.');
-                        H.push('<td class="solfa-cell solfa-word">' + text + '</td>');
-                    }
+                } else {
+                    const dash = (item.con === 'd') ? '-' : '';
+                    H.push('<td class="solfa-cell solfa-word">' + esc(item.text || '') + dash + '</td>');
                 }
             });
             H.push('</tr>');
