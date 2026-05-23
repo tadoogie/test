@@ -1,7 +1,7 @@
 /*!
  * solfa-renderer.js  –  Tonic sol-fa notation renderer
  *
- * Reads the current combined MEI document (window.currentXmlData) and renders
+ * Reads the current combined MEI document (window.originalXmlData) and renders
  * a tonic sol-fa table for each voice part into #svg_output.
  *
  * Layout: two rows per voice part
@@ -495,7 +495,7 @@
         const container = document.getElementById('svg_output');
         if (!container) return;
 
-        const xml = global.currentXmlData;
+        const xml = global.originalXmlData;
         if (!xml) {
             alert('Please select a text and tune first, then click Go to generate the score before switching to Sol-fa view.');
             syncNotationToggle(false); // reset toggle back to Staff

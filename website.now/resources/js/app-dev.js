@@ -958,7 +958,6 @@ function loadDataWithLayerVolumes(data) {
             window.currentLayers = layers;
             window.originalXmlData = data; // Store original without velocity modifications
             currentXmlData = data; // Keep original for display
-            window.currentXmlData = data;
             
             // Proceed with normal Verovio loading (without velocities)
             setOptions();
@@ -2797,7 +2796,6 @@ function renderPsalm(options = {}) {
                     document.getElementById("tuneLicense").innerHTML = tuneLicenseHTML;
                     
                     currentXmlData = new XMLSerializer().serializeToString(xmlDoc);
-                    window.currentXmlData = currentXmlData;
                     loadDataWithLayerVolumes(currentXmlData);
                 }
             };
