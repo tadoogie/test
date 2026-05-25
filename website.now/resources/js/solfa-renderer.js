@@ -221,26 +221,29 @@
      * Map a bar's note cells onto a fixed beat grid, returning exactly
      * meterInfo.beatsPerBar slots – one column per beat.
      *
-     * For each beat position:
-     *   – the note/rest that STARTS at that beat is used directly;
-     *   – if a previous note extends into this beat a 'held' placeholder
-     *     (rendered as an en-dash) is inserted instead;
-     *   – if a rest extends across a beat boundary a rest placeholder is used;
-     *   – if nothing is sounding a rest placeholder is used.
+     * Each slot is one of:
+     *   { type:'multi', beatPrefix, notes:[{subPrefix, cell}] }
+     *       – one or more notes/rests that START within this beat.
+     *         notes[0].subPrefix is '' (beat start), subsequent notes
+     *         get '.' (sub-beat).  A single-note beat is still 'multi'
+     *         with notes.length === 1.
+     *   { type:'held',  beatPrefix }
+     *       – a note from a previous beat is still sounding (no new
+     *         attack); rendered as an en-dash.
      *
-     * Beat-position prefix characters embedded in each slot:
+     * Beat-position prefix characters (beatPrefix) embedded in each slot:
      *   ''  – beat 0 (first beat; bar separator already marks it)
      *   ':' – any other beat start
      *   '|' – bar midpoint (beat beatsPerBar/2 in even meters with ≥ 4 beats)
      *
      * @param {Array}  barCells  – cells with ssuLen from collectCells()
      * @param {object} meterInfo – result of getMeterInfo()
-     * @returns {Array} exactly meterInfo.beatsPerBar cells, each with beatPrefix
+     * @returns {Array} exactly meterInfo.beatsPerBar items
      */
     function expandToBeatGrid(barCells, meterInfo) {
         const { beatsPerBar, ssuPerBeat, tactusAfterBeat } = meterInfo;
 
-        // Build a timeline of events (start/end in SSU units)
+        // Build a timeline: { startSsu, endSsu, cell }
         let curSsu = 0;
         const events = [];
         barCells.forEach(cell => {
@@ -251,32 +254,38 @@
 
         const slots = [];
         for (let beat = 0; beat < beatsPerBar; beat++) {
-            const beatSsu = beat * ssuPerBeat;
+            const beatStart = beat * ssuPerBeat;
+            const beatEnd   = beatStart + ssuPerBeat;
 
-            // Beat-position prefix
-            let prefix;
+            // Beat-position prefix for the slot as a whole
+            let beatPrefix;
             if (beat === 0) {
-                prefix = '';
+                beatPrefix = '';
             } else if (tactusAfterBeat >= 0 && beat === tactusAfterBeat) {
-                prefix = '|'; // bar midpoint
+                beatPrefix = '|'; // bar midpoint
             } else {
-                prefix = ':'; // ordinary beat
+                beatPrefix = ':'; // ordinary beat
             }
 
-            // Find the event active at the start of this beat
-            const active = events.find(e => e.startSsu <= beatSsu && e.endSsu > beatSsu);
-            if (!active) {
-                // Silence at this beat position
-                slots.push({ type: 'rest', beatPrefix: prefix, ssuLen: ssuPerBeat });
-            } else if (active.startSsu === beatSsu) {
-                // Event starts exactly at this beat
-                slots.push(Object.assign({}, active.cell, { beatPrefix: prefix }));
-            } else if (active.cell.type === 'rest') {
-                // A rest continues across a beat boundary
-                slots.push({ type: 'rest', beatPrefix: prefix, ssuLen: ssuPerBeat });
+            // All events whose start falls within [beatStart, beatEnd)
+            const starting = events.filter(e => e.startSsu >= beatStart && e.startSsu < beatEnd);
+
+            if (starting.length > 0) {
+                // Collect sub-notes; first gets '' prefix, rest get '.'
+                const notes = starting.map((e, i) => ({
+                    subPrefix: i === 0 ? '' : '.',
+                    cell: e.cell,
+                }));
+                slots.push({ type: 'multi', beatPrefix, notes });
             } else {
-                // A note started before this beat and is still held
-                slots.push({ type: 'held', beatPrefix: prefix, ssuLen: ssuPerBeat });
+                // Nothing new starts in this beat; check if a note is held
+                const held = events.find(e => e.startSsu < beatStart && e.endSsu > beatStart);
+                if (held && held.cell.type !== 'rest') {
+                    slots.push({ type: 'held', beatPrefix });
+                } else {
+                    // Silence or rest continuation
+                    slots.push({ type: 'multi', beatPrefix, notes: [{ subPrefix: '', cell: { type: 'rest', ssuLen: ssuPerBeat } }] });
+                }
             }
         }
 
@@ -591,25 +600,32 @@
             items.forEach(item => {
                 if (item.type === 'bar') {
                     H.push('<td class="solfa-bar" aria-hidden="true">&#x7c;</td>');
-                } else if (item.type === 'rest') {
-                    const pre = item.beatPrefix
-                        ? '<span class="solfa-beat-pre" aria-hidden="true">' + esc(item.beatPrefix) + '</span>'
-                        : '';
-                    H.push('<td class="solfa-cell solfa-rest">' + pre + '\u2013</td>');
                 } else if (item.type === 'held') {
                     const pre = item.beatPrefix
                         ? '<span class="solfa-beat-pre" aria-hidden="true">' + esc(item.beatPrefix) + '</span>'
                         : '';
                     H.push('<td class="solfa-cell solfa-held">' + pre + '\u2013</td>');
                 } else {
-                    const pre = item.beatPrefix
+                    // type === 'multi': one or more notes/rests within this beat
+                    const beatPre = item.beatPrefix
                         ? '<span class="solfa-beat-pre" aria-hidden="true">' + esc(item.beatPrefix) + '</span>'
                         : '';
-                    let inner = pre + '<span class="solfa-syl">' + esc(item.solfa) + '</span>';
-                    if (item.octMark.text) {
-                        inner += '<span class="' + esc(item.octMark.cls) + '" aria-hidden="true">' +
-                                 esc(item.octMark.text) + '</span>';
-                    }
+                    let inner = beatPre;
+                    item.notes.forEach(({ subPrefix, cell }, ni) => {
+                        if (ni > 0) inner += ' '; // space separator between sub-notes
+                        const subPre = subPrefix
+                            ? '<span class="solfa-beat-pre" aria-hidden="true">' + esc(subPrefix) + '</span>'
+                            : '';
+                        if (cell.type === 'rest') {
+                            inner += subPre + '<span class="solfa-rest">\u2013</span>';
+                        } else {
+                            inner += subPre + '<span class="solfa-syl">' + esc(cell.solfa) + '</span>';
+                            if (cell.octMark && cell.octMark.text) {
+                                inner += '<span class="' + esc(cell.octMark.cls) + '" aria-hidden="true">' +
+                                         esc(cell.octMark.text) + '</span>';
+                            }
+                        }
+                    });
                     H.push('<td class="solfa-cell">' + inner + '</td>');
                 }
             });
@@ -620,11 +636,17 @@
             items.forEach(item => {
                 if (item.type === 'bar') {
                     H.push('<td class="solfa-bar"></td>');
-                } else if (item.type === 'rest' || item.type === 'held') {
+                } else if (item.type === 'held') {
                     H.push('<td class="solfa-cell"></td>');
                 } else {
-                    const dash = (item.con === 'd') ? '-' : '';
-                    H.push('<td class="solfa-cell solfa-word">' + esc(item.text || '') + dash + '</td>');
+                    // type === 'multi': use lyric from first note in the beat
+                    const firstNote = item.notes.find(n => n.cell.type !== 'rest');
+                    if (firstNote) {
+                        const dash = (firstNote.cell.con === 'd') ? '-' : '';
+                        H.push('<td class="solfa-cell solfa-word">' + esc(firstNote.cell.text || '') + dash + '</td>');
+                    } else {
+                        H.push('<td class="solfa-cell"></td>');
+                    }
                 }
             });
             H.push('</tr>');
