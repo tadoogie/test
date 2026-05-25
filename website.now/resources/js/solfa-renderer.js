@@ -218,32 +218,55 @@
     }
 
     /**
-     * Map a bar's note cells onto a fixed beat grid.
+     * Return the intra-beat prefix character for an offset within a beat.
      *
-     * For a full bar this returns exactly meterInfo.beatsPerBar slots.
-     * For a pickup bar (total cell SSUs < full bar SSUs) this returns only
-     * the beat slots that contain actual content — no padding with rests —
-     * and every slot receives ':' as its beatPrefix, because pickup beats
-     * are not "beat 1" of a bar.
+     * The subdivisions follow a binary-halving hierarchy:
+     *   level 1 – midpoint of beat                       → '.'
+     *   level 2+ – quarter / three-quarter points, etc.  → ','
+     *
+     * @param {number} offset     – SSUs from the start of the beat (must be > 0)
+     * @param {number} ssuPerBeat – SSUs in one beat (a power of 2)
+     * @returns {string} '.' or ','
+     */
+    function intraBeatPrefix(offset, ssuPerBeat) {
+        let step  = ssuPerBeat / 2;
+        let level = 1;
+        while (step >= 1) {
+            if (offset % step === 0 && Math.round(offset / step) % 2 !== 0) break;
+            step  = step / 2;
+            level++;
+        }
+        return level === 1 ? '.' : ',';
+    }
+
+    /**
+     * Map a bar's note cells onto a display-slot array.
+     *
+     * Each slot represents one attack position (note/rest) or a beat/tactus
+     * boundary where a held note continues, and carries a prefix character that
+     * conveys its rhythmic position:
+     *
+     *   ''  – beat 1 of a full bar (bar line already marks it)
+     *   ':'  – any other beat start
+     *   '|'  – bar midpoint / tactus (beat beatsPerBar/2 in even meters ≥ 4)
+     *   '.'  – division of a beat (half-beat)
+     *   ','  – subdivision (quarter-beat, etc.)
+     *
+     * For pickup bars every slot gets ':' and only attack positions are emitted
+     * (no rest/held padding).
      *
      * Each slot is one of:
      *   { type:'multi', beatPrefix, notes:[{subPrefix, cell}] }
-     *       – one or more notes/rests that START within this beat.
-     *         notes[0].subPrefix is '' (beat start), subsequent notes
-     *         get '.' (sub-beat).  A single-note beat is still 'multi'
-     *         with notes.length === 1.
-     *   { type:'held',  beatPrefix }
-     *       – a note from a previous beat is still sounding (no new
-     *         attack); rendered as an en-dash.
+     *       – note/rest attack(s) at this position.
+     *   { type:'held',  beatPrefix, slurred }
+     *       – a note from an earlier position is still sounding.
      *
-     * Beat-position prefix characters (beatPrefix) for full bars:
-     *   ''  – beat 0 (first beat; bar separator already marks it)
-     *   ':' – any other beat start
-     *   '|' – bar midpoint (beat beatsPerBar/2 in even meters with ≥ 4 beats)
+     * Held slots are only emitted at beat-boundary positions (prefix '' ':' '|'),
+     * not at intra-beat positions ('.' ',').
      *
      * @param {Array}  barCells  – cells with ssuLen from collectCells()
      * @param {object} meterInfo – result of getMeterInfo()
-     * @returns {Array} beat-slot items
+     * @returns {Array} display-slot items
      */
     function expandToBeatGrid(barCells, meterInfo) {
         const { beatsPerBar, ssuPerBeat, tactusAfterBeat } = meterInfo;
@@ -257,49 +280,72 @@
             curSsu += len;
         });
 
-        // A pickup bar has fewer total SSUs than a complete bar.
         const fullBarSsu = beatsPerBar * ssuPerBeat;
         const totalSsu   = events.reduce((s, e) => s + (e.endSsu - e.startSsu), 0);
         const isPickup   = totalSsu < fullBarSsu;
 
-        const slots = [];
-        for (let beat = 0; beat < beatsPerBar; beat++) {
-            const beatStart = beat * ssuPerBeat;
-            const beatEnd   = beatStart + ssuPerBeat;
+        // For pickup bars: emit only actual attack positions, all with ':' prefix.
+        if (isPickup) {
+            return events.map(e => ({
+                type: 'multi',
+                beatPrefix: ':',
+                notes: [{ subPrefix: '', cell: e.cell }],
+            }));
+        }
 
-            // Beat-position prefix
-            let beatPrefix;
-            if (isPickup) {
-                beatPrefix = ':'; // pickup beats always get ':'; no "beat 1" in a partial bar
-            } else if (beat === 0) {
-                beatPrefix = '';  // beat 1 of a full bar has no prefix (bar line marks it)
-            } else if (tactusAfterBeat >= 0 && beat === tactusAfterBeat) {
-                beatPrefix = '|'; // bar midpoint
-            } else {
-                beatPrefix = ':'; // ordinary beat
+        /**
+         * Compute the prefix character for a given SSU position within the bar.
+         * @param {number} ssu – absolute SSU offset from bar start
+         */
+        function prefixForSsu(ssu) {
+            const beat   = Math.floor(ssu / ssuPerBeat);
+            const offset = ssu % ssuPerBeat;
+
+            if (offset === 0) {
+                // Beat boundary
+                if (beat === 0) return '';
+                if (tactusAfterBeat >= 0 && beat === tactusAfterBeat) return '|';
+                return ':';
             }
+            return intraBeatPrefix(offset, ssuPerBeat);
+        }
 
-            // All events whose start falls within [beatStart, beatEnd)
-            const starting = events.filter(e => e.startSsu >= beatStart && e.startSsu < beatEnd);
+        // Collect all SSU positions that require a slot:
+        //   • Every note/rest attack position.
+        //   • Every beat-boundary position (for held/rest display), but only if
+        //     nothing attacks exactly there (those are covered above).
+        const attackSsus     = new Set(events.map(e => e.startSsu));
+        const beatBoundarySsus = new Set();
+        for (let b = 0; b < beatsPerBar; b++) beatBoundarySsus.add(b * ssuPerBeat);
+
+        const allSsus = new Set([...attackSsus]);
+        beatBoundarySsus.forEach(s => allSsus.add(s));
+
+        const sortedSsus = Array.from(allSsus)
+            .filter(s => s < fullBarSsu)
+            .sort((a, b) => a - b);
+
+        const slots = [];
+        sortedSsus.forEach(ssu => {
+            const prefix   = prefixForSsu(ssu);
+            const starting = events.filter(e => e.startSsu === ssu);
 
             if (starting.length > 0) {
-                // Collect sub-notes; first gets '' subPrefix, rest get '.'
-                const notes = starting.map((e, i) => ({
-                    subPrefix: i === 0 ? '' : '.',
-                    cell: e.cell,
-                }));
-                slots.push({ type: 'multi', beatPrefix, notes });
-            } else if (!isPickup) {
-                // In a full bar: fill empty beats with held or rest placeholders
-                const held = events.find(e => e.startSsu < beatStart && e.endSsu > beatStart);
+                slots.push({
+                    type: 'multi',
+                    beatPrefix: prefix,
+                    notes: starting.map((e, i) => ({ subPrefix: i === 0 ? '' : '.', cell: e.cell })),
+                });
+            } else {
+                // Beat boundary with no attack — show held or rest placeholder.
+                const held = events.find(e => e.startSsu < ssu && e.endSsu > ssu);
                 if (held && held.cell.type !== 'rest') {
-                    slots.push({ type: 'held', beatPrefix });
+                    slots.push({ type: 'held', beatPrefix: prefix, slurred: held.cell.slurred || false });
                 } else {
-                    slots.push({ type: 'multi', beatPrefix, notes: [{ subPrefix: '', cell: { type: 'rest', ssuLen: ssuPerBeat } }] });
+                    slots.push({ type: 'multi', beatPrefix: prefix, notes: [{ subPrefix: '', cell: { type: 'rest', ssuLen: ssuPerBeat } }] });
                 }
             }
-            // In a pickup bar, beats with no content are simply omitted.
-        }
+        });
 
         return slots;
     }
@@ -378,6 +424,63 @@
         return voices;
     }
 
+    /* ── Slur helpers ────────────────────────────────────────────────────── */
+
+    /**
+     * Walk the document and return a Set of note xml:id values that are part
+     * of at least one slur.
+     *
+     * Two MEI encoding styles are handled:
+     *   1. <slur startid="#x" endid="#y"> elements (anywhere in the document):
+     *      all notes in document order between #x and #y (inclusive) are marked.
+     *   2. @slur attribute on individual <note> elements ('i', 'm', 't' or
+     *      combinations such as 'it').
+     *
+     * @param {Document} doc – parsed MEI document
+     * @returns {Set<string>}
+     */
+    function buildSlurredNoteIds(doc) {
+        const slurredIds = new Set();
+        const allNotes   = Array.from(doc.querySelectorAll('note'));
+
+        // Helper: resolve a startid/endid reference ('#foo' or 'foo') to an index
+        function noteIndex(ref) {
+            const id = ref.replace(/^#/, '');
+            return allNotes.findIndex(n =>
+                n.getAttribute('xml:id') === id || n.id === id
+            );
+        }
+
+        // Style 1: <slur startid endid>
+        doc.querySelectorAll('slur').forEach(slurEl => {
+            const startRef = slurEl.getAttribute('startid') || '';
+            const endRef   = slurEl.getAttribute('endid')   || '';
+            if (!startRef || !endRef) return;
+
+            const si = noteIndex(startRef);
+            const ei = noteIndex(endRef);
+            if (si < 0 || ei < 0) return;
+
+            const from = Math.min(si, ei);
+            const to   = Math.max(si, ei);
+            for (let i = from; i <= to; i++) {
+                const id = allNotes[i].getAttribute('xml:id') || allNotes[i].id;
+                if (id) slurredIds.add(id);
+            }
+        });
+
+        // Style 2: @slur attribute ('i', 'm', 't', 'it', 'i1', 't2', etc.)
+        allNotes.forEach(n => {
+            const slurAttr = n.getAttribute('slur') || '';
+            if (/[imt]/i.test(slurAttr)) {
+                const id = n.getAttribute('xml:id') || n.id;
+                if (id) slurredIds.add(id);
+            }
+        });
+
+        return slurredIds;
+    }
+
     /* ── Note-cell extraction ────────────────────────────────────────────── */
 
     /**
@@ -389,8 +492,9 @@
      * @param {object}       ksAcc       – key-signature accidentals map
      * @param {string|null}  durOverride – @dur from a parent <chord>, if any
      * @param {string|null}  dotsOverride – @dots from a parent <chord>, if any
+     * @param {Set<string>}  slurredIds  – set of note xml:ids that are slurred
      */
-    function makeNoteCell(noteEl, refOct, doh, ksAcc, durOverride, dotsOverride) {
+    function makeNoteCell(noteEl, refOct, doh, ksAcc, durOverride, dotsOverride, slurredIds) {
         const pname = noteEl.getAttribute('pname');
         if (!pname) return { type: 'rest', ssuLen: durationToSsu(durOverride || '4', dotsOverride || '0') };
 
@@ -414,18 +518,23 @@
         const dots = dotsOverride || noteEl.getAttribute('dots') || '0';
         const ssuLen = durationToSsu(dur, dots);
 
-        return { type: 'note', solfa: solfaSyl, octMark, text: sylText, con, ssuLen };
+        // Slur: check the slurredIds set (from <slur> elements) and the @slur attribute
+        const xmlId    = noteEl.getAttribute('xml:id') || noteEl.id || '';
+        const slurAttr = noteEl.getAttribute('slur') || '';
+        const slurred  = (xmlId && slurredIds && slurredIds.has(xmlId)) || /[imt]/i.test(slurAttr);
+
+        return { type: 'note', solfa: solfaSyl, octMark, text: sylText, con, ssuLen, slurred };
     }
 
     /**
      * Recursively walk the direct children of a <layer> (including <beam>,
      * <tuplet> containers) and append note-cell objects into `cells`.
      */
-    function collectCells(children, cells, refOct, doh, ksAcc) {
+    function collectCells(children, cells, refOct, doh, ksAcc, slurredIds) {
         children.forEach(el => {
             const tag = (el.localName || el.tagName || '').toLowerCase();
             if (tag === 'beam' || tag === 'tuplet' || tag === 'ligature') {
-                collectCells(Array.from(el.children), cells, refOct, doh, ksAcc);
+                collectCells(Array.from(el.children), cells, refOct, doh, ksAcc, slurredIds);
             } else if (tag === 'rest' || tag === 'space') {
                 const dur  = el.getAttribute('dur')  || '4';
                 const dots = el.getAttribute('dots') || '0';
@@ -434,14 +543,14 @@
                 // Full-measure rest: large SSU so it occupies the whole bar in beat counting
                 cells.push({ type: 'rest', ssuLen: 256 });
             } else if (tag === 'note') {
-                cells.push(makeNoteCell(el, refOct, doh, ksAcc));
+                cells.push(makeNoteCell(el, refOct, doh, ksAcc, null, null, slurredIds));
             } else if (tag === 'chord') {
                 // Duration lives on the <chord> element; pitch on the highest <note>
                 const chordDur  = el.getAttribute('dur');
                 const chordDots = el.getAttribute('dots') || '0';
                 const noteEls   = el.querySelectorAll('note');
                 const topNote   = noteEls.length > 0 ? noteEls[noteEls.length - 1] : null;
-                if (topNote) cells.push(makeNoteCell(topNote, refOct, doh, ksAcc, chordDur, chordDots));
+                if (topNote) cells.push(makeNoteCell(topNote, refOct, doh, ksAcc, chordDur, chordDots, slurredIds));
             }
             // Other elements (slur, tie, dynam, tempo, dir, etc.) are ignored
         });
@@ -517,6 +626,9 @@
         const doh    = computeDoh(keySig);
         const ksAcc  = buildKeySigAccids(keySig);
 
+        /* Collect note IDs that are part of a slur */
+        const slurredIds = buildSlurredNoteIds(doc);
+
         /* Discover voice parts */
         const voices = discoverVoices(doc, staffDefs);
         if (voices.length === 0) {
@@ -560,7 +672,7 @@
                     if (vi === undefined) return;
 
                     const barCells = [];
-                    collectCells(Array.from(layerEl.children), barCells, voices[vi].refOct, doh, ksAcc);
+                    collectCells(Array.from(layerEl.children), barCells, voices[vi].refOct, doh, ksAcc, slurredIds);
                     voiceBars[vi].push(barCells);
                 });
             });
@@ -613,28 +725,34 @@
                 if (item.type === 'bar') {
                     H.push('<td class="solfa-bar" aria-hidden="true">&#x7c;</td>');
                 } else if (item.type === 'held') {
-                    const pre = item.beatPrefix
+                    const pre  = item.beatPrefix
                         ? '<span class="solfa-beat-pre" aria-hidden="true">' + esc(item.beatPrefix) + '</span>'
                         : '';
-                    H.push('<td class="solfa-cell solfa-held">' + pre + '\u2013</td>');
+                    const dash = item.slurred ? '<u class="solfa-slur">\u2013</u>' : '\u2013';
+                    H.push('<td class="solfa-cell solfa-held">' + pre + dash + '</td>');
                 } else {
-                    // type === 'multi': one or more notes/rests within this beat
+                    // type === 'multi': one or more notes/rests at this position
                     const beatPre = item.beatPrefix
                         ? '<span class="solfa-beat-pre" aria-hidden="true">' + esc(item.beatPrefix) + '</span>'
                         : '';
                     let inner = beatPre;
                     item.notes.forEach(({ subPrefix, cell }, ni) => {
-                        if (ni > 0) inner += ' '; // space separator between sub-notes
+                        if (ni > 0) inner += ' '; // space separator (rare: two notes at identical SSU)
                         const subPre = subPrefix
                             ? '<span class="solfa-beat-pre" aria-hidden="true">' + esc(subPrefix) + '</span>'
                             : '';
                         if (cell.type === 'rest') {
                             inner += subPre + '<span class="solfa-rest">\u2013</span>';
                         } else {
-                            inner += subPre + '<span class="solfa-syl">' + esc(cell.solfa) + '</span>';
+                            let noteContent = '<span class="solfa-syl">' + esc(cell.solfa) + '</span>';
                             if (cell.octMark && cell.octMark.text) {
-                                inner += '<span class="' + esc(cell.octMark.cls) + '" aria-hidden="true">' +
-                                         esc(cell.octMark.text) + '</span>';
+                                noteContent += '<span class="' + esc(cell.octMark.cls) + '" aria-hidden="true">' +
+                                               esc(cell.octMark.text) + '</span>';
+                            }
+                            if (cell.slurred) {
+                                inner += subPre + '<u class="solfa-slur">' + noteContent + '</u>';
+                            } else {
+                                inner += subPre + noteContent;
                             }
                         }
                     });
