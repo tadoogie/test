@@ -218,38 +218,69 @@
     }
 
     /**
-     * Annotate each cell in a bar with a beat-position prefix character that
-     * is rendered INSIDE the note cell (not as a separate column).
+     * Map a bar's note cells onto a fixed beat grid, returning exactly
+     * meterInfo.beatsPerBar slots – one column per beat.
      *
-     * Prefix values:
-     *   ''  – first position in the bar (the bar separator already marks it)
-     *   ':' – start of any other beat (except the bar midpoint)
+     * For each beat position:
+     *   – the note/rest that STARTS at that beat is used directly;
+     *   – if a previous note extends into this beat a 'held' placeholder
+     *     (rendered as an en-dash) is inserted instead;
+     *   – if a rest extends across a beat boundary a rest placeholder is used;
+     *   – if nothing is sounding a rest placeholder is used.
+     *
+     * Beat-position prefix characters embedded in each slot:
+     *   ''  – beat 0 (first beat; bar separator already marks it)
+     *   ':' – any other beat start
      *   '|' – bar midpoint (beat beatsPerBar/2 in even meters with ≥ 4 beats)
-     *   '.' – sub-beat position (note starts partway through a beat)
      *
      * @param {Array}  barCells  – cells with ssuLen from collectCells()
      * @param {object} meterInfo – result of getMeterInfo()
-     * @returns {Array} same cells, each extended with a `beatPrefix` string
+     * @returns {Array} exactly meterInfo.beatsPerBar cells, each with beatPrefix
      */
-    function assignBeatPrefixes(barCells, meterInfo) {
-        const { ssuPerBeat, tactusAfterBeat } = meterInfo;
+    function expandToBeatGrid(barCells, meterInfo) {
+        const { beatsPerBar, ssuPerBeat, tactusAfterBeat } = meterInfo;
+
+        // Build a timeline of events (start/end in SSU units)
         let curSsu = 0;
-        return barCells.map(cell => {
-            const beatIndex = Math.floor(curSsu / ssuPerBeat); // 0-based beat
-            const subBeat   = curSsu % ssuPerBeat;             // offset within beat
+        const events = [];
+        barCells.forEach(cell => {
+            const len = cell.ssuLen || ssuPerBeat;
+            events.push({ startSsu: curSsu, endSsu: curSsu + len, cell });
+            curSsu += len;
+        });
+
+        const slots = [];
+        for (let beat = 0; beat < beatsPerBar; beat++) {
+            const beatSsu = beat * ssuPerBeat;
+
+            // Beat-position prefix
             let prefix;
-            if (curSsu === 0) {
-                prefix = ''; // first note in bar — no marker needed
-            } else if (subBeat !== 0) {
-                prefix = '.'; // inside a beat (sub-beat subdivision)
-            } else if (beatIndex === tactusAfterBeat) {
+            if (beat === 0) {
+                prefix = '';
+            } else if (tactusAfterBeat >= 0 && beat === tactusAfterBeat) {
                 prefix = '|'; // bar midpoint
             } else {
-                prefix = ':'; // other beat start
+                prefix = ':'; // ordinary beat
             }
-            curSsu += (cell.ssuLen || ssuPerBeat);
-            return Object.assign({}, cell, { beatPrefix: prefix });
-        });
+
+            // Find the event active at the start of this beat
+            const active = events.find(e => e.startSsu <= beatSsu && e.endSsu > beatSsu);
+            if (!active) {
+                // Silence at this beat position
+                slots.push({ type: 'rest', beatPrefix: prefix, ssuLen: ssuPerBeat });
+            } else if (active.startSsu === beatSsu) {
+                // Event starts exactly at this beat
+                slots.push(Object.assign({}, active.cell, { beatPrefix: prefix }));
+            } else if (active.cell.type === 'rest') {
+                // A rest continues across a beat boundary
+                slots.push({ type: 'rest', beatPrefix: prefix, ssuLen: ssuPerBeat });
+            } else {
+                // A note started before this beat and is still held
+                slots.push({ type: 'held', beatPrefix: prefix, ssuLen: ssuPerBeat });
+            }
+        }
+
+        return slots;
     }
 
     /** Minimal HTML entity escaping */
@@ -515,13 +546,13 @@
         });
 
         /* Convert per-bar cell arrays into flat display-item arrays.
-         * Each note/rest becomes exactly one item (one table column).
-         * Beat-position prefix characters are embedded inside the cell. */
+         * Each bar contributes exactly meterInfo.beatsPerBar beat-slot items.
+         * Beat-position prefix characters are embedded inside each slot. */
         const voiceItems = voiceBars.map(bars => {
             const items = [];
             bars.forEach((barCells, bi) => {
                 if (bi > 0) items.push({ type: 'bar' });
-                assignBeatPrefixes(barCells, meterInfo).forEach(cell => items.push(cell));
+                expandToBeatGrid(barCells, meterInfo).forEach(cell => items.push(cell));
             });
             return items;
         });
@@ -565,6 +596,11 @@
                         ? '<span class="solfa-beat-pre" aria-hidden="true">' + esc(item.beatPrefix) + '</span>'
                         : '';
                     H.push('<td class="solfa-cell solfa-rest">' + pre + '\u2013</td>');
+                } else if (item.type === 'held') {
+                    const pre = item.beatPrefix
+                        ? '<span class="solfa-beat-pre" aria-hidden="true">' + esc(item.beatPrefix) + '</span>'
+                        : '';
+                    H.push('<td class="solfa-cell solfa-held">' + pre + '\u2013</td>');
                 } else {
                     const pre = item.beatPrefix
                         ? '<span class="solfa-beat-pre" aria-hidden="true">' + esc(item.beatPrefix) + '</span>'
@@ -584,7 +620,7 @@
             items.forEach(item => {
                 if (item.type === 'bar') {
                     H.push('<td class="solfa-bar"></td>');
-                } else if (item.type === 'rest') {
+                } else if (item.type === 'rest' || item.type === 'held') {
                     H.push('<td class="solfa-cell"></td>');
                 } else {
                     const dash = (item.con === 'd') ? '-' : '';
