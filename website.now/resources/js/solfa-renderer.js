@@ -705,7 +705,6 @@
                         : '';
                     let inner = beatPre;
                     item.notes.forEach(({ subPrefix, cell }, ni) => {
-                        if (ni > 0) inner += ' '; // space separator (rare: two notes at identical SSU)
                         const subPre = subPrefix
                             ? '<span class="solfa-beat-pre" aria-hidden="true">' + esc(subPrefix) + '</span>'
                             : '';
