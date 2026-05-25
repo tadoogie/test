@@ -587,7 +587,16 @@
 
             /* Vertical spacer between voice parts (not after the last one) */
             if (vi < voices.length - 1) {
-                H.push('<tr class="solfa-spacer" aria-hidden="true"><td colspan="' + (items.length + 1) + '"></td></tr>');
+                H.push('<tr class="solfa-spacer" aria-hidden="true">');
+                H.push('<td class="solfa-label"></td>');
+                items.forEach(item => {
+                    if (item.type === 'bar') {
+                        H.push('<td class="solfa-bar"></td>');
+                    } else {
+                        H.push('<td></td>');
+                    }
+                });
+                H.push('</tr>');
             }
         });
 
