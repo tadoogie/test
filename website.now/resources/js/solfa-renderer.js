@@ -471,12 +471,20 @@
             return '<div class="solfa-error">No voice parts found in the score.</div>';
         }
 
-        /* Meter: @meter.count and @meter.unit, checked on scoreDef then first staffDef */
+        /* Meter: @meter.count and @meter.unit on scoreDef/staffDef, or a child <meterSig @count @unit> */
         function getMeterAttr(el, attr) {
             return (el && (el.getAttribute(attr) || el.getAttribute(attr.replace('.', '')) || '')) || '';
         }
-        const meterCount = getMeterAttr(scoreDef, 'meter.count') || getMeterAttr(firstSD, 'meter.count') || '4';
-        const meterUnit  = getMeterAttr(scoreDef, 'meter.unit')  || getMeterAttr(firstSD, 'meter.unit')  || '4';
+        function getMeterSigAttr(el, childAttr) {
+            if (!el) return '';
+            const meterSigEls = el.getElementsByTagName('meterSig');
+            const meterSigEl  = meterSigEls && meterSigEls[0];
+            return (meterSigEl && getAttrCI(meterSigEl, childAttr)) || '';
+        }
+        const meterCount = getMeterAttr(scoreDef, 'meter.count') || getMeterAttr(firstSD, 'meter.count') ||
+                           getMeterSigAttr(scoreDef, 'count')    || getMeterSigAttr(firstSD, 'count')    || '4';
+        const meterUnit  = getMeterAttr(scoreDef, 'meter.unit')  || getMeterAttr(firstSD, 'meter.unit')  ||
+                           getMeterSigAttr(scoreDef, 'unit')     || getMeterSigAttr(firstSD, 'unit')      || '4';
         const meterInfo  = getMeterInfo(meterCount, meterUnit);
 
         /* Build a lookup key and pre-allocate bar arrays per voice */
