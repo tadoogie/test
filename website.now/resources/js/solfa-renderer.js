@@ -218,8 +218,13 @@
     }
 
     /**
-     * Map a bar's note cells onto a fixed beat grid, returning exactly
-     * meterInfo.beatsPerBar slots – one column per beat.
+     * Map a bar's note cells onto a fixed beat grid.
+     *
+     * For a full bar this returns exactly meterInfo.beatsPerBar slots.
+     * For a pickup bar (total cell SSUs < full bar SSUs) this returns only
+     * the beat slots that contain actual content — no padding with rests —
+     * and every slot receives ':' as its beatPrefix, because pickup beats
+     * are not "beat 1" of a bar.
      *
      * Each slot is one of:
      *   { type:'multi', beatPrefix, notes:[{subPrefix, cell}] }
@@ -231,14 +236,14 @@
      *       – a note from a previous beat is still sounding (no new
      *         attack); rendered as an en-dash.
      *
-     * Beat-position prefix characters (beatPrefix) embedded in each slot:
+     * Beat-position prefix characters (beatPrefix) for full bars:
      *   ''  – beat 0 (first beat; bar separator already marks it)
      *   ':' – any other beat start
      *   '|' – bar midpoint (beat beatsPerBar/2 in even meters with ≥ 4 beats)
      *
      * @param {Array}  barCells  – cells with ssuLen from collectCells()
      * @param {object} meterInfo – result of getMeterInfo()
-     * @returns {Array} exactly meterInfo.beatsPerBar items
+     * @returns {Array} beat-slot items
      */
     function expandToBeatGrid(barCells, meterInfo) {
         const { beatsPerBar, ssuPerBeat, tactusAfterBeat } = meterInfo;
@@ -252,15 +257,22 @@
             curSsu += len;
         });
 
+        // A pickup bar has fewer total SSUs than a complete bar.
+        const fullBarSsu = beatsPerBar * ssuPerBeat;
+        const totalSsu   = events.reduce((s, e) => s + (e.endSsu - e.startSsu), 0);
+        const isPickup   = totalSsu < fullBarSsu;
+
         const slots = [];
         for (let beat = 0; beat < beatsPerBar; beat++) {
             const beatStart = beat * ssuPerBeat;
             const beatEnd   = beatStart + ssuPerBeat;
 
-            // Beat-position prefix for the slot as a whole
+            // Beat-position prefix
             let beatPrefix;
-            if (beat === 0) {
-                beatPrefix = '';
+            if (isPickup) {
+                beatPrefix = ':'; // pickup beats always get ':'; no "beat 1" in a partial bar
+            } else if (beat === 0) {
+                beatPrefix = '';  // beat 1 of a full bar has no prefix (bar line marks it)
             } else if (tactusAfterBeat >= 0 && beat === tactusAfterBeat) {
                 beatPrefix = '|'; // bar midpoint
             } else {
@@ -271,22 +283,22 @@
             const starting = events.filter(e => e.startSsu >= beatStart && e.startSsu < beatEnd);
 
             if (starting.length > 0) {
-                // Collect sub-notes; first gets '' prefix, rest get '.'
+                // Collect sub-notes; first gets '' subPrefix, rest get '.'
                 const notes = starting.map((e, i) => ({
                     subPrefix: i === 0 ? '' : '.',
                     cell: e.cell,
                 }));
                 slots.push({ type: 'multi', beatPrefix, notes });
-            } else {
-                // Nothing new starts in this beat; check if a note is held
+            } else if (!isPickup) {
+                // In a full bar: fill empty beats with held or rest placeholders
                 const held = events.find(e => e.startSsu < beatStart && e.endSsu > beatStart);
                 if (held && held.cell.type !== 'rest') {
                     slots.push({ type: 'held', beatPrefix });
                 } else {
-                    // Silence or rest continuation
                     slots.push({ type: 'multi', beatPrefix, notes: [{ subPrefix: '', cell: { type: 'rest', ssuLen: ssuPerBeat } }] });
                 }
             }
+            // In a pickup bar, beats with no content are simply omitted.
         }
 
         return slots;
