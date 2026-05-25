@@ -218,55 +218,34 @@
     }
 
     /**
-     * Return the intra-beat prefix character for an offset within a beat.
+     * Map a bar's note cells onto a fixed beat grid.
      *
-     * The subdivisions follow a binary-halving hierarchy:
-     *   level 1 – midpoint of beat                       → '.'
-     *   level 2+ – quarter / three-quarter points, etc.  → ','
+     * Each slot is EXACTLY one beat — one table column.  Multiple notes that
+     * fall within the same beat are packed into a single slot; their position
+     * within the beat is shown via a subPrefix character:
+     *   ''  – the note falls on the beat itself (first note in the beat)
+     *   '.' – the note falls on the half-beat division
+     *   ',' – the note falls on a finer subdivision (quarter-beat, etc.)
      *
-     * @param {number} offset     – SSUs from the start of the beat (must be > 0)
-     * @param {number} ssuPerBeat – SSUs in one beat (a power of 2)
-     * @returns {string} '.' or ','
-     */
-    function intraBeatPrefix(offset, ssuPerBeat) {
-        let step  = ssuPerBeat / 2;
-        let level = 1;
-        while (step >= 1) {
-            if (offset % step === 0 && Math.round(offset / step) % 2 !== 0) break;
-            step  = step / 2;
-            level++;
-        }
-        return level === 1 ? '.' : ',';
-    }
-
-    /**
-     * Map a bar's note cells onto a display-slot array.
-     *
-     * Each slot represents one attack position (note/rest) or a beat/tactus
-     * boundary where a held note continues, and carries a prefix character that
-     * conveys its rhythmic position:
-     *
-     *   ''  – beat 1 of a full bar (bar line already marks it)
-     *   ':'  – any other beat start
-     *   '|'  – bar midpoint / tactus (beat beatsPerBar/2 in even meters ≥ 4)
-     *   '.'  – division of a beat (half-beat)
-     *   ','  – subdivision (quarter-beat, etc.)
-     *
-     * For pickup bars every slot gets ':' and only attack positions are emitted
-     * (no rest/held padding).
+     * For a full bar this returns exactly meterInfo.beatsPerBar slots.
+     * For a pickup bar (total cell SSUs < full bar SSUs) this returns only
+     * the beat slots that contain actual content — no padding with rests —
+     * and every slot receives ':' as its beatPrefix.
      *
      * Each slot is one of:
      *   { type:'multi', beatPrefix, notes:[{subPrefix, cell}] }
-     *       – note/rest attack(s) at this position.
+     *       – one or more notes/rests that START within this beat.
      *   { type:'held',  beatPrefix, slurred }
-     *       – a note from an earlier position is still sounding.
+     *       – a note from a previous beat is still sounding (no new attack).
      *
-     * Held slots are only emitted at beat-boundary positions (prefix '' ':' '|'),
-     * not at intra-beat positions ('.' ',').
+     * Beat-position prefix characters (beatPrefix) for full bars:
+     *   ''  – beat 0 (first beat; bar separator already marks it)
+     *   ':' – any other beat start
+     *   '|' – bar midpoint (beat beatsPerBar/2 in even meters with ≥ 4 beats)
      *
      * @param {Array}  barCells  – cells with ssuLen from collectCells()
      * @param {object} meterInfo – result of getMeterInfo()
-     * @returns {Array} display-slot items
+     * @returns {Array} beat-slot items
      */
     function expandToBeatGrid(barCells, meterInfo) {
         const { beatsPerBar, ssuPerBeat, tactusAfterBeat } = meterInfo;
@@ -280,72 +259,61 @@
             curSsu += len;
         });
 
+        // A pickup bar has fewer total SSUs than a complete bar.
         const fullBarSsu = beatsPerBar * ssuPerBeat;
         const totalSsu   = events.reduce((s, e) => s + (e.endSsu - e.startSsu), 0);
         const isPickup   = totalSsu < fullBarSsu;
 
-        // For pickup bars: emit only actual attack positions, all with ':' prefix.
-        if (isPickup) {
-            return events.map(e => ({
-                type: 'multi',
-                beatPrefix: ':',
-                notes: [{ subPrefix: '', cell: e.cell }],
-            }));
-        }
-
         /**
-         * Compute the prefix character for a given SSU position within the bar.
-         * @param {number} ssu – absolute SSU offset from bar start
+         * Compute the subPrefix for a note that starts at `offsetInBeat` SSUs
+         * from the start of its beat.  Returns '' for on-beat, '.' for
+         * half-beat, ',' for finer subdivisions.
          */
-        function prefixForSsu(ssu) {
-            const beat   = Math.floor(ssu / ssuPerBeat);
-            const offset = ssu % ssuPerBeat;
-
-            if (offset === 0) {
-                // Beat boundary
-                if (beat === 0) return '';
-                if (tactusAfterBeat >= 0 && beat === tactusAfterBeat) return '|';
-                return ':';
-            }
-            return intraBeatPrefix(offset, ssuPerBeat);
+        function subPrefixForOffset(offsetInBeat) {
+            if (offsetInBeat === 0) return '';
+            const half = ssuPerBeat / 2;
+            if (offsetInBeat === half) return '.';
+            return ',';
         }
-
-        // Collect all SSU positions that require a slot:
-        //   • Every note/rest attack position.
-        //   • Every beat-boundary position (for held/rest display), but only if
-        //     nothing attacks exactly there (those are covered above).
-        const attackSsus     = new Set(events.map(e => e.startSsu));
-        const beatBoundarySsus = new Set();
-        for (let b = 0; b < beatsPerBar; b++) beatBoundarySsus.add(b * ssuPerBeat);
-
-        const allSsus = new Set([...attackSsus]);
-        beatBoundarySsus.forEach(s => allSsus.add(s));
-
-        const sortedSsus = Array.from(allSsus)
-            .filter(s => s < fullBarSsu)
-            .sort((a, b) => a - b);
 
         const slots = [];
-        sortedSsus.forEach(ssu => {
-            const prefix   = prefixForSsu(ssu);
-            const starting = events.filter(e => e.startSsu === ssu);
+        for (let beat = 0; beat < beatsPerBar; beat++) {
+            const beatStart = beat * ssuPerBeat;
+            const beatEnd   = beatStart + ssuPerBeat;
+
+            // Beat-position prefix
+            let beatPrefix;
+            if (isPickup) {
+                beatPrefix = ':'; // pickup beats always get ':'; no "beat 1" in a partial bar
+            } else if (beat === 0) {
+                beatPrefix = '';  // beat 1 of a full bar has no prefix (bar line marks it)
+            } else if (tactusAfterBeat >= 0 && beat === tactusAfterBeat) {
+                beatPrefix = '|'; // bar midpoint
+            } else {
+                beatPrefix = ':'; // ordinary beat
+            }
+
+            // All events whose start falls within [beatStart, beatEnd)
+            const starting = events.filter(e => e.startSsu >= beatStart && e.startSsu < beatEnd);
 
             if (starting.length > 0) {
-                slots.push({
-                    type: 'multi',
-                    beatPrefix: prefix,
-                    notes: starting.map((e, i) => ({ subPrefix: i === 0 ? '' : '.', cell: e.cell })),
-                });
-            } else {
-                // Beat boundary with no attack — show held or rest placeholder.
-                const held = events.find(e => e.startSsu < ssu && e.endSsu > ssu);
+                // Collect sub-notes with subPrefix based on position within beat
+                const notes = starting.map(e => ({
+                    subPrefix: subPrefixForOffset(e.startSsu - beatStart),
+                    cell: e.cell,
+                }));
+                slots.push({ type: 'multi', beatPrefix, notes });
+            } else if (!isPickup) {
+                // In a full bar: fill empty beats with held or rest placeholders
+                const held = events.find(e => e.startSsu < beatStart && e.endSsu > beatStart);
                 if (held && held.cell.type !== 'rest') {
-                    slots.push({ type: 'held', beatPrefix: prefix, slurred: held.cell.slurred || false });
+                    slots.push({ type: 'held', beatPrefix, slurred: held.cell.slurred || false });
                 } else {
-                    slots.push({ type: 'multi', beatPrefix: prefix, notes: [{ subPrefix: '', cell: { type: 'rest', ssuLen: ssuPerBeat } }] });
+                    slots.push({ type: 'multi', beatPrefix, notes: [{ subPrefix: '', cell: { type: 'rest', ssuLen: ssuPerBeat } }] });
                 }
             }
-        });
+            // In a pickup bar, beats with no content are simply omitted.
+        }
 
         return slots;
     }
