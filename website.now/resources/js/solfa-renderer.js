@@ -139,17 +139,17 @@
 
     /**
      * Compute the octave marker for a note relative to a reference octave.
-     * Returns { text, cls } where text is '' | "'" | "''" | "," | ",,"
+     * Returns { text, cls } where text is '' | "|" | "||" …
      * and cls is the CSS class to apply.
      *
      * In Curwen notation:
-     *   notes above the reference register → superscript prime(s)
-     *   notes below the reference register → subscript comma(s)
+     *   notes above the reference register → small superscript pipe(s)
+     *   notes below the reference register → bold pipe(s) at baseline
      */
     function octaveMarker(oct, refOct) {
         const diff = parseInt(oct, 10) - refOct;
-        if (diff > 0) return { text: "'".repeat(diff), cls: 'solfa-oct-hi' };
-        if (diff < 0) return { text: ','.repeat(-diff), cls: 'solfa-oct-lo' };
+        if (diff > 0) return { text: '|'.repeat(diff), cls: 'solfa-oct-hi' };
+        if (diff < 0) return { text: '|'.repeat(-diff), cls: 'solfa-oct-lo' };
         return { text: '', cls: '' };
     }
 
