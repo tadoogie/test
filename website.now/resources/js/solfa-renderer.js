@@ -138,16 +138,30 @@
     }
 
     /**
-     * Compute the octave marker for a note relative to a reference octave.
+     * Compute the octave marker for a note relative to the home octave of Doh.
      * Returns { text, cls } where text is '' | "|" | "||" …
      * and cls is the CSS class to apply.
      *
      * In Curwen notation:
-     *   notes above the reference register → small superscript pipe(s)
-     *   notes below the reference register → bold pipe(s) at baseline
+     *   notes above the home register → small superscript pipe(s)
+     *   notes below the home register → bold pipe(s) at baseline
+     *
+     * The home octave starts at Doh (e.g. G4 when Doh=G, refOct=4) and spans
+     * up 11 semitones to the note just below the next Doh (e.g. F#5).
+     * The comparison is therefore based on absolute semitone pitch rather than
+     * the raw @oct integer, so that the octave boundary aligns with Doh's pitch
+     * rather than with C.
+     *
+     * @param {number} notePc  – note pitch class (0-11), already accounting for accidentals
+     * @param {string} noteOct – note @oct attribute value (e.g. "4")
+     * @param {number} doh     – Doh pitch class (0-11) for this staff
+     * @param {number} refOct  – octave in which Doh sits on this staff
      */
-    function octaveMarker(oct, refOct) {
-        const diff = parseInt(oct, 10) - refOct;
+    function octaveMarker(notePc, noteOct, doh, refOct) {
+        if (notePc < 0) return { text: '', cls: '' };
+        const noteAbsPitch = notePc + parseInt(noteOct, 10) * 12;
+        const dohAbsPitch  = doh   + refOct * 12;
+        const diff = Math.floor((noteAbsPitch - dohAbsPitch) / 12);
         if (diff > 0) return { text: '|'.repeat(diff), cls: 'solfa-oct-hi' };
         if (diff < 0) return { text: '|'.repeat(-diff), cls: 'solfa-oct-lo' };
         return { text: '', cls: '' };
@@ -473,7 +487,7 @@
         const oct        = noteEl.getAttribute('oct') || '4';
         const pc         = noteToPitchClass(pname, accid, ksAcc);
         const solfaSyl   = (pc >= 0) ? toSolfa(pc, doh) : '?';
-        const octMark    = octaveMarker(oct, refOct);
+        const octMark    = octaveMarker(pc, oct, doh, refOct);
 
         // Prefer verse n="1" for the lyric; fall back to the first verse
         const verse1  = noteEl.querySelector('verse[n="1"]') || noteEl.querySelector('verse');
