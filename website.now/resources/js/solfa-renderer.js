@@ -687,24 +687,31 @@
             if (items.length === 0) return; // skip voices with no content
 
             /* ---- Sol-fa (pitch) row ---- */
+            // Pre-compute which item indices immediately precede a bar marker
+            // (those beat cells get a right border to form the measure barline)
+            const barEndSet = new Set();
+            items.forEach((it, idx) => { if (it.type === 'bar') barEndSet.add(idx - 1); });
+
             H.push('<tr class="solfa-row-pitch">');
             H.push('<th class="solfa-label" rowspan="2" scope="row">' + esc(voice.label) + '</th>');
-            items.forEach(item => {
+            items.forEach((item, idx) => {
                 if (item.type === 'bar') {
-                    H.push('<td class="solfa-bar" aria-hidden="true">&#x7c;</td>');
-                } else if (item.type === 'held') {
+                    return; // barline is rendered as a right border on the preceding beat cell
+                }
+                const barEnd = barEndSet.has(idx) ? ' solfa-bar-end' : '';
+                if (item.type === 'held') {
                     const pre  = item.beatPrefix
                         ? '<span class="solfa-beat-pre" aria-hidden="true">' + esc(item.beatPrefix) + '</span>'
                         : '';
                     const dash = item.slurred ? '<u class="solfa-slur">\u2013</u>' : '\u2013';
-                    H.push('<td class="solfa-cell solfa-held">' + pre + dash + '</td>');
+                    H.push('<td class="solfa-cell solfa-held' + barEnd + '">' + pre + dash + '</td>');
                 } else {
                     // type === 'multi': one or more notes/rests at this position
                     const beatPre = item.beatPrefix
                         ? '<span class="solfa-beat-pre" aria-hidden="true">' + esc(item.beatPrefix) + '</span>'
                         : '';
                     let inner = beatPre;
-                    item.notes.forEach(({ subPrefix, cell }, ni) => {
+                    item.notes.forEach(({ subPrefix, cell }) => {
                         const subPre = subPrefix
                             ? '<span class="solfa-beat-pre" aria-hidden="true">' + esc(subPrefix) + '</span>'
                             : '';
@@ -724,26 +731,28 @@
                             }
                         }
                     });
-                    H.push('<td class="solfa-cell">' + inner + '</td>');
+                    H.push('<td class="solfa-cell' + barEnd + '">' + inner + '</td>');
                 }
             });
             H.push('</tr>');
 
             /* ---- Text (lyric) row ---- */
             H.push('<tr class="solfa-row-text">');
-            items.forEach(item => {
+            items.forEach((item, idx) => {
                 if (item.type === 'bar') {
-                    H.push('<td class="solfa-bar"></td>');
-                } else if (item.type === 'held') {
-                    H.push('<td class="solfa-cell"></td>');
+                    return; // barline rendered via right border on preceding cell
+                }
+                const barEnd = barEndSet.has(idx) ? ' solfa-bar-end' : '';
+                if (item.type === 'held') {
+                    H.push('<td class="solfa-cell' + barEnd + '"></td>');
                 } else {
                     // type === 'multi': use lyric from first note in the beat
                     const firstNote = item.notes.find(n => n.cell.type !== 'rest');
                     if (firstNote) {
                         const dash = (firstNote.cell.con === 'd') ? '-' : '';
-                        H.push('<td class="solfa-cell solfa-word">' + esc(firstNote.cell.text || '') + dash + '</td>');
+                        H.push('<td class="solfa-cell solfa-word' + barEnd + '">' + esc(firstNote.cell.text || '') + dash + '</td>');
                     } else {
-                        H.push('<td class="solfa-cell"></td>');
+                        H.push('<td class="solfa-cell' + barEnd + '"></td>');
                     }
                 }
             });
@@ -753,12 +762,12 @@
             if (vi < voices.length - 1) {
                 H.push('<tr class="solfa-spacer" aria-hidden="true">');
                 H.push('<td class="solfa-label"></td>');
-                items.forEach(item => {
+                items.forEach((item, idx) => {
                     if (item.type === 'bar') {
-                        H.push('<td class="solfa-bar"></td>');
-                    } else {
-                        H.push('<td></td>');
+                        return; // barline rendered via right border on preceding cell
                     }
+                    const barEnd = barEndSet.has(idx) ? ' class="solfa-bar-end"' : '';
+                    H.push('<td' + barEnd + '></td>');
                 });
                 H.push('</tr>');
             }
