@@ -681,8 +681,10 @@
 
         H.push('<div class="solfa-brace-wrap">');
         H.push('<div class="solfa-brace-col" aria-hidden="true">');
-        H.push('<svg class="solfa-brace" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 100" preserveAspectRatio="none">');
-        H.push('<path d="M11,1 C6,1 2,14 2,32 C2,43 8,46 8,50 L0,50 L8,50 C8,54 2,57 2,68 C2,86 6,99 11,99" fill="none" stroke="#333" stroke-width="2" vector-effect="non-scaling-stroke"/>');
+        H.push('<svg class="solfa-brace" xmlns="http://www.w3.org/2000/svg" viewBox="180 -1580.7 430.6 2659.1" preserveAspectRatio="none">');
+        H.push('<g stroke="currentColor" fill="currentColor" stroke-width="0" transform="matrix(1 0 0 -1 0 0)">');
+        H.push('<path stroke-width="1" d="M618 -943L612 -949H582L568 -943Q472 -903 411 -841T332 -703Q327 -682 327 -653T325 -350Q324 -28 323 -18Q317 24 301 61T264 124T221 171T179 205T147 225T132 234Q130 238 130 250Q130 255 130 258T131 264T132 267T134 269T139 272T144 275Q207 308 256 367Q310 436 323 519Q324 529 325 851Q326 1124 326 1154T332 1205Q369 1358 566 1443L582 1450H612L618 1444V1429Q618 1413 616 1411L608 1406Q599 1402 585 1393T552 1372T515 1343T479 1305T449 1257T429 1200Q425 1180 425 1152T423 851Q422 579 422 549T416 498Q407 459 388 424T346 364T297 318T250 284T214 264T197 254L188 251L205 242Q290 200 345 138T416 3Q421 -18 421 -48T423 -349Q423 -397 423 -472Q424 -677 428 -694Q429 -697 429 -699Q434 -722 443 -743T465 -782T491 -816T519 -845T548 -868T574 -886T595 -899T610 -908L616 -910Q618 -912 618 -928V-943Z"/>');
+        H.push('</g>');
         H.push('</svg>');
         H.push('</div>');
         H.push('<div class="solfa-scroll">');
