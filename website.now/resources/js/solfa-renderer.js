@@ -668,6 +668,11 @@
             ? ALL_NOTE_NAMES[((doh - LA_BELOW_DOH) % 12 + 12) % 12]  // La = LA_BELOW_DOH semitones below Doh
             : dohLetterName(keySig);
 
+        /* Detect pickup: if the first beat of the first voice has beatPrefix ':',
+         * the piece begins with an anacrusis (pickup bar). */
+        const _firstVoiceItems = voiceItems.find(it => it.length > 0) || [];
+        const hasPickup = _firstVoiceItems.length > 0 && _firstVoiceItems[0].beatPrefix === ':';
+
         /* Build HTML */
         const H = [];
         H.push('<div class="solfa-output">');
@@ -706,12 +711,13 @@
                     return; // barline is rendered as a right border on the preceding beat cell
                 }
                 const barEnd = barEndSet.has(idx) ? ' solfa-bar-end' : '';
+                const barStart = (!hasPickup && idx === 0) ? ' solfa-bar-start' : '';
                 if (item.type === 'held') {
                     const pre  = item.beatPrefix
                         ? '<span class="solfa-beat-pre" aria-hidden="true">' + esc(item.beatPrefix) + '</span>'
                         : '';
                     const dash = item.slurred ? '<u class="solfa-slur">\u2013</u>' : '\u2013';
-                    H.push('<td class="solfa-cell solfa-held' + barEnd + '">' + pre + dash + '</td>');
+                    H.push('<td class="solfa-cell solfa-held' + barEnd + barStart + '">' + pre + dash + '</td>');
                 } else {
                     // type === 'multi': one or more notes/rests at this position
                     const beatPre = item.beatPrefix
@@ -738,7 +744,7 @@
                             }
                         }
                     });
-                    H.push('<td class="solfa-cell' + barEnd + '">' + inner + '</td>');
+                    H.push('<td class="solfa-cell' + barEnd + barStart + '">' + inner + '</td>');
                 }
             });
             H.push('</tr>');
@@ -750,16 +756,17 @@
                     return; // barline rendered via right border on preceding cell
                 }
                 const barEnd = barEndSet.has(idx) ? ' solfa-bar-end' : '';
+                const barStart = (!hasPickup && idx === 0) ? ' solfa-bar-start' : '';
                 if (item.type === 'held') {
-                    H.push('<td class="solfa-cell' + barEnd + '"></td>');
+                    H.push('<td class="solfa-cell' + barEnd + barStart + '"></td>');
                 } else {
                     // type === 'multi': use lyric from first note in the beat
                     const firstNote = item.notes.find(n => n.cell.type !== 'rest');
                     if (firstNote) {
                         const dash = (firstNote.cell.con === 'd') ? '-' : '';
-                        H.push('<td class="solfa-cell solfa-word' + barEnd + '">' + esc(firstNote.cell.text || '') + dash + '</td>');
+                        H.push('<td class="solfa-cell solfa-word' + barEnd + barStart + '">' + esc(firstNote.cell.text || '') + dash + '</td>');
                     } else {
-                        H.push('<td class="solfa-cell' + barEnd + '"></td>');
+                        H.push('<td class="solfa-cell' + barEnd + barStart + '"></td>');
                     }
                 }
             });
@@ -772,8 +779,10 @@
                     if (item.type === 'bar') {
                         return; // barline rendered via right border on preceding cell
                     }
-                    const barEnd = barEndSet.has(idx) ? ' class="solfa-bar-end"' : '';
-                    H.push('<td' + barEnd + '></td>');
+                    const barEnd = barEndSet.has(idx) ? ' solfa-bar-end' : '';
+                    const barStart = (!hasPickup && idx === 0) ? ' solfa-bar-start' : '';
+                    const cls = (barEnd || barStart) ? ' class="' + (barEnd + barStart).trim() + '"' : '';
+                    H.push('<td' + cls + '></td>');
                 });
                 H.push('</tr>');
             }
