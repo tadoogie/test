@@ -679,6 +679,12 @@
             '\u2003' + esc(fundamental) + '\u00a0=\u00a0<strong>' + esc(fundamentalNote) + '</strong></p>'
         );
 
+        H.push('<div class="solfa-brace-wrap">');
+        H.push('<div class="solfa-brace-col" aria-hidden="true">');
+        H.push('<svg class="solfa-brace" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 100" preserveAspectRatio="none">');
+        H.push('<path d="M11,1 C6,1 2,14 2,32 C2,43 8,46 8,50 L0,50 L8,50 C8,54 2,57 2,68 C2,86 6,99 11,99" fill="none" stroke="#333" stroke-width="2" vector-effect="non-scaling-stroke"/>');
+        H.push('</svg>');
+        H.push('</div>');
         H.push('<div class="solfa-scroll">');
         H.push('<table class="solfa-table" role="presentation">');
 
@@ -693,7 +699,6 @@
             items.forEach((it, idx) => { if (it.type === 'bar') barEndSet.add(idx - 1); });
 
             H.push('<tr class="solfa-row-pitch">');
-            H.push('<th class="solfa-label" rowspan="2" scope="row">' + esc(voice.label) + '</th>');
             items.forEach((item, idx) => {
                 if (item.type === 'bar') {
                     return; // barline is rendered as a right border on the preceding beat cell
@@ -761,7 +766,6 @@
             /* Vertical spacer between voice parts (not after the last one) */
             if (vi < voices.length - 1) {
                 H.push('<tr class="solfa-spacer" aria-hidden="true">');
-                H.push('<td class="solfa-label"></td>');
                 items.forEach((item, idx) => {
                     if (item.type === 'bar') {
                         return; // barline rendered via right border on preceding cell
@@ -775,6 +779,7 @@
 
         H.push('</table>');
         H.push('</div>'); // solfa-scroll
+        H.push('</div>'); // solfa-brace-wrap
         H.push('</div>'); // solfa-output
 
         return H.join('\n');

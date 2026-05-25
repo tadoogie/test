@@ -905,14 +905,22 @@
                 min-width: 2.5em;
                 vertical-align: bottom;
             }
-            .solfa-label {
-                text-align: right;
-                padding-right: 10px;
-                font-size: 0.8em;
-                font-weight: 600;
-                color: #555;
-                white-space: nowrap;
-                vertical-align: middle;
+            .solfa-brace-wrap {
+                display: flex;
+                align-items: stretch;
+            }
+            .solfa-brace-col {
+                position: relative;
+                width: 18px;
+                flex-shrink: 0;
+                align-self: stretch;
+            }
+            .solfa-brace {
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
             }
             .solfa-row-pitch .solfa-cell {
                 font-size: 1.15em;
