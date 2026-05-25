@@ -718,7 +718,8 @@
                                                esc(cell.octMark.text) + '</span>';
                             }
                             if (cell.slurred) {
-                                inner += subPre + '<u class="solfa-slur">' + noteContent + '</u>';
+                                // subPre ('.' or ',') is underlined; beatPre (':' '|') is not
+                                inner += '<u class="solfa-slur">' + subPre + noteContent + '</u>';
                             } else {
                                 inner += subPre + noteContent;
                             }
