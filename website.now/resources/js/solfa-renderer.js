@@ -279,15 +279,64 @@
         const isPickup   = totalSsu < fullBarSsu;
 
         /**
-         * Compute the subPrefix for a note that starts at `offsetInBeat` SSUs
-         * from the start of its beat.  Returns '' for on-beat, '.' for
-         * half-beat, ',' for finer subdivisions.
+         * Represent one beat's rhythm as tonic sol-fa sub-pulse tokens.
+         *
+         * The pulse is divided by recursive binary halving, and a divider is
+         * shown only as deep as the notes require:
+         *   '.'  first level  – half-pulse
+         *   ','  deeper levels – quarter-pulse and finer
+         * A region filled by a single sounding note yields just that note; a
+         * region whose note is only sustaining (it attacked earlier) yields a
+         * blank, so the dividers around it still mark the metric grid. This is
+         * what turns a dotted-quarter + eighth in a half-note pulse into
+         * "m .,m": the first half is one sustained note, and the second half
+         * splits into a sustain (blank) then the eighth-note attack.
+         *
+         * Returns an array of { subPrefix, cell } where subPrefix is the
+         * (possibly multi-character) run of dividers preceding the note's attack.
          */
-        function subPrefixForOffset(offsetInBeat) {
-            if (offsetInBeat === 0) return '';
-            const half = ssuPerBeat / 2;
-            if (offsetInBeat === half) return '.';
-            return ',';
+        function subdivideBeat(beatStart, beatEnd) {
+            // Map in-beat attack offsets (notes and rests) to their cell.
+            const attackAt = {};
+            events.forEach(e => {
+                if (e.startSsu >= beatStart && e.startSsu < beatEnd) {
+                    attackAt[e.startSsu] = e.cell;
+                }
+            });
+            const offsets = Object.keys(attackAt).map(Number);
+
+            // Recursively tokenise the pulse into notes, blanks, and dividers.
+            const tokens = [];
+            (function rec(start, end, depth) {
+                let interior = false;
+                for (let i = 0; i < offsets.length; i++) {
+                    if (offsets[i] > start && offsets[i] < end) { interior = true; break; }
+                }
+                if (!interior) {
+                    if (Object.prototype.hasOwnProperty.call(attackAt, start)) {
+                        tokens.push({ cell: attackAt[start] });
+                    } else {
+                        tokens.push({ blank: true }); // note sustaining from earlier
+                    }
+                    return;
+                }
+                const mid = (start + end) / 2;
+                rec(start, mid, depth + 1);
+                tokens.push({ div: depth === 0 ? '.' : ',' });
+                rec(mid, end, depth + 1);
+            })(beatStart, beatEnd, 0);
+
+            // Collapse to { subPrefix, cell }: dividers accumulate onto the next
+            // attacking note; a sustain (blank) emits nothing but keeps pending
+            // dividers so the grid still reads correctly.
+            const notes = [];
+            let pending = '';
+            tokens.forEach(t => {
+                if (t.div)        pending += t.div;
+                else if (t.blank) { /* keep pending, emit nothing */ }
+                else { notes.push({ subPrefix: pending, cell: t.cell }); pending = ''; }
+            });
+            return notes;
         }
 
         const slots = [];
@@ -311,17 +360,14 @@
             const starting = events.filter(e => e.startSsu >= beatStart && e.startSsu < beatEnd);
 
             if (starting.length > 0) {
-                // Collect sub-notes with subPrefix based on position within beat
-                const notes = starting.map(e => ({
-                    subPrefix: subPrefixForOffset(e.startSsu - beatStart),
-                    cell: e.cell,
-                }));
+                // Build the beat's sub-pulse structure (dividers + notes).
+                const notes = subdivideBeat(beatStart, beatEnd);
                 slots.push({ type: 'multi', beatPrefix, notes });
             } else if (!isPickup) {
                 // In a full bar: fill empty beats with held or rest placeholders
                 const held = events.find(e => e.startSsu < beatStart && e.endSsu > beatStart);
                 if (held && held.cell.type !== 'rest') {
-                    slots.push({ type: 'held', beatPrefix, slurred: held.cell.slurred || false });
+                    slots.push({ type: 'held', beatPrefix, slurred: held.cell.slurred || false, id: held.cell.id || '' });
                 } else {
                     slots.push({ type: 'multi', beatPrefix, notes: [{ subPrefix: '', cell: { type: 'rest', ssuLen: ssuPerBeat } }] });
                 }
@@ -425,29 +471,62 @@
         const slurredIds = new Set();
         const allNotes   = Array.from(doc.querySelectorAll('note'));
 
-        // Helper: resolve a startid/endid reference ('#foo' or 'foo') to an index
-        function noteIndex(ref) {
-            const id = ref.replace(/^#/, '');
-            return allNotes.findIndex(n =>
-                n.getAttribute('xml:id') === id || n.id === id
-            );
+        // Index every note by its id for O(1) endpoint lookup.
+        const noteById = {};
+        allNotes.forEach(n => {
+            const id = n.getAttribute('xml:id') || n.id;
+            if (id) noteById[id] = n;
+        });
+
+        // Walk ancestors to the enclosing <layer> without relying on
+        // Element.closest(), which is not dependable on XML documents in
+        // every browser.
+        function closestLayer(el) {
+            let cur = el;
+            while (cur && cur.nodeType === 1) {
+                if ((cur.localName || cur.tagName || '').toLowerCase() === 'layer') return cur;
+                cur = cur.parentNode;
+            }
+            return null;
         }
 
-        // Style 1: <slur startid endid>
+        const stripHash = ref => (ref || '').replace(/^#/, '');
+
+        // Style 1: <slur startid endid>.
+        //
+        // The span between the endpoints is filled *within the start note's own
+        // <layer>*, not across a flat document-order list of every note. MEI
+        // orders notes measure -> staff -> layer, so in a multi-voice score a
+        // slur that crosses a barline would, in global order, sweep in the other
+        // staff's notes that sit between the two ids. Scoping the fill to the
+        // start note's layer keeps the underline on the correct voice.
         doc.querySelectorAll('slur').forEach(slurEl => {
-            const startRef = slurEl.getAttribute('startid') || '';
-            const endRef   = slurEl.getAttribute('endid')   || '';
-            if (!startRef || !endRef) return;
+            const startId = stripHash(slurEl.getAttribute('startid'));
+            const endId   = stripHash(slurEl.getAttribute('endid'));
+            if (!startId || !endId) return;
 
-            const si = noteIndex(startRef);
-            const ei = noteIndex(endRef);
-            if (si < 0 || ei < 0) return;
+            const startNote = noteById[startId];
+            const endNote   = noteById[endId];
+            if (!startNote) return;
 
-            const from = Math.min(si, ei);
-            const to   = Math.max(si, ei);
-            for (let i = from; i <= to; i++) {
-                const id = allNotes[i].getAttribute('xml:id') || allNotes[i].id;
-                if (id) slurredIds.add(id);
+            // Always mark the explicit endpoints.
+            slurredIds.add(startId);
+            if (endNote) slurredIds.add(endId);
+
+            // Fill the interior only when both endpoints live in the same layer.
+            const layer = closestLayer(startNote);
+            if (layer && endNote && closestLayer(endNote) === layer) {
+                const layerNotes = Array.from(layer.querySelectorAll('note'));
+                const si = layerNotes.indexOf(startNote);
+                const ei = layerNotes.indexOf(endNote);
+                if (si >= 0 && ei >= 0) {
+                    const from = Math.min(si, ei);
+                    const to   = Math.max(si, ei);
+                    for (let i = from; i <= to; i++) {
+                        const id = layerNotes[i].getAttribute('xml:id') || layerNotes[i].id;
+                        if (id) slurredIds.add(id);
+                    }
+                }
             }
         });
 
@@ -505,7 +584,7 @@
         const slurAttr = noteEl.getAttribute('slur') || '';
         const slurred  = (xmlId && slurredIds && slurredIds.has(xmlId)) || /[imt]/i.test(slurAttr);
 
-        return { type: 'note', solfa: solfaSyl, octMark, text: sylText, con, ssuLen, slurred };
+        return { type: 'note', id: xmlId, solfa: solfaSyl, octMark, text: sylText, con, ssuLen, slurred };
     }
 
     /**
@@ -538,6 +617,226 @@
         });
     }
 
+    /* ── Slur-underline styles ───────────────────────────────────────────── */
+
+    /**
+     * Inject the slur-underline CSS once, so the renderer is drop-in and does
+     * not depend on an edit to app.html.
+     *
+     * Two layers are defined:
+     *
+     *   1. The measured overlay (primary). One <div class="solfa-slur-line"> is
+     *      drawn per slur run by drawSlurOverlays(), positioned over the plane
+     *      that wraps the table. Because it is a single element per run, it can
+     *      never show an internal seam, and it spans beat markers and barlines
+     *      without gaps. This is what you normally see.
+     *
+     *   2. A per-cell CSS fallback (::after segments) for the case where the
+     *      overlay pass has not run, e.g. if renderSolfa() output is inserted
+     *      without calling drawSlurOverlays(). Once the overlay runs it adds the
+     *      class "slur-js" to the plane, which switches these segments off so the
+     *      two layers never both paint.
+     *
+     * If you would rather keep all styling in app.html, delete this function and
+     * its call and move the rules below into the existing <style> block there.
+     */
+    function ensureSlurStyles() {
+        if (typeof document === 'undefined' || !document.head) return;
+        if (document.getElementById('solfa-slur-runstyle')) return;
+
+        const css =
+            /* Positioning context for the overlay lines; as wide as the table. */
+            '.solfa-plane{position:relative;width:max-content;}' +
+            /* A little room under the syllables for the underline. */
+            '.solfa-row-pitch .solfa-cell{position:relative;padding-bottom:4px;}' +
+            /* The measured overlay line: one solid bar per run. */
+            '.solfa-slur-line{' +
+                'position:absolute;' +
+                'height:1.5px;' +
+                'background:#111;' +
+                'pointer-events:none;' +
+            '}' +
+            /* CSS fallback segments, shown only until the overlay marks the plane
+               with .slur-js. Overlap neighbours by ~1px so the fallback is as
+               continuous as CSS allows. */
+            '.solfa-plane:not(.slur-js) .solfa-cell.is-slur::after{' +
+                'content:"";' +
+                'position:absolute;' +
+                'left:-1px;' +
+                'right:-1px;' +
+                'bottom:2px;' +
+                'height:1.5px;' +
+                'background:currentColor;' +
+                'pointer-events:none;' +
+            '}' +
+            '.solfa-plane:not(.slur-js) .solfa-cell.solfa-slur-start::after{left:0.3em;}' +
+            '.solfa-plane:not(.slur-js) .solfa-cell.solfa-slur-end::after{right:0.3em;}' +
+            '.solfa-plane:not(.slur-js) .solfa-cell.solfa-slur-single::after{left:0.3em;right:0.3em;}' +
+            /* Invisible copy of a beat/sub-pulse prefix, used in the lyric row to
+               push a later syllable under its note without showing the marker. */
+            '.solfa-pre-spacer{visibility:hidden;}';
+
+        const styleEl = document.createElement('style');
+        styleEl.id = 'solfa-slur-runstyle';
+        styleEl.textContent = css;
+        document.head.appendChild(styleEl);
+    }
+
+    /**
+     * Draw one continuous underline per slur run by measuring the tagged cells
+     * after layout. Cells carrying the same data-slur-run value belong to one
+     * run; the line spans from the left of the run's first syllable to the right
+     * of its last. Positions are measured relative to the enclosing
+     * .solfa-plane, which scrolls with the table, so the lines track it.
+     *
+     * Safe to call repeatedly: it clears its own previous lines first. Because
+     * it depends on layout metrics (and web fonts can shift them), it is called
+     * on the next animation frame after render, again on document.fonts.ready,
+     * and on resize / before printing.
+     *
+     * Underline ranges are resolved primarily from the slur endpoints: each
+     * <slur startid endid> is emitted on the plane as a data-slur-pairs entry,
+     * and because every note carries its xml:id (id="solfa-note-<id>"), the two
+     * endpoints resolve straight to their cells and the run is the cells between
+     * them in that row. Attribute-style slurs (@slur="i|m|t"), which have no
+     * endpoints, fall back to grouping the is-slur cells by their data-slur-run
+     * id. Either way one continuous line is drawn per run.
+     *
+     * @param {Element} root – container that holds the rendered sol-fa (usually
+     *                         #svg_output)
+     */
+    function drawSlurOverlays(root) {
+        if (!root || typeof root.querySelectorAll !== 'function') return;
+
+        Array.prototype.forEach.call(root.querySelectorAll('.solfa-plane'), function (plane) {
+            // Switch the CSS fallback off now that we are drawing the overlay.
+            plane.classList.add('slur-js');
+
+            // Remove any lines from a previous pass before re-measuring.
+            Array.prototype.forEach.call(plane.querySelectorAll('.solfa-slur-line'), function (el) { el.remove(); });
+
+            const base = plane.getBoundingClientRect();
+
+            // Draw one line spanning an ordered list of cells (>= 1).
+            function drawForCells(cells) {
+                if (!cells || !cells.length) return;
+                const firstCell = cells[0];
+                const lastCell  = cells[cells.length - 1];
+
+                // Anchor on the syllable glyphs so the line sits under the notes,
+                // not under a leading beat marker; fall back to the whole cell.
+                const startEl = firstCell.querySelector('.solfa-syl') || firstCell;
+                const endSyls = lastCell.querySelectorAll('.solfa-syl');
+                const endEl   = endSyls.length ? endSyls[endSyls.length - 1] : lastCell;
+
+                const sr = startEl.getBoundingClientRect();
+                const er = endEl.getBoundingClientRect();
+                const left  = sr.left  - base.left;
+                const right = er.right - base.left;
+                if (right <= left) return;
+
+                const top = Math.max(sr.bottom, er.bottom) - base.top + 2;
+
+                const line = document.createElement('div');
+                line.className = 'solfa-slur-line';
+                line.style.left  = left + 'px';
+                line.style.top   = top + 'px';
+                line.style.width = (right - left) + 'px';
+                plane.appendChild(line);
+            }
+
+            // Collect the inclusive run of <td>s between two cells in one row,
+            // in visual order, regardless of which endpoint came first.
+            function cellsBetween(a, b) {
+                if (a === b) return [a];
+                if (a.parentNode !== b.parentNode) return null;
+                for (let dir = 0; dir < 2; dir++) {
+                    const from = dir === 0 ? a : b;
+                    const to   = dir === 0 ? b : a;
+                    const out  = [from];
+                    let cur = from.nextElementSibling;
+                    while (cur) {
+                        if (cur.tagName === 'TD') out.push(cur);
+                        if (cur === to) return out;
+                        cur = cur.nextElementSibling;
+                    }
+                }
+                return null;
+            }
+
+            // Which cell holds a given note id.
+            function cellForNote(id) {
+                const el = document.getElementById('solfa-note-' + id);
+                return el ? el.closest('td') : null;
+            }
+
+            // ---- Primary: resolve runs from the slur endpoint pairs. ----
+            const coveredRuns = {};
+            let pairs = [];
+            try { pairs = JSON.parse(plane.getAttribute('data-slur-pairs') || '[]'); }
+            catch (e) { pairs = []; }
+
+            pairs.forEach(function (pair) {
+                const startTd = cellForNote(pair[0]);
+                const endTd   = cellForNote(pair[1]);
+                if (!startTd || !endTd) return;          // fall back via classes
+                const cells = cellsBetween(startTd, endTd);
+                if (!cells) return;
+                drawForCells(cells);
+                cells.forEach(function (td) {
+                    const r = td.getAttribute('data-slur-run');
+                    if (r) coveredRuns[r] = true;         // don't redraw in fallback
+                });
+            });
+
+            // ---- Fallback: group any remaining is-slur cells by run id. ----
+            const runs = {};
+            const order = [];
+            Array.prototype.forEach.call(plane.querySelectorAll('td[data-slur-run]'), function (td) {
+                const id = td.getAttribute('data-slur-run');
+                if (coveredRuns[id]) return;
+                if (!runs[id]) { runs[id] = []; order.push(id); }
+                runs[id].push(td);
+            });
+            order.forEach(function (id) { drawForCells(runs[id]); });
+        });
+    }
+
+    /**
+     * Schedule the overlay pass after layout, after fonts load, and register
+     * one-time resize / print redraw handlers.
+     */
+    function scheduleSlurOverlays(container) {
+        if (!container) return;
+
+        if (typeof requestAnimationFrame === 'function') {
+            requestAnimationFrame(function () { drawSlurOverlays(container); });
+        } else {
+            drawSlurOverlays(container);
+        }
+
+        if (typeof document !== 'undefined' && document.fonts && document.fonts.ready &&
+            typeof document.fonts.ready.then === 'function') {
+            document.fonts.ready.then(function () { drawSlurOverlays(container); });
+        }
+
+        if (!global.__solfaOverlayListeners && typeof window !== 'undefined' && window.addEventListener) {
+            global.__solfaOverlayListeners = true;
+            let rafId = null;
+            const redraw = function () {
+                const c = document.getElementById('svg_output');
+                if (c && global.globalSolfaMode) drawSlurOverlays(c);
+            };
+            window.addEventListener('resize', function () {
+                if (rafId && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(rafId);
+                rafId = (typeof requestAnimationFrame === 'function')
+                    ? requestAnimationFrame(redraw)
+                    : (redraw(), null);
+            });
+            window.addEventListener('beforeprint', redraw);
+        }
+    }
+
     /* ── Main renderer ───────────────────────────────────────────────────── */
 
     /**
@@ -561,6 +860,9 @@
         } catch (e) {
             return '<div class="solfa-error">Could not parse the score data.</div>';
         }
+
+        /* Make sure the slur run-underline CSS is present. */
+        ensureSlurStyles();
 
         /* Key signature: check scoreDef first, then first staffDef.
          *
@@ -610,6 +912,15 @@
 
         /* Collect note IDs that are part of a slur */
         const slurredIds = buildSlurredNoteIds(doc);
+
+        /* Collect the raw <slur> endpoint pairs so the overlay can resolve each
+           underline straight from startid/endid to the matching cells. */
+        const slurPairs = [];
+        Array.prototype.forEach.call(doc.querySelectorAll('slur'), function (slurEl) {
+            const s = (slurEl.getAttribute('startid') || '').replace(/^#/, '');
+            const e = (slurEl.getAttribute('endid')   || '').replace(/^#/, '');
+            if (s && e) slurPairs.push([s, e]);
+        });
 
         /* Discover voice parts */
         const voices = discoverVoices(doc, staffDefs);
@@ -707,6 +1018,11 @@
         H.push('</svg>');
         H.push('</div>');
         H.push('<div class="solfa-scroll">');
+        // The plane wraps the table and is the positioning context for the
+        // measured slur-underline overlay. It is as wide as the table
+        // (max-content) and lives inside the scroll, so overlay lines scroll
+        // with the notation.
+        H.push('<div class="solfa-plane" data-slur-pairs="' + esc(JSON.stringify(slurPairs)) + '">');
         H.push('<table class="solfa-table" role="presentation">');
 
         voices.forEach((voice, vi) => {
@@ -719,6 +1035,42 @@
             const barEndSet = new Set();
             items.forEach((it, idx) => { if (it.type === 'bar') barEndSet.add(idx - 1); });
 
+            // Group consecutive slurred cells into runs and record each cell's
+            // role (start | mid | end | single) so the underline can be drawn
+            // once per run on the cells, rather than per glyph. A cell counts as
+            // slurred when it is a slurred held continuation or a beat holding at
+            // least one slurred note. Bar items carry no cell, so they are
+            // filtered out first; two slurred beats separated only by a barline
+            // are therefore treated as adjacent, and the line continues across
+            // the bar as a slur should.
+            function itemIsSlurred(it) {
+                if (it.type === 'held')  return !!it.slurred;
+                if (it.type === 'multi') return it.notes.some(n => n.cell && n.cell.slurred);
+                return false;
+            }
+            const rendered = [];
+            items.forEach((it, idx) => { if (it.type !== 'bar') rendered.push({ idx, slur: itemIsSlurred(it) }); });
+            const slurRole  = {};
+            const slurRunId = {};
+            let   runCounter = 0;
+            let   curRunId   = null;
+            rendered.forEach((x, k) => {
+                if (!x.slur) { curRunId = null; return; }
+                const prev = k > 0 && rendered[k - 1].slur;
+                const next = k < rendered.length - 1 && rendered[k + 1].slur;
+                slurRole[x.idx] = (!prev && !next) ? 'single' : (!prev ? 'start' : (!next ? 'end' : 'mid'));
+                if (!prev) curRunId = 'v' + vi + 'r' + (runCounter++);
+                slurRunId[x.idx] = curRunId;
+            });
+            // Class fragment drives the CSS fallback; the data attribute lets the
+            // measured overlay group each run's cells and draw one line for it.
+            function slurClass(idx) {
+                return slurRole[idx] ? ' is-slur solfa-slur-' + slurRole[idx] : '';
+            }
+            function slurData(idx) {
+                return slurRunId[idx] ? ' data-slur-run="' + slurRunId[idx] + '"' : '';
+            }
+
             H.push('<tr class="solfa-row-pitch">');
             items.forEach((item, idx) => {
                 if (item.type === 'bar') {
@@ -730,14 +1082,20 @@
                     const pre  = item.beatPrefix
                         ? '<span class="solfa-beat-pre" aria-hidden="true">' + esc(item.beatPrefix) + '</span>'
                         : '';
-                    const dash = item.slurred ? '<u class="solfa-slur">\u2013</u>' : '\u2013';
-                    H.push('<td class="solfa-cell solfa-held' + barEnd + barStart + '">' + pre + dash + '</td>');
+                    const dash = '\u2013';
+                    // A held cell continues an earlier note; carry that note's id
+                    // (data-note-id) so playback highlighting can light the whole
+                    // sustain, and so slur logic can span across it if needed.
+                    const heldId = item.id ? ' data-note-id="' + esc(item.id) + '"' : '';
+                    H.push('<td class="solfa-cell solfa-held' + barEnd + barStart + slurClass(idx) + '"' +
+                           slurData(idx) + heldId + '>' + pre + dash + '</td>');
                 } else {
                     // type === 'multi': one or more notes/rests at this position
                     const beatPre = item.beatPrefix
                         ? '<span class="solfa-beat-pre" aria-hidden="true">' + esc(item.beatPrefix) + '</span>'
                         : '';
                     let inner = beatPre;
+                    const cellNoteIds = [];
                     item.notes.forEach(({ subPrefix, cell }) => {
                         const subPre = subPrefix
                             ? '<span class="solfa-beat-pre" aria-hidden="true">' + esc(subPrefix) + '</span>'
@@ -750,15 +1108,28 @@
                                 noteContent += '<span class="' + esc(cell.octMark.cls) + '" aria-hidden="true">' +
                                                esc(cell.octMark.text) + '</span>';
                             }
-                            if (cell.slurred) {
-                                // subPre ('.' or ',') is underlined; beatPre (':' '|') is not
-                                inner += '<u class="solfa-slur">' + subPre + noteContent + '</u>';
+                            // Wrap each note in a span that carries its MEI xml:id.
+                            // The unique id (prefixed so it is valid and cannot
+                            // collide with Verovio's SVG ids) lets slur startid/
+                            // endid resolve straight to the DOM, and lets playback
+                            // highlight the sounding note. A beat can hold more than
+                            // one note, which is why the id lives on the note span
+                            // rather than the cell.
+                            if (cell.id) {
+                                cellNoteIds.push(cell.id);
+                                inner += subPre + '<span class="solfa-note" id="solfa-note-' + esc(cell.id) +
+                                         '" data-note-id="' + esc(cell.id) + '">' + noteContent + '</span>';
                             } else {
                                 inner += subPre + noteContent;
                             }
                         }
                     });
-                    H.push('<td class="solfa-cell' + barEnd + barStart + '">' + inner + '</td>');
+                    // List every note id in this cell for quick cell-level lookup.
+                    const cellIdsAttr = cellNoteIds.length
+                        ? ' data-note-ids="' + esc(cellNoteIds.join(' ')) + '"'
+                        : '';
+                    H.push('<td class="solfa-cell' + barEnd + barStart + slurClass(idx) + '"' +
+                           slurData(idx) + cellIdsAttr + '>' + inner + '</td>');
                 }
             });
             H.push('</tr>');
@@ -774,13 +1145,40 @@
                 if (item.type === 'held') {
                     H.push('<td class="solfa-cell' + barEnd + barStart + '"></td>');
                 } else {
-                    // type === 'multi': use lyric from first note in the beat
-                    const firstNote = item.notes.find(n => n.cell.type !== 'rest');
-                    if (firstNote) {
-                        const dash = (firstNote.cell.con === 'd') ? '-' : '';
-                        H.push('<td class="solfa-cell solfa-word' + barEnd + barStart + '">' + esc(firstNote.cell.text || '') + dash + '</td>');
-                    } else {
+                    // Render EVERY syllable in the beat, not just the first. A
+                    // subdivided beat can carry more than one syllable (e.g. two
+                    // eighth notes on two words); taking only the first dropped the
+                    // rest. Notes without a syllable (a melisma continuation)
+                    // contribute nothing. Each note's sub-pulse prefix is mirrored
+                    // as an invisible spacer so syllables sit roughly under their
+                    // notes, and the beat stays one column, so the grid shared with
+                    // every other voice is left untouched.
+                    const texted = item.notes.filter(n => n.cell.type !== 'rest' && (n.cell.text || '') !== '');
+                    if (texted.length === 0) {
                         H.push('<td class="solfa-cell' + barEnd + barStart + '"></td>');
+                    } else if (texted.length === 1) {
+                        // Single syllable: unchanged rendering.
+                        const c = texted[0].cell;
+                        const dash = (c.con === 'd') ? '-' : '';
+                        H.push('<td class="solfa-cell solfa-word' + barEnd + barStart + '">' +
+                               esc(c.text) + dash + '</td>');
+                    } else {
+                        // Multiple syllables in one beat.
+                        let inner = '';
+                        item.notes.forEach(({ subPrefix, cell }) => {
+                            if (cell.type === 'rest') return;
+                            const spacer = subPrefix
+                                ? '<span class="solfa-beat-pre solfa-pre-spacer" aria-hidden="true">' + esc(subPrefix) + '</span>'
+                                : '';
+                            const t = cell.text || '';
+                            if (t) {
+                                const dash = (cell.con === 'd') ? '-' : '';
+                                inner += spacer + '<span class="solfa-word-part">' + esc(t) + dash + '</span>';
+                            } else {
+                                inner += spacer;
+                            }
+                        });
+                        H.push('<td class="solfa-cell solfa-word' + barEnd + barStart + '">' + inner + '</td>');
                     }
                 }
             });
@@ -803,6 +1201,7 @@
         });
 
         H.push('</table>');
+        H.push('</div>'); // solfa-plane
         H.push('</div>'); // solfa-scroll
         H.push('</div>'); // solfa-brace-wrap
         H.push('</div>'); // solfa-output
@@ -858,6 +1257,9 @@
         if (controls) controls.classList.add('solfa-mode');
 
         syncNotationToggle(true);
+
+        // Draw the continuous slur underlines once the table has laid out.
+        scheduleSlurOverlays(container);
     };
 
     /**
@@ -890,5 +1292,9 @@
 
     /** Exposed for testing or external use */
     global.renderSolfa = renderSolfa;
+
+    /** Exposed so callers that insert renderSolfa() output themselves can draw
+     *  (or redraw) the measured slur underlines. */
+    global.drawSolfaSlurOverlays = drawSlurOverlays;
 
 }(window));
