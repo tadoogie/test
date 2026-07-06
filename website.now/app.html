@@ -872,6 +872,120 @@
             .cetei-line { margin: 0; }
             .cetei-title { margin: 0 0 0.8em 0; font-size: 1.4em; }
             .cetei-source { margin-top: 1.5em; font-size: 0.95em; color: #444; border-top: 1px solid #ccc; padding-top: 0.6em; }
+
+            /* ── Tonic Sol-fa output ─────────────────────────────────────────── */
+            .solfa-output {
+                padding: 20px;
+                font-family: 'Courier New', Courier, monospace;
+            }
+            .solfa-title {
+                font-size: 1.3em;
+                margin: 0 0 0.3em 0;
+                color: #222;
+            }
+            .solfa-meta {
+                font-size: 0.9em;
+                color: #555;
+                margin: 0 0 1.2em 0;
+            }
+            .solfa-scroll {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+            .solfa-table {
+                border-collapse: collapse;
+                border: none;
+                width: max-content;
+            }
+            .solfa-table td,
+            .solfa-table th {
+                border: none;
+                padding: 1px 3px;
+                text-align: left;
+                min-width: 2.5em;
+                vertical-align: bottom;
+            }
+            .solfa-brace-wrap {
+                display: flex;
+                align-items: stretch;
+            }
+            .solfa-brace-col {
+                position: relative;
+                width: 18px;
+                flex-shrink: 0;
+                align-self: stretch;
+            }
+            .solfa-brace {
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+            }
+            .solfa-row-pitch .solfa-cell {
+                font-size: 1.15em;
+                font-weight: 700;
+                line-height: 1.6;
+                color: #111;
+            }
+            .solfa-row-text .solfa-cell.solfa-word {
+                font-size: 0.82em;
+                color: #333;
+                line-height: 1.4;
+            }
+            .solfa-table td.solfa-bar-end,
+            .solfa-table th.solfa-bar-end {
+                border-right: 1.5px solid #333;
+            }
+            .solfa-table td.solfa-bar-start,
+            .solfa-table th.solfa-bar-start {
+                border-left: 1.5px solid #333;
+            }
+            .solfa-rest {
+                color: #888;
+            }
+            .solfa-held {
+                color: #aaa;
+            }
+            .solfa-syl {
+                display: inline;
+            }
+            /* Octave markers: superscript primes for higher, subscript commas for lower */
+            .solfa-oct-hi {
+                font-size: 0.5em;
+                vertical-align: super;
+                font-weight: 800;
+                letter-spacing: -0.1em;
+            }
+            .solfa-oct-lo {
+                font-size: 0.6em;
+                font-weight: 800;
+                letter-spacing: -0.1em;
+            }
+            /* Spacer row between voice parts */
+            .solfa-spacer td {
+                height: 10px;
+            }
+            /* Error message */
+            .solfa-error {
+                padding: 20px;
+                color: #d32f2f;
+                font-size: 1em;
+            }
+            /* Beat-position prefix inside note cells (':' / '|') and sub-note
+               prefixes within a beat ('.' half-beat, ',' finer subdivision) */
+            .solfa-beat-pre {
+                font-size: 0.8em;
+                color: #888;
+                font-weight: 400;
+                margin-right: 1px;
+            }
+            /* Slur: underline the note characters (solfa + octave), excluding beat prefix */
+            .solfa-slur {
+                text-decoration: underline;
+                text-underline-offset: 2px;
+                text-decoration-thickness: 1px;
+            }
         </style>
     </head>
     <body>
@@ -1028,6 +1142,20 @@
                         </div>
                         <input id="psMode" name="presentation" type="checkbox" style="display: none;"/>
                         <div style="margin-left: 8px; font-size: 0.9em">By default, all stanzas are displayed together as a block within the music, just like a traditional hymnal. To show each stanza on its own line with the music repeated for every stanza, turn Presentation Mode <strong>On</strong>.</div>
+                      </div>
+                      <div class="menu-item">
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-left:8px; margin-bottom: 15px;">
+                          <span class="displayGroup" style="font-size: 1.2em; font-weight: 600;">Notation</span>
+                          <div style="display: flex; gap: 0; width: 120px; border-radius: 8px; overflow: hidden;">
+                            <button id="notationStaff" class="search-mode-btn active" style="flex: 1; background: #6fc252; color: white; border: none; cursor: pointer; font-size: 0.9em; font-weight: 600; padding: 8px; transition: all 0.2s;">
+                              Staff
+                            </button>
+                            <button id="notationSolfa" class="search-mode-btn" style="flex: 1; background: #666; color: white; border: none; cursor: pointer; font-size: 0.9em; font-weight: 600; padding: 8px; transition: all 0.2s;">
+                              Sol-fa
+                            </button>
+                          </div>
+                        </div>
+                        <div style="margin-left: 8px; font-size: 0.9em">By default, the score is shown in standard staff notation. Select <strong>Sol-fa</strong> to display the score as Curwen tonic sol-fa instead.</div>
                       </div>
                       <div class="menu-item right">
                         <div id="submit" class="goBtn"/>
@@ -1431,6 +1559,7 @@
     <script defer="defer" src="resources/js/app-dev.js?v=20260409-5"/>
     <script defer="defer" src="resources/js/interface-dev.js?v=20260324-1"/>
     <script defer="defer" src="resources/js/piano-interface.js"/>
+    <script defer="defer" src="resources/js/solfa-renderer.js"/>
     
     <!-- Script validation check - logs warnings but does not reload to prevent infinite loop -->
     <script>
@@ -1525,6 +1654,25 @@
              } else {
                updateToggleState(psModeOff, psModeOn);
              }
+           }
+
+           // Notation toggle buttons (Staff / Sol-fa)
+           var notationStaffBtn = document.getElementById("notationStaff");
+           var notationSolfaBtn = document.getElementById("notationSolfa");
+
+           if (notationStaffBtn &amp;&amp; notationSolfaBtn) {
+             notationStaffBtn.addEventListener("click", function() {
+               updateToggleState(notationStaffBtn, notationSolfaBtn);
+               if (typeof exitSolfaView === 'function') exitSolfaView();
+             });
+
+             notationSolfaBtn.addEventListener("click", function() {
+               updateToggleState(notationSolfaBtn, notationStaffBtn);
+               if (typeof loadSolfaView === 'function') loadSolfaView();
+             });
+
+             // Staff is the default active state (already set in HTML)
+             updateToggleState(notationStaffBtn, notationSolfaBtn);
            }
           });
 

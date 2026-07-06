@@ -938,6 +938,10 @@ function loadDataWithLayerVolumes(data) {
         }
     }, 10000); // 10 second failsafe
     
+    // Store original XML synchronously so sol-fa view can access it immediately,
+    // before the requestAnimationFrame callback fires.
+    window.originalXmlData = data;
+
     // Use single requestAnimationFrame to allow spinner to paint, then process immediately
     // This is MUCH faster than setTimeout and more reliable on iOS
     const processData = () => {
@@ -956,7 +960,6 @@ function loadDataWithLayerVolumes(data) {
             
             // Store the original and layers for later use
             window.currentLayers = layers;
-            window.originalXmlData = data; // Store original without velocity modifications
             currentXmlData = data; // Keep original for display
             
             // Proceed with normal Verovio loading (without velocities)
@@ -973,6 +976,12 @@ function loadDataWithLayerVolumes(data) {
             // Display content immediately - no artificial delay
             clearTimeout(failsafeTimeout);
             loadPage();
+
+            // If Sol-fa mode was pre-selected (before Go was clicked), switch to
+            // it now that the MEI document is ready in window.originalXmlData.
+            if (window.globalSolfaMode && typeof loadSolfaView === 'function') {
+                loadSolfaView();
+            }
         } catch (error) {
             clearTimeout(failsafeTimeout);
             
