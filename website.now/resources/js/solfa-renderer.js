@@ -568,11 +568,22 @@
         const solfaSyl   = (pc >= 0) ? toSolfa(pc, doh) : '?';
         const octMark    = octaveMarker(pc, oct, doh, refOct);
 
-        // Prefer verse n="1" for the lyric; fall back to the first verse
-        const verse1  = noteEl.querySelector('verse[n="1"]') || noteEl.querySelector('verse');
-        const sylEl   = verse1 ? verse1.querySelector('syl') : null;
-        const sylText = sylEl ? sylEl.textContent.trim() : '';
-        const con     = sylEl ? (sylEl.getAttribute('con') || '') : '';
+        // Collect every verse on this note, keyed by verse number, so multiple
+        // stanzas can each be rendered on their own lyric line.
+        const verses = {};
+        Array.prototype.forEach.call(noteEl.querySelectorAll('verse'), function (v) {
+            const vn = v.getAttribute('n') || '1';
+            const sy = v.querySelector('syl');
+            verses[vn] = {
+                text: sy ? sy.textContent.trim() : '',
+                con:  sy ? (sy.getAttribute('con') || '') : ''
+            };
+        });
+        // Verse 1 (or the first present) drives the legacy single-line fields.
+        const primaryKey = verses['1'] ? '1' : Object.keys(verses)[0];
+        const primary    = (primaryKey && verses[primaryKey]) || { text: '', con: '' };
+        const sylText = primary.text;
+        const con     = primary.con;
 
         // Duration: prefer parent chord's @dur, then the note's own @dur
         const dur  = durOverride  || noteEl.getAttribute('dur')  || '4';
@@ -584,7 +595,7 @@
         const slurAttr = noteEl.getAttribute('slur') || '';
         const slurred  = (xmlId && slurredIds && slurredIds.has(xmlId)) || /[imt]/i.test(slurAttr);
 
-        return { type: 'note', id: xmlId, solfa: solfaSyl, octMark, text: sylText, con, ssuLen, slurred };
+        return { type: 'note', id: xmlId, solfa: solfaSyl, octMark, text: sylText, con, verses, ssuLen, slurred };
     }
 
     /**
@@ -672,9 +683,55 @@
             '.solfa-plane:not(.slur-js) .solfa-cell.solfa-slur-start::after{left:0.3em;}' +
             '.solfa-plane:not(.slur-js) .solfa-cell.solfa-slur-end::after{right:0.3em;}' +
             '.solfa-plane:not(.slur-js) .solfa-cell.solfa-slur-single::after{left:0.3em;right:0.3em;}' +
-            /* Invisible copy of a beat/sub-pulse prefix, used in the lyric row to
-               push a later syllable under its note without showing the marker. */
-            '.solfa-pre-spacer{visibility:hidden;}';
+            /* Lyrics use the site's sans stack so they read distinctly from the
+               monospace sol-fa. Setting it on the cell too means the ch-based
+               min-width below resolves in this same font. */
+            '.solfa-cell.solfa-word,.solfa-word-part{' +
+                'font-family:\'Open Sans\',Verdana,Tahoma,Arial,sans-serif;' +
+            '}' +
+            /* Each lyric syllable is its own inline-block so it can be measured and
+               slid under its note by alignLyrics(). Before that pass runs (or with
+               JS off) syllables simply sit left-to-right, kept apart by a margin. */
+            '.solfa-word-part{display:inline-block;white-space:nowrap;}' +
+            '.solfa-word-part + .solfa-word-part{margin-left:0.3em;}' +
+            /* Each note+marker is an inline-block so alignLyrics can shift it
+               under its syllable. */
+            '.solfa-notegroup{display:inline-block;}' +
+            /* Paginate instead of scroll: clip the viewport; paginateSolfa moves
+               the plane one page at a time. (overflow:hidden keeps the container
+               at content height, so only the horizontal overflow is clipped.) */
+            '.solfa-scroll{overflow:hidden;}' +
+            '.solfa-plane{transition:transform 0.15s ease;}' +
+            /* Playback highlight: red, matching Verovio's currently-playing. */
+            '.solfa-playing,.solfa-playing .solfa-syl{color:#ff0000;}' +
+            /* Give every measure line breathing room on both sides so notes and
+               lyrics sit clear of it; the columns widen to make the space. The
+               next-cell selector works because barlines are the previous cell's
+               right border (there is no separate barline cell). */
+            '.solfa-table td.solfa-bar-end{padding-right:0.55em;}' +
+            '.solfa-table td.solfa-bar-end + td{padding-left:0.55em;}' +
+            /* Double bar (MEI @right="dbl"): two thin lines, e.g. a section end.
+               Wider padding than a single line, since the mark itself is thicker. */
+            '.solfa-table td.solfa-bar-dbl{position:relative;padding-right:0.85em;}' +
+            '.solfa-table td.solfa-bar-dbl + td{padding-left:0.85em;}' +
+            '.solfa-table td.solfa-bar-dbl::after{' +
+                'content:"";position:absolute;top:0;bottom:0;right:0;width:4px;pointer-events:none;' +
+                'background:linear-gradient(to right,' +
+                    '#333 0,#333 1.5px,' +           /* first thin line */
+                    'transparent 1.5px,transparent 2.5px,' + /* gap */
+                    '#333 2.5px,#333 4px);' +        /* second thin line */
+            '}' +
+            /* Final (end-of-piece) barline (MEI @right="end"): a thin inner line
+               and a thicker outer line at the last cell's right edge, drawn per row
+               so it runs the full height of the system. */
+            '.solfa-table td.solfa-bar-final{position:relative;padding-right:0.85em;}' +
+            '.solfa-table td.solfa-bar-final::after{' +
+                'content:"";position:absolute;top:0;bottom:0;right:0;width:5px;pointer-events:none;' +
+                'background:linear-gradient(to right,' +
+                    '#333 0,#333 1.5px,' +           /* thin inner line */
+                    'transparent 1.5px,transparent 3px,' + /* gap */
+                    '#333 3px,#333 5px);' +          /* thick outer line */
+            '}';
 
         const styleEl = document.createElement('style');
         styleEl.id = 'solfa-slur-runstyle';
@@ -803,21 +860,394 @@
     }
 
     /**
-     * Schedule the overlay pass after layout, after fonts load, and register
-     * one-time resize / print redraw handlers.
+     * Slide each lyric syllable under its note after layout.
+     *
+     * The lyric row cannot line up with the sol-fa row by CSS alone: the note
+     * sits after a beat prefix that renders at a different font size in the two
+     * rows, so no fixed spacer can match it, and a beat may hold several notes of
+     * unequal width. Instead each syllable carries its note's id, so here we
+     * measure the note's sol-fa letter and translate the syllable so it is
+     * centred under that letter. A syllable is never pulled left over its
+     * neighbour: within each lyric row the syllables are placed left to right and
+     * clamped to at least a small gap past the previous one, which keeps
+     * subdivided beats (two close syllables) legible instead of overlapping.
+     *
+     * Measurement is batched (reset, then read, then write) to avoid layout
+     * thrash, and the pass is idempotent, so it is safe to re-run on resize,
+     * after fonts load, and before printing.
+     *
+     * @param {Element} root – container holding the rendered sol-fa
+     */
+    function alignLyrics(root) {
+        if (!root || typeof root.querySelectorAll !== 'function') return;
+        const GAP  = 4;   // px minimum gap between adjacent items
+        const EDGE = 4;   // px minimum clearance from a barline
+
+        // Reset every previous shift (note groups and syllables) so we measure
+        // natural positions this pass.
+        Array.prototype.forEach.call(root.querySelectorAll('.solfa-notegroup'), function (g) { g.style.transform = ''; });
+        Array.prototype.forEach.call(root.querySelectorAll('.solfa-word-part'),  function (p) { p.style.transform = ''; });
+
+        // Stanza rows that actually carry lyrics.
+        const stanzaRows = Array.prototype.filter.call(
+            root.querySelectorAll('.solfa-row-text'),
+            function (row) { return row.querySelector('.solfa-word-part[data-note-id]'); }
+        );
+        if (!stanzaRows.length) return;
+
+        // Group stanza rows by the pitch row (voice) whose notes they set, so each
+        // voice is solved independently. All stanzas of a voice share its notes, so
+        // the notes must spread to fit the WIDEST stanza; each stanza then anchors
+        // under them.
+        const byPitch = [];   // [{ pitchRow, rows: [...] }]
+        stanzaRows.forEach(function (row) {
+            const wp   = row.querySelector('.solfa-word-part[data-note-id]');
+            const note = wp ? document.getElementById('solfa-note-' + wp.getAttribute('data-note-id')) : null;
+            const pr   = note ? note.closest('.solfa-row-pitch') : null;
+            if (!pr) return;
+            let entry = null;
+            for (let i = 0; i < byPitch.length; i++) { if (byPitch[i].pitchRow === pr) { entry = byPitch[i]; break; } }
+            if (!entry) { entry = { pitchRow: pr, rows: [] }; byPitch.push(entry); }
+            entry.rows.push(row);
+        });
+
+        byPitch.forEach(function (voice) {
+            const pitchRow = voice.pitchRow;
+            const rows     = voice.rows;
+
+            // Barlines for this voice, each with the drawn width of its line, so a
+            // lyric clears the actual mark rather than a notional hairline. A
+            // single line is a 1.5px right border; a double bar draws ~4px and a
+            // final bar ~5px inward from the cell's right edge (see the injected
+            // CSS), so those need correspondingly more room.
+            const rowRect  = pitchRow.getBoundingClientRect();
+            const barlines = Array.prototype.map.call(
+                pitchRow.querySelectorAll('td.solfa-bar-end, td.solfa-bar-dbl, td.solfa-bar-final'),
+                function (td) {
+                    const w = td.classList.contains('solfa-bar-final') ? 5
+                            : td.classList.contains('solfa-bar-dbl')   ? 4
+                            : 1.5;
+                    return { x: td.getBoundingClientRect().right, w: w };
+                }
+            );
+            // Right bound: the leftmost barline at or after x, pulled back by the
+            // line's width plus the standard clearance.
+            function rightBoundFor(x) {
+                let b = rowRect.right;
+                for (let i = 0; i < barlines.length; i++) {
+                    const bl = barlines[i];
+                    if (bl.x >= x - 1) {
+                        const edge = bl.x - bl.w;      // where the drawn mark begins
+                        if (edge < b) b = edge;
+                    }
+                }
+                return b;
+            }
+            // Left bound: the rightmost barline at or before x. The mark sits in
+            // the previous cell, so the next cell starts clear of it already.
+            function leftBoundFor(x) {
+                let b = rowRect.left;
+                for (let i = 0; i < barlines.length; i++) {
+                    if (barlines[i].x <= x + 1 && barlines[i].x > b) b = barlines[i].x;
+                }
+                return b;
+            }
+
+            // Per-stanza lookup: note id -> its word-part in that stanza row.
+            const rowMaps = rows.map(function (r) {
+                const m = {};
+                Array.prototype.forEach.call(r.querySelectorAll('.solfa-word-part[data-note-id]'),
+                    function (wp) { m[wp.getAttribute('data-note-id')] = wp; });
+                return m;
+            });
+
+            // Ordered list of syllable-bearing notes, each with every stanza's
+            // syllable and the widest of them.
+            const seq = [];
+            Array.prototype.forEach.call(pitchRow.querySelectorAll('.solfa-notegroup'), function (group) {
+                const note = group.querySelector('.solfa-note[data-note-id]');
+                if (!note) return;
+                const id = note.getAttribute('data-note-id');
+                const sylParts = [];
+                let maxW = 0;
+                rowMaps.forEach(function (m) {
+                    const wp = m[id];
+                    if (!wp) return;
+                    const wr = wp.getBoundingClientRect();
+                    sylParts.push({ wp: wp, left: wr.left });
+                    if (wr.width > maxW) maxW = wr.width;
+                });
+                if (!sylParts.length) return;   // note with no lyric: leave it in place
+                const glyph = note.querySelector('.solfa-syl') || note;
+                const gr    = glyph.getBoundingClientRect();
+                const cell  = note.closest('td');
+                const cr    = cell ? cell.getBoundingClientRect() : gr;
+                seq.push({
+                    group: group, glyphLeft: gr.left, maxW: Math.max(maxW, gr.width), sylParts: sylParts,
+                    leftBound:  leftBoundFor(cr.left)  + EDGE,
+                    rightBound: rightBoundFor(cr.right) - EDGE,
+                });
+            });
+
+            // Target x for each note: keep natural order, don't let the widest
+            // stanza's syllable overlap the previous note's slot, and keep it
+            // inside the barlines (the hard constraint).
+            let prevRight = -Infinity;
+            seq.forEach(function (it) {
+                let T = Math.max(it.glyphLeft, prevRight + GAP, it.leftBound);
+                const maxT = it.rightBound - it.maxW;   // widest stanza stays inside the line
+                if (T > maxT) T = maxT;
+                if (T < it.leftBound) T = it.leftBound;
+                it.T = T;
+                prevRight = T + it.maxW;
+            });
+
+            // Apply: move each note group to its target, and every stanza's
+            // syllable for that note to the same x, so all stanzas line up under it
+            // and the note sits above them (opening the "m .,m" space where a later
+            // note in a subdivided beat has to travel to reach its word).
+            seq.forEach(function (it) {
+                const dNote = it.T - it.glyphLeft;
+                if (Math.abs(dNote) > 0.5) it.group.style.transform = 'translateX(' + dNote + 'px)';
+                it.sylParts.forEach(function (sp) {
+                    const dSyl = it.T - sp.left;
+                    if (Math.abs(dSyl) > 0.5) sp.wp.style.transform = 'translateX(' + dSyl + 'px)';
+                });
+            });
+        });
+    }
+
+    /* ── Pagination ──────────────────────────────────────────────────────── */
+    /*
+     * The sol-fa is one wide table inside .solfa-plane, clipped by .solfa-scroll
+     * (overflow hidden, injected below). Rather than scroll, we translate the
+     * plane to show one page at a time, a page being the run of whole measures
+     * that fits the viewport width — the same idea as Verovio's paging. The
+     * first / prev / next controls drive it (wired at the end of this file).
+     */
+    let solfaPageOffsets = [0];   // x-offset (px, within the plane) of each page start
+    let solfaPageIndex   = 0;
+
+    function solfaEls(container) {
+        const root = container || document.getElementById('svg_output');
+        if (!root || typeof root.querySelector !== 'function') return null;
+        const scroll = root.querySelector('.solfa-scroll');
+        const plane  = root.querySelector('.solfa-plane');
+        return (scroll && plane) ? { scroll: scroll, plane: plane } : null;
+    }
+
+    /** Translate the plane so page k sits at the left edge of the viewport. */
+    function showSolfaPage(k, plane) {
+        if (!plane) { const e = solfaEls(); plane = e ? e.plane : null; }
+        if (!plane || !solfaPageOffsets.length) return;
+        if (k < 0) k = 0;
+        if (k >= solfaPageOffsets.length) k = solfaPageOffsets.length - 1;
+        solfaPageIndex = k;
+        plane.style.transform = 'translateX(' + (-solfaPageOffsets[k]) + 'px)';
+    }
+
+    /** Recompute page boundaries for the current layout and re-show the page. */
+    function paginateSolfa(container) {
+        const els = solfaEls(container);
+        if (!els) { solfaPageOffsets = [0]; solfaPageIndex = 0; return; }
+
+        const W = els.scroll.clientWidth;
+        if (!W) { solfaPageOffsets = [0]; showSolfaPage(0, els.plane); return; }
+
+        // Measure boundaries relative to the plane's own left edge (so the current
+        // page transform, which shifts both, does not matter): the start (0), each
+        // barline (bar-end right), and the plane's right edge. Columns are shared,
+        // so the first pitch row's bar-ends give the x-positions for every row.
+        const planeLeft = els.plane.getBoundingClientRect().left;
+        const bounds = [0];
+        const pitchRow = els.plane.querySelector('.solfa-row-pitch');
+        if (pitchRow) {
+            Array.prototype.forEach.call(pitchRow.querySelectorAll('td.solfa-bar-end, td.solfa-bar-dbl, td.solfa-bar-final'), function (td) {
+                bounds.push(td.getBoundingClientRect().right - planeLeft);
+            });
+        }
+        bounds.push(els.plane.scrollWidth);
+        bounds.sort(function (a, b) { return a - b; });
+
+        // Pack whole measures into pages no wider than the viewport. A single
+        // measure wider than the viewport gets its own (overflowing) page.
+        const offsets = [bounds[0]];
+        let start = bounds[0];
+        for (let i = 1; i < bounds.length; i++) {
+            if (bounds[i] - start > W + 1 && bounds[i - 1] > start) {
+                start = bounds[i - 1];
+                offsets.push(start);
+            }
+        }
+        solfaPageOffsets = offsets;
+        if (solfaPageIndex >= offsets.length) solfaPageIndex = offsets.length - 1;
+        if (solfaPageIndex < 0) solfaPageIndex = 0;
+        showSolfaPage(solfaPageIndex, els.plane);
+    }
+
+    /* ── Zoom ────────────────────────────────────────────────────────────── */
+    /*
+     * Zoom scales one base font-size on .solfa-output. Everything below it —
+     * pitch (1.15em), lyrics (0.82em), rhythm markers, octave marks, and the
+     * ch-based column widths — is relative, so it all scales together; re-running
+     * the layout passes then realigns and re-paginates at the new size. Each step
+     * is 4px on the base. The first / prev / next... zoom controls are wired at
+     * the end of this file.
+     */
+    let solfaZoomStep   = 0;      // each step = +/- 4px on the base font size
+    let solfaBaseFontPx = null;   // the un-zoomed base, captured once
+
+    function applySolfaZoomSize(container) {
+        const root = container || document.getElementById('svg_output');
+        if (!root || typeof root.querySelector !== 'function') return;
+        const output = root.querySelector('.solfa-output');
+        if (!output) return;
+        if (solfaBaseFontPx == null && typeof window !== 'undefined' && window.getComputedStyle) {
+            solfaBaseFontPx = parseFloat(window.getComputedStyle(output).fontSize) || 16;
+        }
+        const base = solfaBaseFontPx || 16;
+        let px = base + solfaZoomStep * 4;
+        if (px < 8)  px = 8;
+        if (px > 60) px = 60;
+        output.style.fontSize = px + 'px';
+    }
+
+    /** Run the post-layout passes: zoom size, lyric alignment, slurs, pagination. */
+    function refreshSolfaOverlays(container) {
+        applySolfaZoomSize(container);   // set the current zoom size before measuring
+        alignLyrics(container);
+        drawSlurOverlays(container);
+        paginateSolfa(container);
+    }
+
+    /* ── Playback highlighting ───────────────────────────────────────────── */
+    /*
+     * Highlight the sounding sol-fa syllable(s) and their lyrics during MIDI
+     * playback, in sync with Verovio. The app drives Verovio's highlighter every
+     * animation frame from a timemap (playback time -> note ids); we augment that
+     * (below) to also highlight the sol-fa. Because every sol-fa note span, held
+     * continuation cell, and lyric syllable carries data-note-id = the MEI xml:id,
+     * one lookup per id lights the syllable and all its stanzas' words together,
+     * and a held note stays lit through its sustain.
+     */
+    let solfaHlMap    = null;          // Map<xml:id, Element[]> for the current render
+    let solfaHlFor    = null;          // the .solfa-output the map was built for
+    let solfaHlActive = new Set();     // xml:ids currently highlighted
+    let solfaTimemap  = null;          // captured from setTimemap() (see augment below)
+
+    // The timemap: prefer the copy we capture from the app's setTimemap() call
+    // (robust, no cross-script variable access), and fall back to the shared
+    // global if for some reason we have not captured one yet.
+    function currentTimemap() {
+        if (solfaTimemap && solfaTimemap.length) return solfaTimemap;
+        try {
+            if (typeof timemap !== 'undefined' && timemap && timemap.length) return timemap;
+        } catch (e) { /* timemap not reachable */ }
+        return null;
+    }
+
+    function buildSolfaHlMap() {
+        const out = document.querySelector('#svg_output .solfa-output');
+        if (!out) { solfaHlMap = null; solfaHlFor = null; solfaHlActive = new Set(); return; }
+        if (out === solfaHlFor && solfaHlMap) return;   // still current
+        const map = new Map();
+        Array.prototype.forEach.call(out.querySelectorAll('[data-note-id]'), function (el) {
+            const id = el.getAttribute('data-note-id');
+            if (!map.has(id)) map.set(id, []);
+            map.get(id).push(el);
+        });
+        solfaHlMap    = map;
+        solfaHlFor    = out;
+        solfaHlActive = new Set();
+    }
+
+    function setSolfaId(id, on) {
+        const els = solfaHlMap && solfaHlMap.get(id);
+        if (!els) return;
+        for (let i = 0; i < els.length; i++) {
+            if (on) els[i].classList.add('solfa-playing');
+            else    els[i].classList.remove('solfa-playing');
+        }
+    }
+
+    /** Highlight the notes sounding at playback time t (ms), un-highlight the rest. */
+    function highlightSolfaAtTime(t) {
+        const tm = currentTimemap();
+        if (!tm) return;
+        buildSolfaHlMap();
+        if (!solfaHlMap) return;
+
+        // Notes sounding at t: turned on at some tstamp <= t and not yet off.
+        const sounding = new Set();
+        for (let i = 0; i < tm.length; i++) {
+            const e = tm[i];
+            if (e.tstamp > t) break;                 // timemap is time-ordered
+            if (e.off) e.off.forEach(function (id) { sounding.delete(id); });
+            if (e.on)  e.on .forEach(function (id) { sounding.add(id); });
+        }
+
+        // Diff against what is currently lit.
+        solfaHlActive.forEach(function (id) { if (!sounding.has(id)) setSolfaId(id, false); });
+        sounding.forEach(function (id) { if (!solfaHlActive.has(id)) setSolfaId(id, true); });
+        solfaHlActive = sounding;
+
+        // Auto-advance the page to follow playback (like Verovio's page turns).
+        followSolfaPage(sounding);
+    }
+
+    /**
+     * During playback, turn to the sol-fa page holding the furthest-progressed
+     * sounding note, so the notation follows the music. The rightmost sounding
+     * note is the leading edge, and the moment a note on the next page sounds the
+     * page turns to it. Sol-fa pages are independent of Verovio's, so this is
+     * driven by the notes themselves, not by Verovio's page number.
+     */
+    function followSolfaPage(sounding) {
+        if (!solfaPageOffsets || solfaPageOffsets.length <= 1) return;  // single page
+        const els = solfaEls();
+        if (!els) return;
+        const planeLeft = els.plane.getBoundingClientRect().left;   // reflects the page transform
+        let maxX = -Infinity;
+        sounding.forEach(function (id) {
+            const el = document.getElementById('solfa-note-' + id);
+            if (!el) return;
+            const x = el.getBoundingClientRect().left - planeLeft;  // natural offset within the plane
+            if (x > maxX) maxX = x;
+        });
+        if (maxX === -Infinity) return;   // no sounding note is drawn in the sol-fa
+        let k = 0;
+        for (let i = 0; i < solfaPageOffsets.length; i++) {
+            if (solfaPageOffsets[i] <= maxX + 1) k = i;
+        }
+        if (k !== solfaPageIndex) showSolfaPage(k, els.plane);
+    }
+
+    /** Clear every sol-fa playback highlight (called when playback stops). */
+    function clearSolfaHighlights() {
+        const out = document.querySelector('#svg_output .solfa-output');
+        if (out) {
+            Array.prototype.forEach.call(out.querySelectorAll('.solfa-playing'),
+                function (el) { el.classList.remove('solfa-playing'); });
+        }
+        solfaHlActive = new Set();
+    }
+
+    /**
+     * Schedule the post-layout passes after layout, after fonts load, and
+     * register one-time resize / print redraw handlers.
      */
     function scheduleSlurOverlays(container) {
         if (!container) return;
 
         if (typeof requestAnimationFrame === 'function') {
-            requestAnimationFrame(function () { drawSlurOverlays(container); });
+            requestAnimationFrame(function () { refreshSolfaOverlays(container); });
         } else {
-            drawSlurOverlays(container);
+            refreshSolfaOverlays(container);
         }
 
         if (typeof document !== 'undefined' && document.fonts && document.fonts.ready &&
             typeof document.fonts.ready.then === 'function') {
-            document.fonts.ready.then(function () { drawSlurOverlays(container); });
+            document.fonts.ready.then(function () { refreshSolfaOverlays(container); });
         }
 
         if (!global.__solfaOverlayListeners && typeof window !== 'undefined' && window.addEventListener) {
@@ -825,7 +1255,7 @@
             let rafId = null;
             const redraw = function () {
                 const c = document.getElementById('svg_output');
-                if (c && global.globalSolfaMode) drawSlurOverlays(c);
+                if (c && global.globalSolfaMode) refreshSolfaOverlays(c);
             };
             window.addEventListener('resize', function () {
                 if (rafId && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(rafId);
@@ -922,6 +1352,19 @@
             if (s && e) slurPairs.push([s, e]);
         });
 
+        /* Collect the distinct verse (stanza) numbers present, in numeric order,
+           so each stanza can be rendered on its own lyric line. */
+        const verseNums = [];
+        (function () {
+            const seen = {};
+            Array.prototype.forEach.call(doc.querySelectorAll('verse'), function (v) {
+                const vn = v.getAttribute('n') || '1';
+                if (!seen[vn]) { seen[vn] = true; verseNums.push(vn); }
+            });
+            verseNums.sort(function (a, b) { return (parseInt(a, 10) || 0) - (parseInt(b, 10) || 0); });
+            if (!verseNums.length) verseNums.push('1');
+        })();
+
         /* Discover voice parts */
         const voices = discoverVoices(doc, staffDefs);
         if (voices.length === 0) {
@@ -971,13 +1414,27 @@
             });
         });
 
+        /* Barline type at the right of each measure, from MEI @right. This drives
+         * whether a measure boundary is drawn as a single line, a double bar
+         * (dbl), or a final/end bar (end). Absent maps to a single line, except
+         * the very last measure, which defaults to a final bar by convention. */
+        const measureRight = allMeasures.map(m => (m.getAttribute('right') || '').toLowerCase());
+        const finalBarType = measureRight.length ? measureRight[measureRight.length - 1] : '';
+
+        function barlineClass(type, isLast) {
+            if (type === 'dbl') return 'solfa-bar-dbl';                             // double bar
+            if (type === 'end' || type === 'rptend' || type === 'rptboth') return 'solfa-bar-final'; // final bar
+            if (type === 'single') return 'solfa-bar-end';                          // explicit single
+            return isLast ? 'solfa-bar-final' : 'solfa-bar-end';                    // absent: last -> final
+        }
+
         /* Convert per-bar cell arrays into flat display-item arrays.
          * Each bar contributes exactly meterInfo.beatsPerBar beat-slot items.
          * Beat-position prefix characters are embedded inside each slot. */
         const voiceItems = voiceBars.map(bars => {
             const items = [];
             bars.forEach((barCells, bi) => {
-                if (bi > 0) items.push({ type: 'bar' });
+                if (bi > 0) items.push({ type: 'bar', barType: measureRight[bi - 1] || '' });
                 expandToBeatGrid(barCells, meterInfo).forEach(cell => items.push(cell));
             });
             return items;
@@ -987,11 +1444,37 @@
         const titleEl = doc.querySelector('titleStmt > title') || doc.querySelector('title');
         const title   = titleEl ? titleEl.textContent.trim() : '';
 
-        /* Heading: fundamental note and whether it is Doh or La */
+        /* Heading: fundamental note (Doh, or La for minor) and key name.
+         *
+         * The score can be transposed via the Verovio transpose control (semitones
+         * in the shared global trInterval). In movable-doh sol-fa the syllables and
+         * octave marks are transposition-invariant, so the notation itself does not
+         * change — only this label moves: the sounding key, and Doh (or La) with
+         * it, shift by trInterval. At trInterval 0 we keep the exact key-signature
+         * spelling; once transposed we name the shifted pitch class from a neutral
+         * table (a sensible enharmonic default rather than Verovio's exact
+         * respelling). trInterval is read defensively: it is undefined outside the
+         * app (e.g. in tests), in which case there is no transposition. */
+        const trSemis = (function () {
+            if (typeof trInterval !== 'undefined' && trInterval != null) {
+                const v = parseInt(trInterval, 10);
+                return isNaN(v) ? 0 : v;
+            }
+            return 0;
+        })();
+        const laPc        = ((doh - LA_BELOW_DOH) % 12 + 12) % 12;
+        const baseTonicPc = isMinor ? laPc : doh;
         const fundamental = isMinor ? 'La' : 'Doh';
-        const fundamentalNote = isMinor
-            ? ALL_NOTE_NAMES[((doh - LA_BELOW_DOH) % 12 + 12) % 12]  // La = LA_BELOW_DOH semitones below Doh
-            : dohLetterName(keySig);
+
+        let fundamentalNote, keyDisplayName;
+        if (trSemis === 0) {
+            fundamentalNote = isMinor ? ALL_NOTE_NAMES[laPc] : dohLetterName(keySig);
+            keyDisplayName  = buildKeyName(keySig, modeAttr);
+        } else {
+            const tPc = ((baseTonicPc + trSemis) % 12 + 12) % 12;
+            fundamentalNote = ALL_NOTE_NAMES[tPc];
+            keyDisplayName  = ALL_NOTE_NAMES[tPc] + '\u00a0' + (isMinor ? 'minor' : 'major');
+        }
 
         /* Detect pickup: if the first beat of the first voice has beatPrefix ':',
          * the piece begins with an anacrusis (pickup bar). */
@@ -1005,7 +1488,7 @@
         if (title) H.push('<h2 class="solfa-title">' + esc(title) + '</h2>');
 
         H.push(
-            '<p class="solfa-meta">Key:\u00a0<strong>' + esc(buildKeyName(keySig, modeAttr)) + '</strong>' +
+            '<p class="solfa-meta">Key:\u00a0<strong>' + esc(keyDisplayName) + '</strong>' +
             '\u2003' + esc(fundamental) + '\u00a0=\u00a0<strong>' + esc(fundamentalNote) + '</strong></p>'
         );
 
@@ -1032,8 +1515,16 @@
             /* ---- Sol-fa (pitch) row ---- */
             // Pre-compute which item indices immediately precede a bar marker
             // (those beat cells get a right border to form the measure barline)
-            const barEndSet = new Set();
-            items.forEach((it, idx) => { if (it.type === 'bar') barEndSet.add(idx - 1); });
+            // Map each measure-boundary cell to its barline class, taken from the
+            // MEI @right carried on the bar items; the last cell of the piece takes
+            // the final barline.
+            const barClassAt = {};
+            items.forEach((it, idx) => {
+                if (it.type === 'bar') barClassAt[idx - 1] = barlineClass(it.barType, false);
+            });
+            let finalIdx = -1;
+            for (let i = items.length - 1; i >= 0; i--) { if (items[i].type !== 'bar') { finalIdx = i; break; } }
+            if (finalIdx >= 0) barClassAt[finalIdx] = barlineClass(finalBarType, true);
 
             // Group consecutive slurred cells into runs and record each cell's
             // role (start | mid | end | single) so the underline can be drawn
@@ -1076,7 +1567,7 @@
                 if (item.type === 'bar') {
                     return; // barline is rendered as a right border on the preceding beat cell
                 }
-                const barEnd = barEndSet.has(idx) ? ' solfa-bar-end' : '';
+                const barEnd = barClassAt[idx] ? (' ' + barClassAt[idx]) : '';
                 const barStart = (!hasPickup && idx === 0) ? ' solfa-bar-start' : '';
                 if (item.type === 'held') {
                     const pre  = item.beatPrefix
@@ -1100,28 +1591,35 @@
                         const subPre = subPrefix
                             ? '<span class="solfa-beat-pre" aria-hidden="true">' + esc(subPrefix) + '</span>'
                             : '';
+                        // Each note travels with its rhythm marker inside a
+                        // notegroup. alignLyrics may shift the group so the note
+                        // sits under its (wider) syllable; the shift opens the
+                        // space between the previous note and this marker, e.g.
+                        // "m .,m" instead of "m.,m".
                         if (cell.type === 'rest') {
-                            inner += subPre + '<span class="solfa-rest">\u2013</span>';
+                            inner += '<span class="solfa-notegroup">' + subPre +
+                                     '<span class="solfa-rest">\u2013</span></span>';
                         } else {
                             let noteContent = '<span class="solfa-syl">' + esc(cell.solfa) + '</span>';
                             if (cell.octMark && cell.octMark.text) {
                                 noteContent += '<span class="' + esc(cell.octMark.cls) + '" aria-hidden="true">' +
                                                esc(cell.octMark.text) + '</span>';
                             }
-                            // Wrap each note in a span that carries its MEI xml:id.
-                            // The unique id (prefixed so it is valid and cannot
-                            // collide with Verovio's SVG ids) lets slur startid/
-                            // endid resolve straight to the DOM, and lets playback
-                            // highlight the sounding note. A beat can hold more than
-                            // one note, which is why the id lives on the note span
-                            // rather than the cell.
+                            // The note span carries its MEI xml:id (prefixed so it is
+                            // valid and cannot collide with Verovio's SVG ids) so
+                            // slur startid/endid resolve to the DOM, playback can
+                            // highlight the sounding note, and the lyric/note
+                            // alignment can pair them. A beat can hold more than one
+                            // note, which is why the id lives on the note span.
+                            let noteSpan;
                             if (cell.id) {
                                 cellNoteIds.push(cell.id);
-                                inner += subPre + '<span class="solfa-note" id="solfa-note-' + esc(cell.id) +
-                                         '" data-note-id="' + esc(cell.id) + '">' + noteContent + '</span>';
+                                noteSpan = '<span class="solfa-note" id="solfa-note-' + esc(cell.id) +
+                                           '" data-note-id="' + esc(cell.id) + '">' + noteContent + '</span>';
                             } else {
-                                inner += subPre + noteContent;
+                                noteSpan = noteContent;
                             }
+                            inner += '<span class="solfa-notegroup">' + subPre + noteSpan + '</span>';
                         }
                     });
                     // List every note id in this cell for quick cell-level lookup.
@@ -1134,55 +1632,64 @@
             });
             H.push('</tr>');
 
-            /* ---- Text (lyric) row ---- */
-            H.push('<tr class="solfa-row-text">');
-            items.forEach((item, idx) => {
-                if (item.type === 'bar') {
-                    return; // barline rendered via right border on preceding cell
-                }
-                const barEnd = barEndSet.has(idx) ? ' solfa-bar-end' : '';
-                const barStart = (!hasPickup && idx === 0) ? ' solfa-bar-start' : '';
-                if (item.type === 'held') {
-                    H.push('<td class="solfa-cell' + barEnd + barStart + '"></td>');
-                } else {
-                    // Render EVERY syllable in the beat, not just the first. A
-                    // subdivided beat can carry more than one syllable (e.g. two
-                    // eighth notes on two words); taking only the first dropped the
-                    // rest. Notes without a syllable (a melisma continuation)
-                    // contribute nothing. Each note's sub-pulse prefix is mirrored
-                    // as an invisible spacer so syllables sit roughly under their
-                    // notes, and the beat stays one column, so the grid shared with
-                    // every other voice is left untouched.
-                    const texted = item.notes.filter(n => n.cell.type !== 'rest' && (n.cell.text || '') !== '');
-                    if (texted.length === 0) {
+            /* ---- Text (lyric) rows: one per stanza ---- */
+            verseNums.forEach((vn) => {
+                // Skip the row entirely if this voice has no words for this stanza
+                // (e.g. inner SATB parts that carry no lyric).
+                let hasAny = false;
+                items.forEach((item) => {
+                    if (item.type !== 'multi') return;
+                    item.notes.forEach(({ cell }) => {
+                        if (cell.type === 'rest' || !cell.verses) return;
+                        const v = cell.verses[vn];
+                        if (v && v.text) hasAny = true;
+                    });
+                });
+                if (!hasAny) return;
+
+                H.push('<tr class="solfa-row-text" data-verse="' + esc(vn) + '">');
+                items.forEach((item, idx) => {
+                    if (item.type === 'bar') return;
+                    const barEnd = barClassAt[idx] ? (' ' + barClassAt[idx]) : '';
+                    const barStart = (!hasPickup && idx === 0) ? ' solfa-bar-start' : '';
+                    if (item.type === 'held') {
                         H.push('<td class="solfa-cell' + barEnd + barStart + '"></td>');
-                    } else if (texted.length === 1) {
-                        // Single syllable: unchanged rendering.
-                        const c = texted[0].cell;
-                        const dash = (c.con === 'd') ? '-' : '';
-                        H.push('<td class="solfa-cell solfa-word' + barEnd + barStart + '">' +
-                               esc(c.text) + dash + '</td>');
                     } else {
-                        // Multiple syllables in one beat.
+                        // One lyric span per syllable in this stanza, each tagged
+                        // with its note id so the post-layout pass aligns it under
+                        // that note. Notes without a syllable in this stanza (or a
+                        // melisma) contribute nothing.
                         let inner = '';
-                        item.notes.forEach(({ subPrefix, cell }) => {
+                        let charCount = 0;
+                        let sylCount  = 0;
+                        item.notes.forEach(({ cell }) => {
                             if (cell.type === 'rest') return;
-                            const spacer = subPrefix
-                                ? '<span class="solfa-beat-pre solfa-pre-spacer" aria-hidden="true">' + esc(subPrefix) + '</span>'
-                                : '';
-                            const t = cell.text || '';
-                            if (t) {
-                                const dash = (cell.con === 'd') ? '-' : '';
-                                inner += spacer + '<span class="solfa-word-part">' + esc(t) + dash + '</span>';
-                            } else {
-                                inner += spacer;
-                            }
+                            const v = (cell.verses && cell.verses[vn]) || null;
+                            const t = v ? v.text : '';
+                            if (!t) return;
+                            const dash = (v.con === 'd') ? '-' : '';
+                            charCount += t.length + dash.length;
+                            sylCount  += 1;
+                            const idAttr = cell.id ? ' data-note-id="' + esc(cell.id) + '"' : '';
+                            inner += '<span class="solfa-word-part"' + idAttr + '>' + esc(t) + dash + '</span>';
                         });
-                        H.push('<td class="solfa-cell solfa-word' + barEnd + barStart + '">' + inner + '</td>');
+                        if (inner) {
+                            // Reserve column width from this stanza's lyric length
+                            // in ch units. With the sans lyric font this is an
+                            // estimate rather than exact (characters vary in width),
+                            // but it only sets the initial column size: the actual
+                            // placement is measured at runtime by alignLyrics, so a
+                            // rough reservation is fine. The +2 gives a little slack.
+                            const units = charCount + Math.max(0, sylCount - 1) + 2;
+                            const widthStyle = ' style="min-width:' + units + 'ch"';
+                            H.push('<td class="solfa-cell solfa-word' + barEnd + barStart + '"' + widthStyle + '>' + inner + '</td>');
+                        } else {
+                            H.push('<td class="solfa-cell' + barEnd + barStart + '"></td>');
+                        }
                     }
-                }
+                });
+                H.push('</tr>');
             });
-            H.push('</tr>');
 
             /* Vertical spacer between voice parts (not after the last one) */
             if (vi < voices.length - 1) {
@@ -1191,7 +1698,7 @@
                     if (item.type === 'bar') {
                         return; // barline rendered via right border on preceding cell
                     }
-                    const barEnd = barEndSet.has(idx) ? ' solfa-bar-end' : '';
+                    const barEnd = barClassAt[idx] ? (' ' + barClassAt[idx]) : '';
                     const barStart = (!hasPickup && idx === 0) ? ' solfa-bar-start' : '';
                     const cls = (barEnd || barStart) ? ' class="' + (barEnd + barStart).trim() + '"' : '';
                     H.push('<td' + cls + '></td>');
@@ -1252,6 +1759,7 @@
 
         global.globalSolfaMode = true;
         container.innerHTML = renderSolfa(xml);
+        solfaPageIndex = 0;   // start each newly rendered score on page 1
 
         const controls = document.getElementById('controls');
         if (controls) controls.classList.add('solfa-mode');
@@ -1297,4 +1805,109 @@
      *  (or redraw) the measured slur underlines. */
     global.drawSolfaSlurOverlays = drawSlurOverlays;
 
+    /** Exposed so callers can re-run lyric alignment (e.g. after a layout change). */
+    global.alignSolfaLyrics = alignLyrics;
+
+    /** Exposed so callers can (re)compute / jump sol-fa pages directly. */
+    global.paginateSolfa = paginateSolfa;
+    global.solfaShowPage = function (k) { showSolfaPage(k); };
+
+    /** Exposed so callers can drive sol-fa zoom directly (dir = +1 / -1 / 0=reapply). */
+    global.solfaZoom = function (dir) {
+        if (dir > 0 && solfaZoomStep < 10) solfaZoomStep++;
+        else if (dir < 0 && solfaZoomStep > -2) solfaZoomStep--;
+        refreshSolfaOverlays(document.getElementById('svg_output'));
+    };
+
+    /*
+     * Wire the existing first / prev / next (and last) page controls and the
+     * zoom in / out controls to sol-fa when sol-fa mode is active; otherwise fall
+     * through to the original Verovio handlers. The controls call these as globals
+     * via inline onclick, so replacing the globals is sufficient; app-dev.js loads
+     * first (both scripts are deferred and run in order), so the originals exist.
+     */
+    (function () {
+        if (typeof window === 'undefined') return;
+        function wrap(name, handler) {
+            const orig = window[name];
+            window[name] = function () {
+                if (global.globalSolfaMode) { return handler.call(this, orig); }
+                if (typeof orig === 'function') return orig.apply(this, arguments);
+            };
+        }
+        wrap('firstPage', function () { showSolfaPage(0); });
+        wrap('prevPage',  function () { showSolfaPage(solfaPageIndex - 1); });
+        wrap('nextPage',  function () { showSolfaPage(solfaPageIndex + 1); });
+        wrap('lastPage',  function () { showSolfaPage(solfaPageOffsets.length - 1); });
+        wrap('zoomIn',    function () { global.solfaZoom(1); });
+        wrap('zoomOut',   function () { global.solfaZoom(-1); });
+
+        // loadPage() is what paints the Verovio SVG into #svg_output, and it runs
+        // asynchronously from loadData (a requestAnimationFrame later), which is
+        // why a transpose click was painting Verovio over the sol-fa. Intercept it:
+        // in sol-fa mode, render the sol-fa instead of the Verovio SVG. This covers
+        // the async transpose paint and any other Verovio render attempt while
+        // sol-fa is showing; in Verovio mode it falls through untouched.
+        wrap('loadPage', function () {
+            if (typeof global.loadSolfaView === 'function') global.loadSolfaView();
+        });
+
+        // Transpose keeps its full Verovio behaviour (it retunes the loaded data,
+        // which is what a later audio-playback step will read), then we re-render
+        // the sol-fa. The notation is unchanged by transposition; only its Doh /
+        // key label moves, which renderSolfa picks up from the updated trInterval.
+        function transposeThenRefreshSolfa(orig) {
+            if (typeof orig === 'function') orig();               // Verovio transpose (display + playback)
+            if (typeof global.loadSolfaView === 'function') global.loadSolfaView(); // restore sol-fa with new Doh
+        }
+        wrap('trUp',   function (orig) { transposeThenRefreshSolfa(orig); });
+        wrap('trDown', function (orig) { transposeThenRefreshSolfa(orig); });
+
+        // Playback highlighting. The app calls highlightNotesAtMidiPlaybackTime()
+        // every animation frame during MIDI playback and unHighlightAllElements()
+        // when it stops. We *augment* both (run the original, then add sol-fa
+        // behaviour) rather than replace them, so Verovio highlighting is untouched
+        // and the sol-fa lights up from the same timemap and the same clock.
+        function augment(name, extra) {
+            const orig = window[name];
+            window[name] = function () {
+                let r;
+                try { if (typeof orig === 'function') r = orig.apply(this, arguments); } catch (e) {}
+                try { extra.apply(this, arguments); } catch (e) {}
+                return r;
+            };
+        }
+
+        // Capture the timemap whenever the app sets it, rather than relying on
+        // reading its module-level variable across scripts.
+        augment('setTimemap', function (tm) { solfaTimemap = (tm && tm.length) ? tm : []; });
+
+        // Current playback time (ms). The app's page-turn loop was deliberately
+        // switched from player.currentTime (unreliable) to a performance.now clock
+        // seeded at playback start; we use that same clock, falling back to
+        // player.currentTime only if it is unavailable.
+        function solfaPlaybackTime() {
+            try {
+                if (typeof playbackStartTime !== 'undefined' && playbackStartTime !== null) {
+                    const off = (typeof playbackStartOffset !== 'undefined') ? playbackStartOffset : 0;
+                    const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+                    return now - playbackStartTime + off;
+                }
+            } catch (e) { /* fall through */ }
+            const player = document.getElementById('verovio-midi-player');
+            return player ? player.currentTime * 1000 : 0;
+        }
+
+        augment('highlightNotesAtMidiPlaybackTime', function () {
+            if (!global.globalSolfaMode) return;
+            highlightSolfaAtTime(solfaPlaybackTime());
+        });
+        augment('unHighlightAllElements', function () { clearSolfaHighlights(); });
+    })();
+
+    /** Exposed so playback code / tests can drive sol-fa highlighting directly. */
+    global.highlightSolfaAtTime = highlightSolfaAtTime;
+    global.clearSolfaHighlights = clearSolfaHighlights;
+
 }(window));
+
