@@ -12,7 +12,7 @@
         if (metre === "CM" || metre === "LM" || metre === "SM") {
             return true;
         }
-        return /^(\d{1,2})([.\s]+\d{1,2})*$/.test(metre);
+        return /^(\d{1,2})([.\s]+\d{1,2})*[.\s]*$/.test(metre);
     }
 
     function validateText(text, fileName) {
@@ -29,7 +29,7 @@
         var lines = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n");
         var headerPattern = /^Psalm\s+(.+?)\s*(?:[^\w\s])?\s*\(([^)]+)\)\s*$/i;
         var verseStartPattern = /^\d+(?:[.)])?\s+.+$/;
-        var editionMetaPattern = /^\s*(Long Title|Short Title|Publisher|Date)\s*:\s*.*$/i;
+        var editionMetaPattern = /^\s*(Long Title|Short Title|Publisher|Date|Licence|License|Licence URI|License URI|Description|Source Description|Source Desc)\s*:\s*.*$/i;
 
         var headerIndices = [];
         var firstHeaderIndex = -1;

@@ -56,8 +56,8 @@ hr { display: block; height: 1px; border: 0; border-top: 1px solid #ccc; margin:
 iframe { border: 0; }
 
 *, :before, :after { box-sizing: border-box; }
-html { font-size: 1em; height: 100%; }
-body { font-family: 'Open Sans', Verdana, Tahoma, Arial, sans-serif; line-height: 1.6; text-align: left; color: #555555; background-color: #ffffff; height: 100%; text-rendering: optimizeLegibility !important; /*-webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;*/ }
+html { font-size: 1em; height: auto !important; }
+body { font-family: 'Open Sans', Verdana, Tahoma, Arial, sans-serif; line-height: 1.6; text-align: left; color: #555555; background-color: #ffffff; height: auto !important; overflow-x:hidden; text-rendering: optimizeLegibility !important; /*-webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;*/ }
 nav ul, nav ol, #nav ul, #navbar ul, #nav ol { list-style: none; list-style-image: none; margin: 0; padding: 0; }
 
 .cfix:after { content: ""; display: table; clear: both; }
@@ -67,10 +67,17 @@ nav ul, nav ol, #nav ul, #navbar ul, #nav ol { list-style: none; list-style-imag
 /* ----------------------------------------------------------------------------
 	Containers & Grid
 ----------------------------------------------------------------------------- */
-
 .tab-container {
     display: flex;
     flex-wrap: nowrap;   /* prevents wrapping */
+    width: 100%;
+    max-width: 900px;
+    margin: 0 auto;
+    position: -webkit-sticky; /* Support for Safari/iOS */
+    position: sticky;
+    top: 0;
+    z-index: 1001;
+    background-color: #555; 
 }
 .wrap { width: 100%; }
 .container, .row {
@@ -562,11 +569,18 @@ body {
     background-color: #eee;
 }
 
-.content {
+.content, .fixed-header{
     max-width: 900px;
-    margin: auto;
-    margin-top: -10px;
+    margin: 0 auto;
     padding: 10px 0px 10px 0px;
+    background-color: #fff;
+}
+
+.fixed-header {
+    position: relative; /* Changed from fixed */
+    width: 100%;
+    max-height: none;   /* Allow it to take up its natural space */
+    z-index: 1000;
     background-color: #fff;
 }
 
@@ -594,16 +608,17 @@ footer {
 
 /* Style tab links */
 .tablink {
-  background-color: #555;
-  color: white;
-  float: left;
-  border: none;
-  outline: none;
-  cursor: pointer;
-  padding: 14px 16px;
-  font-size: 16px;
-  width: 25%;
-  border-top: 2px solid #555;
+    width: 100% !important;
+    background-color: #555;
+    color: white;
+    border: none;
+    cursor: pointer;
+    padding: 14px 16px;
+    font-size: 16px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
 }
 
 .tablink:hover {
@@ -619,6 +634,11 @@ footer {
 .horizontal-center {
     text-align: center;
     margin: 20px 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap; 
+    gap: 20px;
 } 
 
 .btn_app {
@@ -755,17 +775,21 @@ h1 {
 
 /* Wrapper for tab buttons that have */
 .tab-dropdown {
-  position: relative;
-  flex: 1;
+    flex: 1 1 0% !important; /* Adding the % helps Safari/Chrome math */
+    max-width: 225px !important;
+    position: relative;
+    display: flex;
+    border-top: 2px solid #555;
+}
+
+.tab-dropdown:last-child .tab-submenu {
+    right: 0;
+    left: auto;
 }
 
 /* Ensure dropdown tabs behave like normal tabs */
 .tab-dropdown > .tablink {
-  width: 100%;
-}
-
-.tab-dropdown {
-    width:20%;
+  width: 100% !important;
 }
 
 /* Submenu container */
@@ -785,6 +809,7 @@ h1 {
   padding: 12px 16px;
   background: none;
   border: 0;
+  border-left: 5px solid transparent;
   text-align: left;
   font-family: inherit;
   font-size: 16px;
@@ -796,7 +821,7 @@ h1 {
 .tab-submenu button:hover {
   background-color: #777;
   color: #fff;
-  border-left: 3px solid #6fc252;
+  border-left: 5px solid #6fc252;
 }
 
 /* Desktop: reveal submenu on hover */
@@ -841,6 +866,83 @@ logo-link {
     justify-content:left;
 }
 
+.tab-container .tab-dropdown button {
+    width: 100% !important;
+}
+
+.tab-container .tab-dropdown .tablink {
+    width: 100% !important;
+    flex-grow: 1;
+}
+
 .st0 {
         fill: none;
-      }
+}
+
+.green-hover {
+    fill: #6fc252;
+}
+
+.body {
+    padding-top: 0;
+    height: auto;
+}
+
+.footbar {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    font-size:1.1em;
+    margin: 20px 0;
+}
+.footbar div 
+{
+    float: left;
+    margin: 0 10px;
+}
+
+.scrolled {
+  scroll-margin-top: 80px;
+}
+
+.content {
+    overflow: visible !important;
+    height:auto !important;
+}
+
+:target::before {
+    content: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 640'><path fill='%236fc252' d='M439.1 297.4C451.6 309.9 451.6 330.2 439.1 342.7L279.1 502.7C266.6 515.2 246.3 515.2 233.8 502.7C221.3 490.2 221.3 469.9 233.8 457.4L371.2 320L233.9 182.6C221.4 170.1 221.4 149.8 233.9 137.3C246.4 124.8 266.7 124.8 279.2 137.3L439.2 297.3z'/></svg>");
+    width: 35px;
+    height: 35px;
+    margin-right: 6px;
+    display: inline-block;
+    vertical-align: middle;
+    line-height: 1;
+    margin: 0.4em 0 0.5em 0;
+}
+
+.social-icon {
+    height: 30px;
+    vertical-align: middle;
+    fill: #555;
+    margin: 0 5px;
+}
+      
+@media (max-width: 720px) {
+  .tab-container > .tab-dropdown > button > .btn-label,
+  .tab-container > button > .btn-label {
+    display: none !important;
+  }
+  
+  .tab-container button {
+    padding: 10px 6px;
+  }
+  
+  .tab-submenu button {
+      margin-right:5px;
+  }
+  
+  .tab-submenu {
+    width:auto;
+  }
+}

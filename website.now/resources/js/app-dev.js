@@ -138,7 +138,11 @@ document.addEventListener("DOMContentLoaded", () => {
         paperSizeModal.style.display = 'none';
         const selectedSizeElement = document.querySelector('input[name="paperSize"]:checked');
         const selectedPaperSize = selectedSizeElement ? selectedSizeElement.value : 'LETTER';
-        await generatePDF(selectedPaperSize);
+        if (window.globalSolfaMode) {
+            await generateSolfaPDF(selectedPaperSize);
+        } else {
+            await generatePDF(selectedPaperSize);
+        }
     });
 
     // --- MIDI playback and highlight controls (mei-friend-inspired) ---
@@ -356,6 +360,7 @@ async function URLVariableFunction() {
     let psTune = params.get('psTune');
     const textOnly = params.get('textOnly') === 'true';
     const presentation = params.get('presentation') === 'on';
+    const solfa = params.get('solfa') === 'on';
 
     let selStanzasArr = null;
     if (selStanzas) {
@@ -369,13 +374,67 @@ async function URLVariableFunction() {
         return;
     }
 
-    renderPsalm({
-        teiID: teiID,
-        selStanzas: selStanzasArr,
-        psTune: psTune,
-        presentation: presentation,
-        autoGen: true
-    });
+    function proceedWithRender(solfaChoice) {
+        renderPsalm({
+            teiID: teiID,
+            selStanzas: selStanzasArr,
+            psTune: psTune,
+            presentation: presentation,
+            solfa: solfaChoice,
+            autoGen: true
+        });
+    }
+
+    if (solfa) {
+        // A shared link specifying solfa=on gets a confirmation step first,
+        // since the person opening it may not know (or want) sol-fa - they
+        // may just be expecting to see the psalm at all, in whichever
+        // notation. "Solfa" continues exactly as the link specified;
+        // "Staff" also updates the visible URL to solfa=off, so reloading
+        // or re-sharing from here on reflects their actual choice instead
+        // of asking again every time.
+        showNotationConfirmModal({
+            onSolfa: function () { proceedWithRender(true); },
+            onStaff: function () {
+                const updatedParams = new URLSearchParams(window.location.search);
+                updatedParams.set('solfa', 'off');
+                const newUrl = window.location.pathname + '?' + updatedParams.toString() + window.location.hash;
+                window.history.replaceState(null, '', newUrl);
+                proceedWithRender(false);
+            }
+        });
+    } else {
+        proceedWithRender(solfa);
+    }
+}
+
+// Shows the "Notation Preference" modal (see #notationConfirmModal in
+// app.html) and calls back once the person picks one. Deliberately has no
+// close/outside-click dismissal, since silently picking a default on their
+// behalf is exactly what this prompt exists to avoid - loading is paused
+// until they've actually chosen.
+function showNotationConfirmModal(callbacks) {
+    const modal = document.getElementById('notationConfirmModal');
+    if (!modal) {
+        // Markup missing for some reason - don't block loading over it.
+        callbacks.onSolfa();
+        return;
+    }
+    const solfaBtn = document.getElementById('notationConfirmSolfaBtn');
+    const staffBtn = document.getElementById('notationConfirmStaffBtn');
+
+    function cleanup() {
+        modal.style.display = 'none';
+        if (solfaBtn) solfaBtn.removeEventListener('click', onSolfaClick);
+        if (staffBtn) staffBtn.removeEventListener('click', onStaffClick);
+    }
+    function onSolfaClick() { cleanup(); callbacks.onSolfa(); }
+    function onStaffClick() { cleanup(); callbacks.onStaff(); }
+
+    if (solfaBtn) solfaBtn.addEventListener('click', onSolfaClick);
+    if (staffBtn) staffBtn.addEventListener('click', onStaffClick);
+
+    modal.style.display = 'flex';
 }
 
 // Example: adjust your renderPsalm to accept an argument object
@@ -1772,6 +1831,785 @@ async function generateTextOnlyPDF(selectedPaperSize) {
     }
 }
 
+// Search for the largest Verovio "unit" (staff-size driver) that still fits
+// within the page count required at minUnit. minUnit is a floor - the
+// smallest legible staff size for this paper size - so the result is never
+// smaller than it, and grows only as large as the page budget already
+// established at that floor allows. unit vs. page count is a step function
+// (many unit values map to the same page count until a system stops
+// fitting), so this does a coarse pass followed by a fine pass around the
+// point where it steps up, rather than a full binary search - simpler to
+// reason about and cheap enough at these step sizes.
+function findFillingUnit(toolkit, meiString, baseOptions, minUnit) {
+    // minUnit*2 as a ceiling sounds generous, but for small paper sizes (or
+    // short pieces) it can exceed Verovio's own hard maximum for this
+    // option. Verovio doesn't error on an out-of-range value - it logs a
+    // warning and silently ignores/clamps it - so a search that doesn't
+    // respect this bound can end up "confirming" unit values that were
+    // never actually applied. Query the toolkit's own reported bounds
+    // rather than assume, since they could vary by Verovio version.
+    let verovioMaxUnit = 12;
+    try {
+        const unitOpt = toolkit.getAvailableOptions().groups['1-general'].options.unit;
+        if (unitOpt && typeof unitOpt.max === 'number') verovioMaxUnit = unitOpt.max;
+    } catch (e) { /* fall back to the known default above */ }
+
+    const MAX_UNIT = Math.min(minUnit * 2, verovioMaxUnit);
+    const COARSE_STEP = 0.5;
+    const FINE_STEP = 0.05;
+
+    function pageCountAtUnit(unit) {
+        toolkit.setOptions(Object.assign({}, baseOptions, { unit, justifyVertically: false }));
+        toolkit.loadData(meiString);
+        return toolkit.getPageCount();
+    }
+
+    const targetPageCount = pageCountAtUnit(minUnit);
+
+    let bestUnit = minUnit;
+    for (let u = minUnit; u <= MAX_UNIT; u += COARSE_STEP) {
+        if (pageCountAtUnit(u) === targetPageCount) bestUnit = u;
+        else break;
+    }
+    let refinedUnit = bestUnit;
+    for (let u = bestUnit; u <= Math.min(bestUnit + COARSE_STEP, MAX_UNIT); u += FINE_STEP) {
+        if (pageCountAtUnit(u) === targetPageCount) refinedUnit = u;
+        else break;
+    }
+
+    return { unit: refinedUnit, pageCount: targetPageCount };
+}
+
+// =====================================================================
+// Sol-fa PDF generation
+//
+// The staff-notation PDF above hands each page to Verovio and draws the
+// resulting SVG with svg-to-pdfkit. Sol-fa has no Verovio-rendered SVG to
+// draw - it's the HTML table built by solfa-renderer.js's renderSolfa().
+// Rather than rasterizing that live DOM (screenshot-quality, no text
+// selection, and pagination would have to fight the DOM's own layout), this
+// draws the sol-fa content directly with PDFKit's own text/line primitives -
+// the same approach generateTextOnlyPDF() already uses for the plain-text
+// export above, just with a 2D grid of cells instead of running paragraphs.
+//
+// It reuses solfa-renderer.js's buildSolfaModel() (window.buildSolfaModel)
+// for the MEI parsing / voices / beat-grid items / barlines / verses, so the
+// print output is always reading the score exactly the same way the on-screen
+// view does. What's new here is turning that model into an actual page
+// layout: measuring each cell's text width, wrapping whole measures (never
+// splitting one mid-measure) into systems that fit the page width, packing
+// systems into pages, and picking a font size the same way findFillingUnit()
+// does above - start from a legible floor, then grow it only as far as it
+// still fits the page count that floor already required.
+//
+// Font-size ratios and colors below are taken directly from the sol-fa CSS
+// in app.html, so the printed proportions match the screen view:
+//   .solfa-row-pitch .solfa-cell            { font-size: 1.15em; font-weight: 700; line-height: 1.6; color: #111; }
+//   .solfa-row-text .solfa-cell.solfa-word  { font-size: 0.82em; color: #333; line-height: 1.4; }
+//   .solfa-oct-hi / .solfa-oct-lo            octave-mark ticks at 0.5em / 0.6em of the pitch cell
+//   single barline: border-right: 1.5px solid #333
+// =====================================================================
+
+const SOLFA_PDF_PITCH_SCALE = 1.15;
+const SOLFA_PDF_PITCH_LINE_HEIGHT = 1.6;
+const SOLFA_PDF_LYRIC_SCALE = 0.82;
+const SOLFA_PDF_LYRIC_LINE_HEIGHT = 1.4;
+const SOLFA_PDF_OCT_HI_SCALE = 0.5;
+const SOLFA_PDF_OCT_LO_SCALE = 0.6;
+const SOLFA_PDF_BAR_COLOR = '#333333';
+const SOLFA_PDF_PITCH_COLOR = '#111111';
+const SOLFA_PDF_LYRIC_COLOR = '#333333';
+const SOLFA_PDF_HELD_DASH = '\u2013';
+
+// One "run" is a piece of text at a size multiple of its row's cell size
+// (1 for the main syllable, smaller for an octave-mark tick) and a vertical
+// offset in ems, drawn left to right. This is what lets an octave mark be a
+// smaller raised/lowered tick after the syllable without needing PDFKit to
+// support rich/mixed-size text runs natively.
+function solfaPitchCellRuns(item) {
+    const runs = [];
+    if (item.beatPrefix) runs.push({ text: item.beatPrefix, size: 1, dy: 0 });
+    if (item.type === 'held') {
+        runs.push({ text: SOLFA_PDF_HELD_DASH, size: 1, dy: 0 });
+        return runs;
+    }
+    item.notes.forEach(({ subPrefix, cell }) => {
+        if (subPrefix) runs.push({ text: subPrefix, size: 1, dy: 0 });
+        if (cell.type === 'rest') {
+            runs.push({ text: SOLFA_PDF_HELD_DASH, size: 1, dy: 0 });
+            return;
+        }
+        runs.push({ text: cell.solfa, size: 1, dy: 0 });
+        if (cell.octMark && cell.octMark.text) {
+            const n = cell.octMark.text.length; // octave count, encoded as a repeat length
+            if (cell.octMark.cls === 'solfa-oct-hi') {
+                runs.push({ text: "'".repeat(n), size: SOLFA_PDF_OCT_HI_SCALE, dy: -0.35 });
+            } else {
+                runs.push({ text: ','.repeat(n), size: SOLFA_PDF_OCT_LO_SCALE, dy: 0.15 });
+            }
+        }
+    });
+    return runs;
+}
+
+function solfaLyricCellRuns(item, verseNum) {
+    if (item.type !== 'multi') return { runs: [], hasText: false };
+    const runs = [];
+    let hasText = false;
+    item.notes.forEach(({ cell }) => {
+        if (cell.type === 'rest') return;
+        const v = (cell.verses && cell.verses[verseNum]) || null;
+        const t = v ? v.text : '';
+        if (!t) return;
+        hasText = true;
+        const dash = v.con === 'd' ? '-' : '';
+        if (runs.length) runs.push({ text: ' ', size: 1, dy: 0 });
+        runs.push({ text: t + dash, size: 1, dy: 0 });
+    });
+    return { runs, hasText };
+}
+
+function measureSolfaRuns(doc, cellFontSize, runs, bold) {
+    let w = 0;
+    runs.forEach(r => {
+        doc.font(bold ? 'Helvetica-Bold' : 'Helvetica').fontSize(cellFontSize * r.size);
+        w += doc.widthOfString(r.text);
+    });
+    return w;
+}
+
+function drawSolfaRuns(doc, x, baselineY, cellFontSize, runs, color, bold) {
+    let cx = x;
+    doc.fillColor(color);
+    runs.forEach(r => {
+        doc.font(bold ? 'Helvetica-Bold' : 'Helvetica').fontSize(cellFontSize * r.size);
+        doc.text(r.text, cx, baselineY + r.dy * cellFontSize, { lineBreak: false });
+        cx += doc.widthOfString(r.text);
+    });
+    return cx;
+}
+
+// Maps item-array index -> compact column index, skipping bar markers
+// (a bar renders as the border of the preceding column, not its own column).
+// Shared by every function below so "column 7" means the same position
+// everywhere, including across voices, which is required since all voices
+// share one set of column widths (mirroring the HTML view's single shared
+// <table>, where every voice's <tr> lines up on the same column grid).
+function buildSolfaColumnIndex(items) {
+    const colIndexOfItem = [];
+    let colIdx = 0;
+    items.forEach((it) => {
+        if (it.type === 'bar') { colIndexOfItem.push(-1); return; }
+        colIndexOfItem.push(colIdx++);
+    });
+    return { colIndexOfItem, numCols: colIdx };
+}
+
+function computeSolfaColumnWidths(doc, model, baseFontSize) {
+    const pitchFontSize = baseFontSize * SOLFA_PDF_PITCH_SCALE;
+    const lyricFontSize = baseFontSize * SOLFA_PDF_LYRIC_SCALE;
+    const CELL_PAD = pitchFontSize * 0.3;
+    const { colIndexOfItem, numCols } = buildSolfaColumnIndex(model.voiceItems[0]);
+    const colWidth = new Array(numCols).fill(0);
+
+    model.voiceItems.forEach(voiceItems => {
+        voiceItems.forEach((item, idx) => {
+            if (item.type === 'bar') return;
+            const col = colIndexOfItem[idx];
+            const runs = solfaPitchCellRuns(item);
+            const w = measureSolfaRuns(doc, pitchFontSize, runs, true) + CELL_PAD * 2;
+            if (w > colWidth[col]) colWidth[col] = w;
+        });
+    });
+
+    model.verseNums.forEach(vn => {
+        model.voiceItems.forEach(voiceItems => {
+            voiceItems.forEach((item, idx) => {
+                if (item.type === 'bar' || item.type === 'held') return;
+                const col = colIndexOfItem[idx];
+                const { runs, hasText } = solfaLyricCellRuns(item, vn);
+                if (!hasText) return;
+                const w = measureSolfaRuns(doc, lyricFontSize, runs, false) + CELL_PAD * 2;
+                if (w > colWidth[col]) colWidth[col] = w;
+            });
+        });
+    });
+
+    return { colWidth, colIndexOfItem, numCols };
+}
+
+// Splits the shared item list into measures, each a compact [startCol,
+// endCol] range plus the barline type ending it (null for the piece's
+// trailing/final measure, whose true barline type is model.finalBarType).
+function splitSolfaMeasures(items, colIndexOfItem) {
+    const measures = [];
+    let curStartCol = 0;
+    items.forEach((it, i) => {
+        if (it.type === 'bar') {
+            const endCol = colIndexOfItem[i - 1];
+            measures.push({ startCol: curStartCol, endCol, barType: it.barType });
+            curStartCol = endCol + 1;
+        }
+    });
+    let lastColIdx = -1;
+    for (let i = colIndexOfItem.length - 1; i >= 0; i--) {
+        if (colIndexOfItem[i] > -1) { lastColIdx = colIndexOfItem[i]; break; }
+    }
+    if (curStartCol <= lastColIdx) {
+        measures.push({ startCol: curStartCol, endCol: lastColIdx, barType: null });
+    }
+    return measures;
+}
+
+function solfaMeasureWidth(colWidth, measure) {
+    let w = 0;
+    for (let c = measure.startCol; c <= measure.endCol; c++) w += colWidth[c];
+    return w;
+}
+
+// Wraps whole measures into systems (print lines) that fit drawableWidth.
+// Always breaks at a measure boundary, never mid-measure - all voices share
+// this same set of breaks, since they must stay vertically aligned.
+function wrapSolfaSystems(measures, colWidth, drawableWidth) {
+    const systems = [];
+    let cur = [];
+    let curWidth = 0;
+    measures.forEach((m) => {
+        const w = solfaMeasureWidth(colWidth, m);
+        if (cur.length && curWidth + w > drawableWidth) {
+            systems.push(cur);
+            cur = [];
+            curWidth = 0;
+        }
+        cur.push(m);
+        curWidth += w;
+    });
+    if (cur.length) systems.push(cur);
+    return systems;
+}
+
+// Which verse numbers actually carry text in a given voice, mirroring the
+// HTML view's per-voice check - inner parts with no lyric don't get an
+// empty row reserved for them.
+function activeSolfaVerses(voiceItems, verseNums) {
+    return verseNums.filter(vn => voiceItems.some(item => {
+        if (item.type !== 'multi') return false;
+        return item.notes.some(({ cell }) => cell.type !== 'rest' && cell.verses && cell.verses[vn] && cell.verses[vn].text);
+    }));
+}
+
+function solfaSystemHeight(model, baseFontSize, activeVersesByVoice) {
+    const pitchFontSize = baseFontSize * SOLFA_PDF_PITCH_SCALE;
+    const lyricFontSize = baseFontSize * SOLFA_PDF_LYRIC_SCALE;
+    const PITCH_LINE = pitchFontSize * SOLFA_PDF_PITCH_LINE_HEIGHT;
+    const LYRIC_LINE = lyricFontSize * SOLFA_PDF_LYRIC_LINE_HEIGHT;
+    const SPACER = baseFontSize * 0.9;
+    let h = 0;
+    model.voices.forEach((v, vi) => {
+        if (model.voiceItems[vi].length === 0) return;
+        h += PITCH_LINE;
+        h += activeVersesByVoice[vi].length * LYRIC_LINE;
+        if (vi < model.voices.length - 1) h += SPACER;
+    });
+    return h;
+}
+
+// Packs systems into pages of drawableHeight. headingHeight is consumed only
+// on the first page (title + key line above the first system).
+function packSolfaPages(systems, systemH, drawableHeight, headingHeight, systemGap) {
+    const pages = [];
+    let cur = [];
+    let used = headingHeight;
+    systems.forEach((sys) => {
+        const need = (cur.length ? systemGap : 0) + systemH;
+        if (cur.length && used + need > drawableHeight) {
+            pages.push(cur);
+            cur = [];
+            used = 0;
+        }
+        cur.push(sys);
+        used += (cur.length > 1 ? systemGap : 0) + systemH;
+    });
+    if (cur.length) pages.push(cur);
+    return pages;
+}
+
+// Draws a barline of the given type with its right edge at x, spanning
+// [topY, bottomY]. Mirrors the CSS: single = 1.5px line; dbl = two thin
+// lines close together; final = thin inner line + thicker outer line.
+function drawSolfaBarline(doc, type, x, topY, bottomY) {
+    doc.save();
+    doc.strokeColor(SOLFA_PDF_BAR_COLOR);
+    if (type === 'dbl') {
+        doc.lineWidth(1).moveTo(x - 3, topY).lineTo(x - 3, bottomY).stroke();
+        doc.lineWidth(1).moveTo(x, topY).lineTo(x, bottomY).stroke();
+    } else if (type === 'final') {
+        doc.lineWidth(1).moveTo(x - 3, topY).lineTo(x - 3, bottomY).stroke();
+        doc.lineWidth(2.5).moveTo(x, topY).lineTo(x, bottomY).stroke();
+    } else {
+        doc.lineWidth(1.2).moveTo(x, topY).lineTo(x, bottomY).stroke();
+    }
+    doc.restore();
+}
+
+function solfaBarlineDrawType(cls) {
+    if (cls === 'solfa-bar-dbl') return 'dbl';
+    if (cls === 'solfa-bar-final') return 'final';
+    return 'single';
+}
+
+// Draws every barline for one system in one pass, each spanning the system's
+// full height (topY to bottomY, covering every voice's rows). Barlines used
+// to be drawn per voice, each only spanning that voice's own rows - visually
+// correct in isolation, but it left a gap in the line across every inter-voice
+// spacer, when what a barline should read as is one continuous stroke through
+// the whole system, same as it would across a set of staves.
+function drawSolfaSystemBarlines(doc, model, system, colWidth, colIndexOfItem, x0, topY, bottomY, barlineClassFn, isFirstSystemOfPiece, isLastMeasureOfPiece) {
+    const colX = [];
+    let cx = x0;
+    const startCol = system[0].startCol;
+    const endCol = system[system.length - 1].endCol;
+    for (let c = startCol; c <= endCol; c++) { colX[c] = cx; cx += colWidth[c]; }
+
+    system.forEach((m) => {
+        const isPieceEnd = isLastMeasureOfPiece(m);
+        const cls = isPieceEnd ? barlineClassFn(model.finalBarType, true) : barlineClassFn(m.barType, false);
+        const rightX = colX[m.endCol] + colWidth[m.endCol];
+        drawSolfaBarline(doc, solfaBarlineDrawType(cls), rightX, topY, bottomY);
+    });
+    if (!model.hasPickup && isFirstSystemOfPiece) {
+        drawSolfaBarline(doc, 'single', x0, topY, bottomY);
+    }
+}
+
+// The exact curly-brace artwork used in the on-screen sol-fa view
+// (solfa-renderer.js's .solfa-brace SVG), authored to fill its viewBox
+// exactly, with non-uniform scaling intended (matching that SVG's own
+// preserveAspectRatio="none") so it stretches cleanly to any system height.
+const SOLFA_PDF_BRACE_PATH = "M618 -943L612 -949H582L568 -943Q472 -903 411 -841T332 -703Q327 -682 327 -653T325 -350Q324 -28 323 -18Q317 24 301 61T264 124T221 171T179 205T147 225T132 234Q130 238 130 250Q130 255 130 258T131 264T132 267T134 269T139 272T144 275Q207 308 256 367Q310 436 323 519Q324 529 325 851Q326 1124 326 1154T332 1205Q369 1358 566 1443L582 1450H612L618 1444V1429Q618 1413 616 1411L608 1406Q599 1402 585 1393T552 1372T515 1343T479 1305T449 1257T429 1200Q425 1180 425 1152T423 851Q422 579 422 549T416 498Q407 459 388 424T346 364T297 318T250 284T214 264T197 254L188 251L205 242Q290 200 345 138T416 3Q421 -18 421 -48T423 -349Q423 -397 423 -472Q424 -677 428 -694Q429 -697 429 -699Q434 -722 443 -743T465 -782T491 -816T519 -845T548 -868T574 -886T595 -899T610 -908L616 -910Q618 -912 618 -928V-943Z";
+const SOLFA_PDF_BRACE_VB = { minX: 125, minY: -1580.7, w: 495, h: 2659.1 };
+
+// Draws the brace so it exactly fills the rectangle [x0,y0,w,h], the same
+// way the source SVG's viewBox does on screen. The source artwork also
+// carries its own internal Y-flip (its <g transform="matrix(1 0 0 -1 0 0)">),
+// folded into this transform's negative vertical scale.
+function drawSolfaBrace(doc, x0, y0, w, h) {
+    const vb = SOLFA_PDF_BRACE_VB;
+    const a = w / vb.w;
+    const d = -h / vb.h; // negative: folds in the source SVG's own y-flip
+    const e = x0 - (vb.minX / vb.w) * w;
+    const f = y0 - (vb.minY / vb.h) * h;
+    doc.save();
+    doc.transform(a, 0, 0, d, e, f);
+    doc.path(SOLFA_PDF_BRACE_PATH).fill(SOLFA_PDF_PITCH_COLOR);
+    doc.restore();
+}
+
+// Draws one system for one voice - its pitch row plus its active lyric rows -
+// at the given top-left origin, and returns the total height consumed.
+// Barlines and the brace are drawn separately, once per whole system (see
+// drawSolfaSystemBarlines / drawSolfaBrace), not per voice.
+function drawSolfaVoiceSystem(doc, model, vi, system, colWidth, colIndexOfItem, x0, y0, baseFontSize, activeVerses) {
+    const items = model.voiceItems[vi];
+    const pitchFontSize = baseFontSize * SOLFA_PDF_PITCH_SCALE;
+    const lyricFontSize = baseFontSize * SOLFA_PDF_LYRIC_SCALE;
+    const PITCH_LINE = pitchFontSize * SOLFA_PDF_PITCH_LINE_HEIGHT;
+    const LYRIC_LINE = lyricFontSize * SOLFA_PDF_LYRIC_LINE_HEIGHT;
+
+    const itemIndexOfCol = [];
+    colIndexOfItem.forEach((col, itemIdx) => { if (col > -1) itemIndexOfCol[col] = itemIdx; });
+
+    const startCol = system[0].startCol;
+    const endCol = system[system.length - 1].endCol;
+
+    const colX = [];
+    let cx = x0;
+    for (let c = startCol; c <= endCol; c++) { colX[c] = cx; cx += colWidth[c]; }
+
+    const rowsHeight = PITCH_LINE + activeVerses.length * LYRIC_LINE;
+
+    // PDFKit's text() treats the y it's given as the top of the font's
+    // ascender box, not the baseline - drawSolfaRuns passes its y straight
+    // through, so by default PDFKit offsets the actual glyph baseline down
+    // by the font's own ascender from there. Helvetica/Helvetica-Bold's
+    // ascender+descender together are 0.925 of the font size (standard AFM
+    // metrics, identical for both), which is the glyph's true vertical
+    // extent; centering that within each row's line-height box - rather
+    // than the old guessed 0.72-of-the-box-down offset - is what makes
+    // barlines and the brace (both drawn to the box's exact top/bottom)
+    // actually meet the visible ink at both ends instead of overshooting
+    // the top and falling short at the bottom.
+    const GLYPH_HEIGHT_FRACTION = 0.925;
+    const pitchTextTopY = y0 + (PITCH_LINE - GLYPH_HEIGHT_FRACTION * pitchFontSize) / 2;
+
+    for (let c = startCol; c <= endCol; c++) {
+        const item = items[itemIndexOfCol[c]];
+        const runs = solfaPitchCellRuns(item);
+        drawSolfaRuns(doc, colX[c] + colWidth[c] * 0.15, pitchTextTopY, pitchFontSize, runs, SOLFA_PDF_PITCH_COLOR, true);
+    }
+
+    let rowY = y0 + PITCH_LINE;
+    activeVerses.forEach((vn) => {
+        const lyricTextTopY = rowY + (LYRIC_LINE - GLYPH_HEIGHT_FRACTION * lyricFontSize) / 2;
+        for (let c = startCol; c <= endCol; c++) {
+            const item = items[itemIndexOfCol[c]];
+            if (item.type === 'held') continue;
+            const { runs, hasText } = solfaLyricCellRuns(item, vn);
+            if (!hasText) continue;
+            drawSolfaRuns(doc, colX[c] + colWidth[c] * 0.15, lyricTextTopY, lyricFontSize, runs, SOLFA_PDF_LYRIC_COLOR, false);
+        }
+        rowY += LYRIC_LINE;
+    });
+
+    return rowsHeight;
+}
+
+async function generateSolfaPDF(selectedPaperSize) {
+    if (typeof window.buildSolfaModel !== 'function' || !window.originalXmlData) {
+        alert("No score loaded. Please select a text and tune first, then click Go.");
+        return;
+    }
+    const model = window.buildSolfaModel(window.originalXmlData);
+    if (model.error) {
+        alert(model.error);
+        return;
+    }
+
+    try {
+        const deps = await ensurePDFDependencies(false); // no SVG renderer needed - drawn directly with PDFKit
+        const PDFDocument = deps.PDFDocument;
+        const blobStreamFactory = deps.blobStreamFactory;
+
+        // Paper sizes/margins reuse the same footer-reserved-height idea as
+        // generatePDF, but without any Verovio-specific settings.
+        const paperSizeOptions = {
+            'LETTER':    { pdfkitSize: 'LETTER',    pdfKitMargins: { top: 40, bottom: 40, left: 40, right: 40 }, footerReservedHeight: 34, minFontSize: 9 },
+            'A4':        { pdfkitSize: 'A4',        pdfKitMargins: { top: 38, bottom: 44, left: 40, right: 40 }, footerReservedHeight: 34, minFontSize: 9 },
+            'A5':        { pdfkitSize: 'A5',        pdfKitMargins: { top: 20, bottom: 20, left: 20, right: 20 }, footerReservedHeight: 34, minFontSize: 7 },
+            'STATEMENT': { pdfkitSize: [396, 612],  pdfKitMargins: { top: 20, bottom: 20, left: 24, right: 24 }, footerReservedHeight: 34, minFontSize: 8 }
+        };
+        const settings = paperSizeOptions[selectedPaperSize] || paperSizeOptions['LETTER'];
+
+        const doc = new PDFDocument({ size: settings.pdfkitSize, layout: 'portrait', margins: settings.pdfKitMargins });
+        const stream = doc.pipe(blobStreamFactory());
+
+        stream.on('finish', function() {
+            const blob = stream.toBlob('application/pdf');
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = `${globalTitle || 'untitled'}_${globalTuneTitle || 'untitled'}_solfa_${selectedPaperSize.toLowerCase()}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        });
+        stream.on('error', function() {
+            alert("An error occurred during PDF creation.");
+        });
+
+        // Reserve a column on the left for the curly brace that groups each
+        // system's voices (drawn once per system - see the loop below), the
+        // same way solfa-renderer.js's .solfa-brace-col sits beside the
+        // notation on screen.
+        const BRACE_COL_WIDTH = 12;
+        const BRACE_GAP = 5;
+        const contentX0 = doc.page.margins.left + BRACE_COL_WIDTH + BRACE_GAP;
+        const drawableWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right - BRACE_COL_WIDTH - BRACE_GAP;
+        const drawableHeight = doc.page.height - doc.page.margins.top - doc.page.margins.bottom - settings.footerReservedHeight;
+        const HEADING_HEIGHT = 56 + (model.tuneTitle ? 18 : 0); // title + optional tune title + key line, first page only
+        // Gap between systems (print "lines"), scaled to the font size in use
+        // so it stays proportionate whether the piece renders small or large -
+        // clearly wider than a single row's own line-height, so each system
+        // reads as visually distinct from its neighbours.
+        function systemGapAt(fontSize) { return fontSize * 2.2; }
+
+        const activeVersesByVoice = model.voices.map((v, vi) => activeSolfaVerses(model.voiceItems[vi], model.verseNums));
+
+        function layoutAt(fontSize) {
+            const { colWidth, colIndexOfItem } = computeSolfaColumnWidths(doc, model, fontSize);
+            const measures = splitSolfaMeasures(model.voiceItems[0], colIndexOfItem);
+            const systems = wrapSolfaSystems(measures, colWidth, drawableWidth);
+            const sysH = solfaSystemHeight(model, fontSize, activeVersesByVoice);
+            const pages = packSolfaPages(systems, sysH, drawableHeight, HEADING_HEIGHT, systemGapAt(fontSize));
+            return { pages, colWidth, colIndexOfItem, measures };
+        }
+        function pageCountAt(fontSize) { return layoutAt(fontSize).pages.length; }
+
+        // Same floor-then-grow philosophy as findFillingUnit() above: never
+        // render smaller than minFontSize, but grow as large as still fits
+        // within the page count that floor size already required.
+        const MIN_FONT = settings.minFontSize;
+        const MAX_FONT = MIN_FONT * 3;
+        const targetPageCount = pageCountAt(MIN_FONT);
+        let bestFont = MIN_FONT;
+        for (let f = MIN_FONT; f <= MAX_FONT; f += 0.5) {
+            if (pageCountAt(f) === targetPageCount) bestFont = f; else break;
+        }
+        let fontSize = bestFont;
+        for (let f = bestFont; f <= bestFont + 0.5; f += 0.1) {
+            if (pageCountAt(f) === targetPageCount) fontSize = f; else break;
+        }
+
+        // Title/key heading and footer center across the full page content
+        // width; only the notation itself is narrowed to make room for the
+        // brace column.
+        const fullContentWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+
+        const { pages, colWidth, colIndexOfItem, measures } = layoutAt(fontSize);
+        const lastColIdx = measures.length ? measures[measures.length - 1].endCol : -1;
+        function isLastMeasureOfPiece(m) { return m.endCol === lastColIdx; }
+
+        pages.forEach((pageSystems, pi) => {
+            if (pi > 0) doc.addPage();
+            let y = doc.page.margins.top;
+
+            if (pi === 0) {
+                doc.font('Helvetica-Bold').fontSize(16).fillColor('#000000');
+                if (model.title) {
+                    doc.text(model.title, doc.page.margins.left, y, { width: fullContentWidth, align: 'center' });
+                }
+                y += 20;
+                if (model.tuneTitle) {
+                    doc.font('Helvetica-Oblique').fontSize(13).fillColor('#333333');
+                    doc.text(model.tuneTitle, doc.page.margins.left, y, { width: fullContentWidth, align: 'center' });
+                    y += 18;
+                }
+                doc.font('Helvetica').fontSize(11).fillColor('#333333');
+                doc.text(
+                    'Key: ' + model.keyDisplayName + '    ' + model.fundamental + ' = ' + model.fundamentalNote,
+                    doc.page.margins.left, y, { width: fullContentWidth, align: 'center' }
+                );
+                y = doc.page.margins.top + HEADING_HEIGHT;
+            }
+
+            pageSystems.forEach((system, si) => {
+                if (si > 0) y += systemGapAt(fontSize);
+                const isFirstSystemOfPiece = (pi === 0 && si === 0);
+                const systemTop = y;
+                let voiceY = y;
+                model.voices.forEach((v, vi) => {
+                    if (model.voiceItems[vi].length === 0) return;
+                    const h = drawSolfaVoiceSystem(
+                        doc, model, vi, system, colWidth, colIndexOfItem,
+                        contentX0, voiceY, fontSize, activeVersesByVoice[vi]
+                    );
+                    voiceY += h;
+                    if (vi < model.voices.length - 1) voiceY += fontSize * 0.9;
+                });
+                // Barlines and the brace are drawn once per system, spanning
+                // every voice's rows in a single continuous stroke/shape,
+                // rather than restarting (and visibly gapping) per voice.
+                drawSolfaSystemBarlines(
+                    doc, model, system, colWidth, colIndexOfItem,
+                    contentX0, systemTop, voiceY, model.barlineClass, isFirstSystemOfPiece, isLastMeasureOfPiece
+                );
+                // The brace's tapered tip shape reads as falling a little
+                // short of the row content if drawn to the exact box bounds,
+                // roughly evenly at top and bottom now that the row boxes
+                // themselves are centered on the actual glyph extent (see
+                // drawSolfaVoiceSystem). A small symmetric pad compensates
+                // without changing row layout or barline positions.
+                const braceTopPad = fontSize * 0.3;
+                const braceBottomPad = fontSize * 0.35;
+                drawSolfaBrace(
+                    doc, doc.page.margins.left, systemTop - braceTopPad, BRACE_COL_WIDTH,
+                    (voiceY + braceBottomPad) - (systemTop - braceTopPad)
+                );
+                y = voiceY;
+            });
+
+            // Footer: same text-source/tune-source pattern as the staff PDF,
+            // without the logo (see the note on generatePDF's truncated
+            // logoSrc placeholder - not replicating that here).
+            //
+            // The 3 possible lines are laid out to fit entirely above
+            // doc.page.margins.bottom. PDFKit auto-inserts a page (silently,
+            // no error) if text drawn via .text() would extend past that
+            // boundary - it happened here even with explicit x/y, once the
+            // last line's computed height pushed past it by only a few
+            // points, doubling every page in testing. FOOTER_LINE (10pt) is
+            // comfortably above the 8pt font's own line height, and the
+            // block starts far enough up that all 3 lines land inside
+            // footerReservedHeight with room to spare.
+            const FOOTER_LINE = 10;
+            const footerTop = doc.page.height - doc.page.margins.bottom - (FOOTER_LINE * 3) - 2;
+            doc.font('Helvetica').fontSize(8).fillColor('#666666');
+            let footerY = footerTop;
+            if (globalTextSource) {
+                doc.text(`Text source: ${globalTextSource}${globalTextSourceDate ? ' (' + globalTextSourceDate + ')' : ''}`,
+                    doc.page.margins.left, footerY, { width: fullContentWidth, align: 'center' });
+            }
+            footerY += FOOTER_LINE;
+            if (globalTuneSource) {
+                doc.text(`Tune source: ${globalTuneSource}${globalTuneSourceDate ? ' (' + globalTuneSourceDate + ')' : ''}`,
+                    doc.page.margins.left, footerY, { width: fullContentWidth, align: 'center' });
+            }
+            footerY += FOOTER_LINE;
+            doc.text('Generated by the Digital Splitleaf (https://splitleaf.org)',
+                doc.page.margins.left, footerY, { width: fullContentWidth, align: 'center' });
+        });
+
+        doc.end();
+    } catch (error) {
+        alert("Failed to generate PDF: " + error.message);
+    }
+}
+
+// Returns the number of measures in each system on the given rendered page,
+// in reading order, by counting <g class="measure"> elements between
+// consecutive <g class="system"> markers in the page's SVG. Verovio can emit
+// a trailing system group with no measures in it as a rendering artifact
+// (observed on short/edge-case layouts) - filtered out here, since a system
+// with nothing in it isn't a line a reader would ever perceive as sparse.
+function getPageSystemMeasureCounts(toolkit, pageNum) {
+    const svg = toolkit.renderToSVG(pageNum);
+    const systemBlocks = svg.split('class="system"');
+    const counts = [];
+    for (let i = 1; i < systemBlocks.length; i++) {
+        counts.push((systemBlocks[i].match(/class="measure"/g) || []).length);
+    }
+    return counts.filter(c => c > 0);
+}
+
+// If the final system of the final page is sparse (a "widow" of just 1 or 2
+// measures on its own line), try to fix it and return { mei, pageCount,
+// renderOptions } describing the corrected render (with the toolkit already
+// loaded to match). Returns null if there's nothing to fix, or if it
+// couldn't be resolved safely - in which case the toolkit is left/restored
+// on the original, unmodified render.
+//
+// Only the true final system of the piece is considered - a page break
+// partway through is an ordinary, expected place for a line to end short,
+// not a widow in the typesetting sense Tim's asking about here.
+//
+// Two strategies are tried, in order:
+//
+//   A. Shrink the staff size very slightly, still within the same page
+//      budget, and see if Verovio's own natural (unconstrained) packing
+//      lands somewhere without an orphan. Nothing is forced here - it's
+//      just nudging which width the line-wrapping math is working with.
+//      This is the more robust fix when some unit in range works, since it
+//      leaves Verovio's automatic layout to do what it already does well,
+//      and testing found real cases (e.g. a single 9-measure psalm tune)
+//      where the natural break only avoids the orphan a fraction of a
+//      point below the size findFillingUnit() had otherwise chosen.
+//
+//   B. If no nearby unit clears it, fall back to forcing a single explicit
+//      <sb/> break (switching just this one render to 'smart' breaks mode -
+//      see baseVerovioOptions above for why not always). Testing found that
+//      which natural system boundary needs to move isn't always the one
+//      immediately before the orphan - sometimes it's one or two systems
+//      further back, with everything after it left to Verovio's own
+//      automatic packing - and that forcing more than one break at once can
+//      even push a system onto a whole extra page for reasons unrelated to
+//      the break itself. So rather than compute a target redistribution and
+//      force every boundary of it at once, this tries moving exactly one
+//      natural boundary at a time, by a measure or two, starting from the
+//      boundary closest to the orphan and working backward - actually
+//      re-rendering and verifying every attempt rather than trusting the
+//      arithmetic, and stopping at the first minimal change that works.
+//
+// Either way, if 'smart' mode happens to shift the page count for reasons
+// unrelated to the fix (observed on a handful of measure counts even with
+// no <sb/> present), that attempt is discarded and the next one tried.
+function fixOrphanFinalSystem(toolkit, meiString, renderOptions, pageCount, minUnitFloor) {
+    const ORPHAN_THRESHOLD = 2;
+    const MAX_SHIFT = 3; // how many measures earlier a single boundary may be nudged
+    const UNIT_STEP = 0.1;
+    const UNIT_SEARCH_RANGE = 3; // don't shrink the staff size more than this many units to chase a fix
+
+    if (pageCount < 1) return null;
+    const lastPageCounts = getPageSystemMeasureCounts(toolkit, pageCount);
+    if (lastPageCounts.length < 2) return null; // nothing to rebalance against
+    if (lastPageCounts[lastPageCounts.length - 1] > ORPHAN_THRESHOLD) return null; // not sparse
+
+    // --- Strategy A: a very slightly smaller unit, same page count, no forced breaks ---
+    if (typeof renderOptions.unit === 'number') {
+        const minUnitToTry = Math.max(minUnitFloor || 0, renderOptions.unit - UNIT_SEARCH_RANGE);
+        for (let u = renderOptions.unit - UNIT_STEP; u >= minUnitToTry - 1e-9; u -= UNIT_STEP) {
+            const candidateUnit = Math.round(u * 100) / 100;
+            const candidateOptions = Object.assign({}, renderOptions, { unit: candidateUnit });
+            // resetOptions() first: testing found Verovio's toolkit can retain
+            // sticky internal layout state across setOptions()/loadData() calls
+            // that isn't cleared just by passing the same inputs again - without
+            // this, one candidate's result can leak into the next attempt's.
+            toolkit.resetOptions();
+            toolkit.setOptions(candidateOptions);
+            toolkit.loadData(meiString);
+            const candidatePageCount = toolkit.getPageCount();
+            if (candidatePageCount !== pageCount) continue; // must stay within the same page budget
+            const candidateLastPageCounts = getPageSystemMeasureCounts(toolkit, candidatePageCount);
+            if (candidateLastPageCounts.length > 0 &&
+                candidateLastPageCounts[candidateLastPageCounts.length - 1] > ORPHAN_THRESHOLD) {
+                return { mei: meiString, pageCount: candidatePageCount, renderOptions: candidateOptions };
+            }
+        }
+    }
+
+    // --- Strategy B: force a single explicit <sb/>, trying each natural
+    // boundary in turn (closest to the orphan first), each shifted 1-3
+    // measures earlier ---
+    let measuresOnEarlierPages = 0;
+    for (let p = 1; p < pageCount; p++) {
+        measuresOnEarlierPages += getPageSystemMeasureCounts(toolkit, p).reduce((a, b) => a + b, 0);
+    }
+
+    // Cumulative measure count (relative to this page) at which each system
+    // after the first one starts, e.g. [4,5,5,5,2] -> boundaries [4,9,14,19].
+    const boundaries = [];
+    let cum = 0;
+    for (let i = 0; i < lastPageCounts.length - 1; i++) {
+        cum += lastPageCounts[i];
+        boundaries.push(cum);
+    }
+
+    const parser = new DOMParser();
+    const smartOptions = Object.assign({}, renderOptions, { breaks: 'smart' });
+
+    for (let bi = boundaries.length - 1; bi >= 0; bi--) {
+        const prevBoundary = bi > 0 ? boundaries[bi - 1] : 0;
+        for (let shift = 1; shift <= MAX_SHIFT; shift++) {
+            const candidateBoundary = boundaries[bi] - shift;
+            if (candidateBoundary <= prevBoundary) break; // no more room on this boundary; move to the previous one
+
+            const globalIdx = measuresOnEarlierPages + candidateBoundary;
+            const doc = parser.parseFromString(meiString, 'text/xml');
+            const allMeasures = doc.querySelectorAll('measure');
+            if (globalIdx <= 0 || globalIdx >= allMeasures.length) continue;
+            const meiNamespace = doc.documentElement.namespaceURI;
+            const sb = doc.createElementNS(meiNamespace, 'sb');
+            allMeasures[globalIdx].parentNode.insertBefore(sb, allMeasures[globalIdx]);
+            const fixedMei = new XMLSerializer().serializeToString(doc);
+
+            toolkit.resetOptions();
+            toolkit.setOptions(smartOptions);
+            toolkit.loadData(fixedMei);
+            const newPageCount = toolkit.getPageCount();
+            const newLastPageCounts = newPageCount > 0 ? getPageSystemMeasureCounts(toolkit, newPageCount) : [];
+            const resolved = newPageCount === pageCount &&
+                newLastPageCounts.length > 0 &&
+                newLastPageCounts[newLastPageCounts.length - 1] > ORPHAN_THRESHOLD;
+
+            if (resolved) {
+                return { mei: fixedMei, pageCount: newPageCount, renderOptions: smartOptions };
+            }
+            // Not honoured, or had some other side effect - try the next shift/boundary.
+        }
+    }
+
+    // Nothing resolved it: restore the toolkit to the original, unmodified
+    // render so the caller can proceed as if this function had never been
+    // called. resetOptions() first for the same reason as every attempt
+    // above - otherwise the last failed attempt's state can persist even
+    // through a fresh setOptions()/loadData() with the original inputs.
+    toolkit.resetOptions();
+    toolkit.setOptions(renderOptions);
+    toolkit.loadData(meiString);
+    return null;
+}
+
 // --- PDF generation (unchanged from your code) ---
 async function generatePDF(selectedPaperSize) {
 
@@ -1878,25 +2716,73 @@ async function generatePDF(selectedPaperSize) {
 
         const verovioPageHeightForDrawableArea = (drawableHeight / drawableWidth) * currentPaperSettings.verovioSettings.pageWidth;
 
-        tk_pdf.setOptions({
-            font: 'Leipzig', // Ensure this font is embedded or available to PDFKit if not standard
+        // Base render options shared by every unit tried below. `unit` (the
+        // staff-size driver) is deliberately left out here - it's the one
+        // dimension findFillingUnit() searches over.
+        const baseVerovioOptions = {
+            font: 'Leipzig',
             adjustPageHeight: true,
             footer: 'none', // Verovio's footer is disabled as we're adding our own via PDFKit
             pageWidth: currentPaperSettings.verovioSettings.pageWidth,
             pageHeight: verovioPageHeightForDrawableArea,
-            unit: currentPaperSettings.verovioSettings.unit,
             scaleToPageSize: false,
             shrinkToFit: false,
             transpose: trInterval, // Assuming trInterval is a global variable or passed as argument
             spacingLinear: currentPaperSettings.verovioSettings.spacingLinear,
             spacingNonLinear: currentPaperSettings.verovioSettings.spacingNonLinear,
+            // Left on Verovio's default ('auto') here deliberately. 'smart'
+            // breaks mode is used only for the isolated, guarded re-render in
+            // fixOrphanFinalSystem() below - testing found it is NOT always
+            // identical to 'auto' even with no <sb/> present (a handful of
+            // measure counts paginate differently between the two for
+            // reasons unrelated to any inserted break), so it isn't safe to
+            // use as the default for every render.
+        };
+
+        // The MEI to search/render against, captured once so repeated
+        // loadData() calls during the search don't round-trip through the
+        // live viewer's toolkit state.
+        const meiForPdf = tk_pdf.getMEI();
+
+        // currentPaperSettings.verovioSettings.unit is treated as the minimum
+        // (floor) staff size - never rendered smaller than this. We find how
+        // many pages that floor size requires, then grow the staff size as
+        // large as it can go while still fitting in that same page count, so
+        // short pieces fill the page instead of sitting at a fixed small size
+        // and long pieces don't get any smaller than the floor.
+        const { unit: fillingUnit, pageCount: requiredPageCount } = findFillingUnit(
+            tk_pdf, meiForPdf, baseVerovioOptions, currentPaperSettings.verovioSettings.unit
+        );
+
+        const renderOptions = Object.assign({}, baseVerovioOptions, {
+            unit: fillingUnit,
+            // Spread any remaining slack on each page evenly across its
+            // systems (Verovio caps how far it will stretch a page that's
+            // mostly empty via justificationMaxVertical, so a short final
+            // page isn't stretched to absurdity).
+            justifyVertically: true,
         });
+        tk_pdf.setOptions(renderOptions);
 
         // Reload data into tk_pdf AFTER setting options to apply transpose.
-        // Use tk_pdf.getMEI() to reliably get the current MEI data.
-        tk_pdf.loadData(tk_pdf.getMEI());
+        tk_pdf.loadData(meiForPdf);
 
-        const pageCount = tk_pdf.getPageCount();
+        let pageCount = tk_pdf.getPageCount();
+
+        // If the piece's true final system is left sitting alone with just
+        // 1-2 measures, nudge it fuller - either by finding a hair-smaller
+        // unit whose natural layout doesn't leave it sparse, or as a
+        // fallback, forcing an explicit break. This performs and verifies
+        // its own guarded re-render; on success the toolkit is already
+        // loaded with the fix, on failure it's already been restored to the
+        // original meiForPdf render, so either way nothing further is
+        // needed here beyond picking up the page count.
+        const orphanFix = fixOrphanFinalSystem(
+            tk_pdf, meiForPdf, renderOptions, pageCount, currentPaperSettings.verovioSettings.unit
+        );
+        if (orphanFix) {
+            pageCount = orphanFix.pageCount;
+        }
 
         // Define logo properties BEFORE the loop
         // IMPORTANT: This base64 string is for a specific image. If your logo changes, update this.
@@ -2344,6 +3230,28 @@ function renderPsalm(options = {}) {
         disOptions = document.getElementById("psMode") !== null ? document.getElementById("psMode").checked : false;
     }
 
+    // Sync sol-fa view mode from the URL the same way presentation mode is
+    // synced above. Setting window.globalSolfaMode here is enough on its
+    // own - processData() (further down the load pipeline) already checks
+    // it and calls loadSolfaView() once the score has actually loaded, the
+    // same auto-switch used when toggling sol-fa on and then regenerating
+    // normally. The toggle buttons' own click handlers live in app.html and
+    // aren't reachable from here, so their visual state is mirrored
+    // directly rather than via that shared helper.
+    if (isAutoGen && options.solfa !== undefined) {
+        const wantSolfa = options.solfa === true;
+        window.globalSolfaMode = wantSolfa;
+        const notationStaffBtn = document.getElementById('notationStaff');
+        const notationSolfaBtn = document.getElementById('notationSolfa');
+        if (wantSolfa) {
+            if (notationSolfaBtn) { notationSolfaBtn.style.background = '#6fc252'; notationSolfaBtn.classList.add('active'); }
+            if (notationStaffBtn) { notationStaffBtn.style.background = '#666'; notationStaffBtn.classList.remove('active'); }
+        } else {
+            if (notationStaffBtn) { notationStaffBtn.style.background = '#6fc252'; notationStaffBtn.classList.add('active'); }
+            if (notationSolfaBtn) { notationSolfaBtn.style.background = '#666'; notationSolfaBtn.classList.remove('active'); }
+        }
+    }
+
     const xmlhttp = new XMLHttpRequest();
     xmlhttp.open("GET", psText, true);
     xmlhttp.send(); 
@@ -2682,8 +3590,6 @@ function renderPsalm(options = {}) {
 
                             const getAtt = "xml:id";
                             const getAttN = "n";
-                            const newSectionAtt = xmlDoc.createAttribute(getAtt);
-                            const newSectionAttN = xmlDoc.createAttribute(getAttN);
 
                             let oldAtt = newNode.getAttribute(getAtt);
                             if (oldAtt === null) {
@@ -2692,10 +3598,16 @@ function renderPsalm(options = {}) {
 
                             const aSequence = "A".repeat(i); // your programmatic suffix pattern
                             const newAttValue = oldAtt + aSequence;
-                            newSectionAtt.nodeValue = newAttValue;
-                            newSectionAttN.nodeValue = i+1;
-                            newNode.setAttributeNode(newSectionAtt);
-                            newNode.setAttributeNode(newSectionAttN);
+                            // setAttribute (not createAttribute+setAttributeNode): the clone's
+                            // xml:id was parsed into the XML namespace, but createAttribute("xml:id")
+                            // makes a *non*-namespaced attribute whose literal name happens to be
+                            // "xml:id". setAttributeNode matches by (namespace, localName), so it
+                            // doesn't see those as the same attribute and adds a second one instead
+                            // of replacing the first - the element ends up with two xml:id attributes,
+                            // which is invalid XML once serialized. setAttribute matches by the
+                            // qualified-name string, so it correctly overwrites the original.
+                            newNode.setAttribute(getAtt, newAttValue);
+                            newNode.setAttribute(getAttN, i + 1);
 
                             // Keep only verse n = i+1 in the duplicate
                             const versesToDelete = Array.from(newNode.querySelectorAll('verse:not([n="'+(i+1)+'"])'));

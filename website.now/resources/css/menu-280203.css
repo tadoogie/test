@@ -911,10 +911,11 @@ dl dt { font-weight: bold; }
 #paperSizeModal button { padding: 10px 20px; margin: 10px 5px; border: none; border-radius: 5px; cursor: pointer; font-size: 1em; }
 #paperSizeModal button#generatePdfButton { background-color: #4CAF50; color: white; }
 #paperSizeModal button#generatePdfButton:hover { background-color: #45a049; }
-#paperSizeModal button#cancelPdfButton, #closeShareModalBtn, #closeSearchModalBtn { background-color: #f44336; color: white;border-radius: 6px;padding: 4px;}
+#paperSizeModal button#cancelPdfButton { background-color: #f44336; color: white; border-radius: 6px; }
+#closeShareModalBtn, #closeSearchModalBtn { background-color: #f44336; color: white;border-radius: 6px;padding: 4px;}
 #paperSizeModal button#cancelPdfButton:hover { background-color: #da190b; }
 
- #paperSizeModal, #shareModal, #searchModal, #melodySearchModal {
+ #paperSizeModal, #shareModal, #searchModal, #melodySearchModal, #notationConfirmModal {
                 display: none;
                 position: fixed;
                 z-index: 1400;
@@ -949,6 +950,36 @@ dl dt { font-weight: bold; }
                 box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2), 0 6px 20px 0 rgba(0,0,0,0.19);
                 text-align: center;
             }
+            #notationConfirmModal > div  {
+                background-color: #fefefe;
+                margin: auto;
+                padding: 30px;
+                border: 1px solid #888;
+                width: 90%;
+                max-width: 350px;
+                border-radius: 8px;
+                box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2), 0 6px 20px 0 rgba(0,0,0,0.19);
+                text-align: center;
+            }
+            #notationConfirmModal p {
+                color: #333;
+                font-size: 1em;
+                line-height: 1.4;
+                margin: 0 0 20px 0;
+            }
+            #notationConfirmModal button {
+                padding: 10px 24px;
+                margin: 6px 8px;
+                border: none;
+                border-radius: 5px;
+                cursor: pointer;
+                font-size: 1em;
+                background-color: #4CAF50;
+                color: white;
+            }
+            #notationConfirmModal button:hover {
+                background-color: #45a049;
+            }
             #searchModal > div  {
                 background-color: #fefefe;
                 margin: auto;
@@ -971,7 +1002,7 @@ dl dt { font-weight: bold; }
                 box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2), 0 6px 20px 0 rgba(0,0,0,0.19);
                 text-align: center;
             }
-            #paperSizeModal h2, #shareModal h2, #searchModal h2, #melodySearchModal h2 {
+            #paperSizeModal h2, #shareModal h2, #searchModal h2, #melodySearchModal h2, #notationConfirmModal h2 {
                 margin-top: 0;
                 color: #333;
             }

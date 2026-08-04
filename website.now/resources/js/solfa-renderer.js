@@ -138,6 +138,43 @@
     }
 
     /**
+     * Map a note to its sol-fa syllable, marking chromatic alterations the
+     * way Curwen notation does: lowered scale degrees take an 'a' (d->da,
+     * r->ra, m->ma...), raised ones take an 'e' (d->de, r->re, m->me...).
+     *
+     * Which of the two a note's accidental means depends on which diatonic
+     * degree it's altering, and that's determined by the note's *letter*,
+     * not by its final sounding pitch - two enharmonically identical notes
+     * (F# vs Gb) are different alterations of different degrees (raised Fah
+     * vs lowered Soh) and must not collapse to the same syllable. So this
+     * first finds the note's diatonic syllable from its letter name via the
+     * key signature alone (ignoring this note's own accidental - that's
+     * always exactly one of d/r/m/f/s/l/t, since the key signature by
+     * definition maps every letter onto a diatonic scale degree), then
+     * compares that to the note's actual sounding pitch class to see
+     * whether its own accidental raised or lowered it from there.
+     *
+     * @param {string} pname  – 'c' | 'd' | 'e' | 'f' | 'g' | 'a' | 'b'
+     * @param {string} accid  – MEI accidental code (e.g. 's','f','n') or ''
+     * @param {number} doh    – Doh pitch class (0-11)
+     * @param {object} ksAcc  – key-signature accidentals map
+     */
+    function toSolfaWithAccidental(pname, accid, doh, ksAcc) {
+        const diatonicPc  = noteToPitchClass(pname, '', ksAcc); // key sig only, no note-level accid
+        const diatonicSyl = toSolfa(diatonicPc, doh);
+        if (!accid) return diatonicSyl;
+
+        const actualPc = noteToPitchClass(pname, accid, ksAcc);
+        let diff = actualPc - diatonicPc;
+        if (diff > 6) diff -= 12;   // shorter wraparound direction
+        if (diff < -6) diff += 12;
+
+        if (diff > 0) return diatonicSyl + 'e'; // raised
+        if (diff < 0) return diatonicSyl + 'a'; // lowered
+        return diatonicSyl; // accidental didn't actually change the pitch (e.g. a redundant courtesy mark)
+    }
+
+    /**
      * Compute the octave marker for a note relative to the home octave of Doh.
      * Returns { text, cls } where text is '' | "|" | "||" …
      * and cls is the CSS class to apply.
@@ -559,13 +596,26 @@
         const pname = noteEl.getAttribute('pname');
         if (!pname) return { type: 'rest', ssuLen: durationToSsu(durOverride || '4', dotsOverride || '0') };
 
-        const accidAttr  = noteEl.getAttribute('accid');
-        const accidChild = noteEl.querySelector('accid');
-        const accid = accidAttr || (accidChild && accidChild.getAttribute('accid')) || '';
+        // Prefer the gestural accidental (@accid.ges) over the visual one
+        // (@accid): standard notation only displays an accidental on the
+        // first altered note in a bar, with later notes of the same pitch
+        // silently carrying it for the rest of the bar - so a later note's
+        // @accid is often absent even though it still sounds altered. This
+        // encoding always stamps @accid.ges with the note's true sounding
+        // adjustment (even when it just restates the key signature), so
+        // reading that instead correctly catches every altered note, not
+        // just the one where the accidental is actually drawn. Falling back
+        // to the visual @accid covers data that doesn't carry accid.ges.
+        const accidGesAttr  = noteEl.getAttribute('accid.ges');
+        const accidVisAttr  = noteEl.getAttribute('accid');
+        const accidChild    = noteEl.querySelector('accid');
+        const accidChildGes = accidChild && accidChild.getAttribute('accid.ges');
+        const accidChildVis = accidChild && accidChild.getAttribute('accid');
+        const accid = accidGesAttr || accidChildGes || accidVisAttr || accidChildVis || '';
 
         const oct        = noteEl.getAttribute('oct') || '4';
         const pc         = noteToPitchClass(pname, accid, ksAcc);
-        const solfaSyl   = (pc >= 0) ? toSolfa(pc, doh) : '?';
+        const solfaSyl   = (pc >= 0) ? toSolfaWithAccidental(pname, accid, doh, ksAcc) : '?';
         const octMark    = octaveMarker(pc, oct, doh, refOct);
 
         // Collect every verse on this note, keyed by verse number, so multiple
@@ -1276,9 +1326,23 @@
      * @param {string} meiXml – serialised MEI document
      * @returns {string} HTML
      */
-    function renderSolfa(meiXml) {
+    /**
+     * Parse an MEI document and compute everything needed to lay out the
+     * sol-fa notation - voices, per-voice beat-grid items, barline types,
+     * slur pairs, verse numbers, and key/title info - without building any
+     * output format. Shared by renderSolfa (HTML view) and the PDF export,
+     * so both always read the score exactly the same way.
+     *
+     * @param {string} meiXml
+     * @returns {{error:string}|{error:null, doc:Document, slurPairs:Array,
+     *   verseNums:string[], voices:Array, voiceItems:Array, measureRight:string[],
+     *   finalBarType:string, barlineClass:Function, title:string,
+     *   fundamental:string, fundamentalNote:string, keyDisplayName:string,
+     *   hasPickup:boolean, meterInfo:Object}}
+     */
+    function buildSolfaModel(meiXml) {
         if (!meiXml) {
-            return '<div class="solfa-error">No score loaded. Please select a text and tune first, then click Go.</div>';
+            return { error: 'No score loaded. Please select a text and tune first, then click Go.' };
         }
 
         /* Parse XML */
@@ -1288,7 +1352,7 @@
             doc = parser.parseFromString(meiXml, 'text/xml');
             if (doc.querySelector('parsererror')) throw new Error('XML parse error');
         } catch (e) {
-            return '<div class="solfa-error">Could not parse the score data.</div>';
+            return { error: 'Could not parse the score data.' };
         }
 
         /* Make sure the slur run-underline CSS is present. */
@@ -1368,7 +1432,7 @@
         /* Discover voice parts */
         const voices = discoverVoices(doc, staffDefs);
         if (voices.length === 0) {
-            return '<div class="solfa-error">No voice parts found in the score.</div>';
+            return { error: 'No voice parts found in the score.' };
         }
 
         /* Meter: @meter.count and @meter.unit on scoreDef/staffDef, or a child <meterSig @count @unit> */
@@ -1417,8 +1481,34 @@
         /* Barline type at the right of each measure, from MEI @right. This drives
          * whether a measure boundary is drawn as a single line, a double bar
          * (dbl), or a final/end bar (end). Absent maps to a single line, except
-         * the very last measure, which defaults to a final bar by convention. */
+         * the very last measure, which defaults to a final bar by convention.
+         *
+         * Presentation Mode (see app-dev.js) repeats the tune once per stanza by
+         * duplicating the whole <section>, one per stanza, all flattened here into
+         * one continuous voice. The join between one stanza's repeat and the next
+         * should always read as a double bar, but relying solely on @right="dbl"
+         * being present on the right measure is fragile: the half-stanza measure
+         * trimming that runs as part of that duplication can end up shortening a
+         * section so its last measure is no longer the one that was tagged. So the
+         * boundary is derived directly from the <section> elements themselves -
+         * the true final measure of the piece keeps whatever @right it carries
+         * (normally "end"), and the last measure of every earlier section is
+         * forced to a double bar regardless of its own @right attribute. A
+         * single-section score (Presentation Mode off) is unaffected. */
         const measureRight = allMeasures.map(m => (m.getAttribute('right') || '').toLowerCase());
+
+        const sectionEls = Array.from(doc.querySelectorAll('section'));
+        if (sectionEls.length > 1) {
+            sectionEls.forEach((sectionEl, si) => {
+                if (si === sectionEls.length - 1) return; // final section: leave its true end bar alone
+                const sectionMeasures = Array.from(sectionEl.querySelectorAll('measure'));
+                const lastOfSection = sectionMeasures[sectionMeasures.length - 1];
+                if (!lastOfSection) return;
+                const idx = allMeasures.indexOf(lastOfSection);
+                if (idx !== -1) measureRight[idx] = 'dbl';
+            });
+        }
+
         const finalBarType = measureRight.length ? measureRight[measureRight.length - 1] : '';
 
         function barlineClass(type, isLast) {
@@ -1440,9 +1530,14 @@
             return items;
         });
 
-        /* Title from MEI header */
+        /* Title from MEI header. The tune name is a second, "subordinate"
+         * <title> in the same titleStmt (added by app-dev.js's MEI/TEI
+         * combination step as e.g. "Tune: Eden"), separate from the main
+         * text title. */
         const titleEl = doc.querySelector('titleStmt > title') || doc.querySelector('title');
         const title   = titleEl ? titleEl.textContent.trim() : '';
+        const tuneTitleEl = doc.querySelector('titleStmt > title[type="subordinate"]');
+        const tuneTitle   = tuneTitleEl ? tuneTitleEl.textContent.trim() : '';
 
         /* Heading: fundamental note (Doh, or La for minor) and key name.
          *
@@ -1481,11 +1576,29 @@
         const _firstVoiceItems = voiceItems.find(it => it.length > 0) || [];
         const hasPickup = _firstVoiceItems.length > 0 && _firstVoiceItems[0].beatPrefix === ':';
 
+        return {
+            error: null, doc, slurPairs, verseNums, voices, voiceItems, measureRight,
+            finalBarType, barlineClass, title, tuneTitle, fundamental, fundamentalNote,
+            keyDisplayName, hasPickup, meterInfo
+        };
+    }
+
+    function renderSolfa(meiXml) {
+        const model = buildSolfaModel(meiXml);
+        if (model.error) {
+            return '<div class="solfa-error">' + esc(model.error) + '</div>';
+        }
+        const {
+            slurPairs, verseNums, voices, voiceItems, finalBarType,
+            barlineClass, title, tuneTitle, fundamental, fundamentalNote, keyDisplayName, hasPickup
+        } = model;
+
         /* Build HTML */
         const H = [];
         H.push('<div class="solfa-output">');
 
         if (title) H.push('<h2 class="solfa-title">' + esc(title) + '</h2>');
+        if (tuneTitle) H.push('<h3 class="solfa-tune-title">' + esc(tuneTitle) + '</h3>');
 
         H.push(
             '<p class="solfa-meta">Key:\u00a0<strong>' + esc(keyDisplayName) + '</strong>' +
@@ -1800,6 +1913,10 @@
 
     /** Exposed for testing or external use */
     global.renderSolfa = renderSolfa;
+
+    /** Exposed so the PDF export can lay out the same voices/items/barlines
+     *  without duplicating the MEI parsing logic. */
+    global.buildSolfaModel = buildSolfaModel;
 
     /** Exposed so callers that insert renderSolfa() output themselves can draw
      *  (or redraw) the measured slur underlines. */

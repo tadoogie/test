@@ -84,6 +84,7 @@ function setupShareModal() {
     }
     const psModeEl = document.getElementById('psMode');
     if (psModeEl && psModeEl.checked) params.append('presentation', 'on');
+    if (window.globalSolfaMode) params.append('solfa', 'on');
     params.append('autoGen', 'true');
     return `${baseUrl}?${params.toString()}`;
   }
@@ -1353,6 +1354,32 @@ function setTexts() {
       // If only one has version, non-version comes first
       if (aVersionMatch && !bVersionMatch) return 1;
       if (!aVersionMatch && bVersionMatch) return -1;
+
+      // Psalms divided into parts, e.g. "Psalm 119, Part 1" / "Psalm 119,
+      // Part 2A" - sort numerically by part number (these can run well past
+      // 9, e.g. Psalm 119's traditional 22-part divisions, so this can't
+      // just be a text comparison), then by any letter suffix on the part.
+      const aPartMatch = a.label.match(/,\s*Part\s+(\d+)([A-Za-z]?)\b/i);
+      const bPartMatch = b.label.match(/,\s*Part\s+(\d+)([A-Za-z]?)\b/i);
+      if (aPartMatch && bPartMatch) {
+        const aPartNum = parseInt(aPartMatch[1], 10);
+        const bPartNum = parseInt(bPartMatch[1], 10);
+        if (aPartNum !== bPartNum) return aPartNum - bPartNum;
+        return (aPartMatch[2] || '').toUpperCase().localeCompare((bPartMatch[2] || '').toUpperCase());
+      }
+      if (aPartMatch && !bPartMatch) return 1;
+      if (!aPartMatch && bPartMatch) return -1;
+
+      // Some psalters attach a letter directly to the psalm number instead
+      // of a parenthetical version, e.g. "Psalm 1A" / "Psalm 1B" - rank by
+      // that letter the same predictable way as the ordinal words above.
+      const aLetterMatch = a.label.match(/^Psalm\s*\d+([A-Za-z])\b/i);
+      const bLetterMatch = b.label.match(/^Psalm\s*\d+([A-Za-z])\b/i);
+      if (aLetterMatch && bLetterMatch) {
+        return aLetterMatch[1].toUpperCase().charCodeAt(0) - bLetterMatch[1].toUpperCase().charCodeAt(0);
+      }
+      if (aLetterMatch && !bLetterMatch) return 1;
+      if (!aLetterMatch && bLetterMatch) return -1;
       
       // Otherwise sort version text alphabetically
       return aVersion.localeCompare(bVersion);
@@ -1433,6 +1460,14 @@ function setTexts() {
     if (match) {
       const psalmNum = match[1];
       const versionText = match[2];
+      // Psalms divided into parts, e.g. "Psalm 119, Part 1" / "Psalm 119,
+      // Part 2A" - the part number (with its own optional letter) goes on
+      // the third line as "PT 1" / "PT 2A".
+      const partMatch = !versionText && item.label.match(/,\s*Part\s+(\d+[A-Za-z]?)\b/i);
+      // Some psalters attach a letter directly to the psalm number instead
+      // of a parenthetical, e.g. "Psalm 1A" / "Psalm 1B" for multiple
+      // settings of the same psalm.
+      const letterMatch = !versionText && !partMatch && item.label.match(/^Psalm\s*\d+([A-Za-z])\b/i);
 
       const labelSpan = document.createElement('span');
       labelSpan.className = 'psalm-label';
@@ -1445,19 +1480,25 @@ function setTexts() {
       btn.appendChild(labelSpan);
       btn.appendChild(numberSpan);
 
-      if (versionText) {
+      if (versionText || partMatch || letterMatch) {
         const sublineSpan = document.createElement('span');
         sublineSpan.className = 'psalm-subline';
-        
-        const versionMatch = versionText.match(/(First|Second|Third|Fourth|Fifth|Sixth|Seventh|Eighth|Ninth|Tenth)/i);
-        if (versionMatch) {
-          const versionWords = ['First', 'Second', 'Third', 'Fourth', 'Fifth', 'Sixth', 'Seventh', 'Eighth', 'Ninth', 'Tenth'];
-          const versionIndex = versionWords.findIndex(w => w.toLowerCase() === versionMatch[1].toLowerCase());
-          sublineSpan.textContent = `VER ${versionIndex + 1}`;
+
+        if (versionText) {
+          const versionMatch = versionText.match(/(First|Second|Third|Fourth|Fifth|Sixth|Seventh|Eighth|Ninth|Tenth)/i);
+          if (versionMatch) {
+            const versionWords = ['First', 'Second', 'Third', 'Fourth', 'Fifth', 'Sixth', 'Seventh', 'Eighth', 'Ninth', 'Tenth'];
+            const versionIndex = versionWords.findIndex(w => w.toLowerCase() === versionMatch[1].toLowerCase());
+            sublineSpan.textContent = `VER ${versionIndex + 1}`;
+          } else {
+            sublineSpan.textContent = versionText.toUpperCase();
+          }
+        } else if (partMatch) {
+          sublineSpan.textContent = `PT ${partMatch[1].toUpperCase()}`;
         } else {
-          sublineSpan.textContent = versionText.toUpperCase();
+          sublineSpan.textContent = `VER ${letterMatch[1].toUpperCase()}`;
         }
-        
+
         btn.appendChild(sublineSpan);
       }
     } else {
