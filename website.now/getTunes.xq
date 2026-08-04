@@ -20,15 +20,26 @@ let $tuneList :=
   for $tune in collection("/db/tunes")
   let $tune-path := string(base-uri($tune))
   let $tune-path-abs := if (starts-with($tune-path, "/")) then $tune-path else concat("/", $tune-path)
-  where $tune//mei:otherChar/text() = $metre
-     or $tune//mei:otherChar/text() = $doubleMetre
-     or $tune//mei:otherChar/text() = $tripleMetre
-     or $tune//mei:otherChar/text() = $complexMetre
-     or fn:substring-before($tune//mei:otherChar/text(), "(") = $metre
-  order by $tune//mei:work/mei:title/text() collation "http://www.w3.org/2013/collation/UCA?numeric=yes"
+  (: mei:otherChar/mei:work/mei:title/mei:edition/mei:date are each expected
+     to be single elements, but nothing enforces that in the data - a tune
+     with an accidentally duplicated element here (two <title>s, two
+     <date>s, etc.) would make its text() a multi-item sequence. Several
+     places below (order by, concat, substring-before) require zero-or-one
+     items and throw a type error otherwise - and since a FLWOR's where/order
+     by runs across the whole collection, a single malformed tune throws for
+     every metre that tune happens to match, not just its own. (...)[1] takes
+     just the first value if there happen to be more than one, so malformed
+     data degrades gracefully instead of taking down the query. :)
+  let $otherChar := ($tune//mei:otherChar/text())[1]
+  where $otherChar = $metre
+     or $otherChar = $doubleMetre
+     or $otherChar = $tripleMetre
+     or $otherChar = $complexMetre
+     or fn:substring-before($otherChar, "(") = $metre
+  order by ($tune//mei:work/mei:title/text())[1] collation "http://www.w3.org/2013/collation/UCA?numeric=yes"
   return
     map {
-      "label": concat($tune//mei:work/mei:title/text(), " (", $tune//mei:edition/mei:date/text(), ")"),
+      "label": concat(($tune//mei:work/mei:title/text())[1], " (", ($tune//mei:edition/mei:date/text())[1], ")"),
       "id": $tune-path-abs
       (: The above only works for the test server. The line below is for the production server :)
       (: "id": base-uri($tune) :)
@@ -61,10 +72,10 @@ let $suggData :=
   for $tune in collection("/db/tunes")
   where $tune//mei:identifier/text() = $suggTune
   return map {
-    "label": concat($tune//mei:work/mei:title/text(), " (", $tune//mei:edition/mei:date/text(), ")"),
-    "title": $tune//mei:work/mei:title/text(),
-    "date": $tune//mei:edition/mei:date/text(),
-    "id": $tune//mei:identifier/text()
+    "label": concat(($tune//mei:work/mei:title/text())[1], " (", ($tune//mei:edition/mei:date/text())[1], ")"),
+    "title": ($tune//mei:work/mei:title/text())[1],
+    "date": ($tune//mei:edition/mei:date/text())[1],
+    "id": ($tune//mei:identifier/text())[1]
   }
 
 let $suggInfo := $suggData[1]

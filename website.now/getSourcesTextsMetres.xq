@@ -30,6 +30,7 @@ let $sources :=
         "verses": $verses
       }
     }
+  order by $src
   return map {"label": $src, "texts": $texts}
 
 let $metres :=

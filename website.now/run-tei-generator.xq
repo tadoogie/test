@@ -52,7 +52,11 @@ declare function local:sort-generated-files($names as xs:string*) as xs:string* 
 };
 
 declare function local:first-existing-path($candidates as xs:string*) as xs:string? {
-    $candidates[1]
+    (
+        for $p in $candidates
+        where file:exists($p)
+        return $p
+    )[1]
 };
 
 let $upload := request:get-uploaded-file-data("textFile")[1]

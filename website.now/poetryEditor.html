@@ -1,0 +1,1231 @@
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<title>Splitleaf Syllable Editor — Prototype</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,500;0,600;1,400&amp;family=Inter:wght@400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500&amp;display=swap"/>
+<style>
+:root{
+  --ink:#1E2130;
+  --ink-soft:#6B6A60;
+  --paper:#F1EEE4;
+  --paper-raised:#FBFAF6;
+  --line:#DED7C4;
+  --rubric:#9C3B2E;
+  --rubric-soft:#F3E1DB;
+  --gold:#8C6A2E;
+  --gold-soft:#F1E7D0;
+  --ok:#4B6355;
+  --ok-soft:#E4EBE3;
+  --focus:#2F5C8A;
+  --col-count-w: 72px;
+  --col-suggest-w: 52px;
+}
+
+*{ box-sizing:border-box; }
+
+body{
+  margin:0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family:'Inter',sans-serif;
+  padding: 28px 20px 100px;
+}
+
+.wrap{ max-width: 960px; margin: 0 auto; }
+
+.toolbar{
+  background: var(--paper-raised);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 18px 22px;
+  margin-bottom: 22px;
+}
+
+.toolbar-top{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.title-block .eyebrow{
+  font-family:'IBM Plex Mono',monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin: 0 0 4px;
+}
+
+.title-block h1{
+  font-family:'Spectral',serif;
+  font-weight: 600;
+  font-size: 26px;
+  margin: 0 0 6px;
+}
+
+.title-block .meter-line{
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.title-block .meter-line b{
+  color: var(--ink);
+  font-family:'IBM Plex Mono',monospace;
+  font-weight: 500;
+}
+
+.toolbar-actions{
+  display:flex;
+  align-items:center;
+  gap: 12px;
+}
+
+.flag-count{
+  font-family:'IBM Plex Mono',monospace;
+  font-size: 12px;
+  background: var(--rubric-soft);
+  color: var(--rubric);
+  padding: 6px 11px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.flag-count.clear{
+  background: var(--ok-soft);
+  color: var(--ok);
+}
+
+.btn{
+  font-family:'Inter',sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid var(--ink);
+  background: var(--ink);
+  color: var(--paper-raised);
+  padding: 9px 16px;
+  border-radius: 7px;
+  cursor: pointer;
+}
+.btn:hover{ opacity: 0.88; }
+.btn:focus-visible{ outline: 3px solid var(--focus); outline-offset: 2px; }
+
+.hint{
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--line);
+  font-size: 12.5px;
+  color: var(--ink-soft);
+  line-height: 1.6;
+}
+.hint b{ color: var(--ink); }
+
+.stanza{
+  background: var(--paper-raised);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 20px 18px;
+  margin-bottom: 14px;
+}
+
+.stanza-header{
+  display:flex;
+  align-items:center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.verse-badge{
+  font-family:'IBM Plex Mono',monospace;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--rubric);
+  background: var(--rubric-soft);
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+.cert-flag{
+  font-family:'IBM Plex Mono',monospace;
+  font-size: 11px;
+  background: var(--gold-soft);
+  color: var(--gold);
+  border: none;
+  border-radius: 999px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+.cert-flag:hover{ opacity: 0.85; }
+
+.col-header{
+  display:grid;
+  grid-template-columns: 1fr var(--col-count-w) var(--col-suggest-w);
+  column-gap: 14px;
+  padding: 0 20px 8px;
+  position: sticky;
+  top: 0;
+  background: var(--paper);
+  z-index: 5;
+}
+.col-header span{
+  font-family:'IBM Plex Mono',monospace;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.col-header .count-col small{
+  display: block;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 10px;
+  opacity: 0.8;
+  margin-top: 1px;
+}
+
+.line-row{
+  display:grid;
+  grid-template-columns: 1fr var(--col-count-w) var(--col-suggest-w);
+  column-gap: 14px;
+  row-gap: 8px;
+  align-items:center;
+  padding: 8px 0;
+}
+.line-row:not(:last-child){ border-bottom: 1px dotted var(--line); }
+
+.syllable-grid{
+  display: grid;
+  column-gap: 4px;
+  row-gap: 8px;
+  align-items: center;
+  justify-items: start;
+  min-width: 0;
+  overflow-x: auto;
+  padding-bottom: 6px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--gold) var(--paper);
+}
+.syllable-grid::-webkit-scrollbar{ height: 7px; }
+.syllable-grid::-webkit-scrollbar-track{ background: var(--paper); border-radius: 4px; }
+.syllable-grid::-webkit-scrollbar-thumb{ background: var(--gold); border-radius: 4px; }
+
+.seam{
+  width: 18px;
+  min-width: 18px;
+  height: 32px;
+  border: none;
+  background: rgba(47,92,138,0.10);
+  color: var(--focus);
+  font-family:'IBM Plex Mono',monospace;
+  font-size: 13px;
+  cursor: pointer;
+  border-radius: 5px;
+  transition: background 0.12s ease, color 0.12s ease, transform 0.12s ease;
+}
+.seam:hover, .seam:focus-visible{ background: var(--focus); color: white; transform: scale(1.08); }
+.seam:focus-visible{ outline: 2px solid var(--focus); outline-offset: 1px; }
+
+.box{
+  position: relative;
+  display:inline-flex;
+  align-items:center;
+}
+
+.syl-input{
+  font-family:'Spectral',serif;
+  font-size: 16px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--paper);
+  color: var(--ink);
+  padding: 6px 9px;
+  min-width: 3.5ch;
+  text-align: center;
+}
+.syl-input:focus-visible{
+  outline: none;
+  border-color: var(--focus);
+  box-shadow: 0 0 0 2px rgba(47,92,138,0.25);
+}
+
+.line-row.mismatch .syl-input{ border-color: var(--rubric); }
+.line-row.mismatch .counter{ color: var(--rubric); }
+
+.del-btn{
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  width: 15px;
+  height: 15px;
+  line-height: 13px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: var(--paper-raised);
+  color: var(--ink-soft);
+  font-size: 10px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+  padding: 0;
+}
+.box:hover .del-btn{ opacity: 1; }
+.del-btn:hover{ background: var(--rubric); color: white; border-color: var(--rubric); }
+
+.counter{
+  font-family:'IBM Plex Mono',monospace;
+  font-size: 13px;
+  color: var(--ok);
+}
+
+.suggest-btn{
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid var(--gold);
+  color: var(--gold);
+  border-radius: 50%;
+  cursor: pointer;
+  justify-self: start;
+}
+.suggest-btn:hover{ background: var(--gold-soft); }
+.suggest-btn:disabled{ opacity: 0.5; cursor: default; }
+.suggest-btn svg{ width: 15px; height: 15px; }
+
+.suggestion-actions{
+  grid-column: 1;
+  display: none;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.suggestion-chip{
+  font-family:'Spectral',serif;
+  font-size: 14px;
+  background: var(--gold-soft);
+  border: 1px solid var(--gold);
+  color: var(--ink);
+  border-radius: 6px;
+  padding: 5px 9px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.suggestion-chip:hover{ background: var(--gold); color: white; }
+
+.apply-all-btn{
+  font-family:'IBM Plex Mono',monospace;
+  font-size: 11px;
+  background: var(--gold);
+  border: 1px solid var(--gold);
+  color: white;
+  border-radius: 999px;
+  padding: 5px 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.apply-all-btn:hover{ opacity: 0.85; }
+
+.dismiss-btn{
+  font-family:'IBM Plex Mono',monospace;
+  font-size: 11px;
+  background: none;
+  border: none;
+  color: var(--ink-soft);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+@media (max-width: 640px){
+  .line-row{ gap: 8px; }
+}
+
+.upload-panel{
+  background: var(--paper-raised);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 22px;
+  margin-bottom: 16px;
+}
+
+.panel-help{
+  font-size: 12.5px;
+  color: var(--ink-soft);
+  line-height: 1.6;
+  margin: 6px 0 12px;
+}
+
+.upload-row{
+  display:flex;
+  align-items:center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.file-input-label{
+  font-family:'Inter',sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid var(--ink);
+  background: var(--ink);
+  color: var(--paper-raised);
+  padding: 9px 16px;
+  border-radius: 7px;
+  cursor: pointer;
+  display: inline-block;
+}
+.file-input-label:hover{ opacity: 0.88; }
+#fileInput{
+  position: absolute;
+  width: 1px; height: 1px;
+  overflow: hidden;
+  clip: rect(0,0,0,0);
+  white-space: nowrap;
+}
+#fileInput:focus-visible + .file-input-label{
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.file-name{
+  font-family:'IBM Plex Mono',monospace;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.status-msg{ font-size: 12.5px; margin: 8px 0 0; min-height: 16px; }
+.status-msg.error{ color: var(--rubric); }
+.status-msg.success{ color: var(--ok); }
+.status-msg.info{ color: var(--ink-soft); }
+
+.download-result{
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--line);
+  display: none;
+  flex-direction: column;
+  font-size: 12.5px;
+  color: var(--ink-soft);
+}
+.download-result.show{ display: flex; }
+
+.xml-output{
+  width: 100%;
+  font-family:'IBM Plex Mono',monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 10px;
+  resize: vertical;
+}
+.xml-output:focus-visible{
+  outline: none;
+  border-color: var(--focus);
+  box-shadow: 0 0 0 2px rgba(47,92,138,0.2);
+}
+
+.download-result-row{
+  margin-top: 8px;
+  display:flex;
+  align-items:center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.copy-btn{
+  font-family:'IBM Plex Mono',monospace;
+  font-size: 12px;
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--ink);
+  border-radius: 6px;
+  padding: 5px 10px;
+  cursor: pointer;
+}
+.copy-btn:hover{ background: var(--paper); }
+
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="upload-panel">
+    <p class="eyebrow">Open a file</p>
+    <p class="panel-help">
+      Upload a TEI XML file from your computer to edit it. Nothing here talks to GitHub or any other server —
+      it's just this file, parsed and rendered, entirely in your browser. When you're done, download the edited
+      file and push or upload it to your repo the way you normally would.
+    </p>
+    <div class="upload-row">
+      <input type="file" id="fileInput" accept=".xml,text/xml,application/xml"/>
+      <label for="fileInput" class="file-input-label">Choose TEI XML file…</label>
+      <span class="file-name" id="fileNameLabel">No file chosen — showing the sample Psalm 11 below</span>
+    </div>
+    <p class="status-msg" id="uploadStatus"/>
+  </div>
+
+  <div class="toolbar">
+    <div class="toolbar-top">
+      <div class="title-block">
+        <p class="eyebrow">Digital Splitleaf · Syllable Editor · prototype</p>
+        <h1 id="psalmTitle">—</h1>
+        <p class="meter-line" id="meterLine"/>
+      </div>
+      <div class="toolbar-actions">
+        <span class="flag-count" id="flagCount">—</span>
+        <button class="btn" id="downloadBtn">Download XML</button>
+      </div>
+    </div>
+    <p class="hint">
+      Type in a box to edit a syllable. Hover between boxes and click the thin <b>+</b> seam to insert one.
+      Hover a box and click <b>×</b> — or press Backspace on an empty box — to remove it.
+      Click the <b>lightbulb</b> icon on a flagged line for a free, local, rule-based syllable split — no API call, no cost.
+      The suggestion appears as a row of syllables aligned directly under the boxes above: click one to drop it
+      into its matching box, or click <b>Apply all</b> to replace the whole line at once.
+      This runs entirely in your browser — nothing is published anywhere yet.
+    </p>
+    <div class="download-result" id="downloadResult">
+      <p class="panel-help" style="margin:0 0 6px;">
+        Click inside the box, select all (<b>Ctrl/Cmd+A</b>), then copy (<b>Ctrl/Cmd+C</b>) — the text is
+        pre-selected for you. Paste it into a text editor and save it as <span id="downloadFilenameHint"/>.
+      </p>
+      <textarea id="xmlOutput" class="xml-output" readonly="readonly" rows="10" wrap="off"/>
+      <div class="download-result-row">
+        <button class="copy-btn" id="copyXmlBtn">Copy to clipboard</button>
+        <span class="status-msg" id="downloadCopyStatus"/>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-header">
+    <span/>
+    <span class="count-col">Syllable count<small>actual / target</small>
+                </span>
+    <span>Suggest</span>
+  </div>
+
+  <div id="stanzas"/>
+
+</div>
+
+<script>
+//
+const TEI_NS = 'http://www.tei-c.org/ns/1.0';
+
+// Real content from Digital-Splitleaf/splitleaf-data, texts/2004-Irish/ps11.xml
+const SAMPLE_XML = `&lt;TEI xmlns="http://www.tei-c.org/ns/1.0" xml:id="ID_HERE"&gt;
+&lt;teiHeader&gt;
+        &lt;fileDesc&gt;
+            &lt;titleStmt&gt;
+                &lt;title&gt;Psalm 11&lt;/title&gt;
+                &lt;author&gt;Anonymous&lt;/author&gt;
+                &lt;editor role="general"&gt;Timothy Duguid&lt;/editor&gt;
+                &lt;respStmt&gt;
+                    &lt;resp&gt;Encoded by&lt;/resp&gt;
+                    &lt;persName role="enc"&gt;Luca Guariento (Splitleaf TEI Encoder script)&lt;/persName&gt;
+                &lt;/respStmt&gt;
+                &lt;respStmt&gt;
+                    &lt;resp&gt;Validated by&lt;/resp&gt;
+                    &lt;name xml:id="TD"&gt;Tim Duugid&lt;/name&gt;
+                    &lt;name xml:id="VALIDATOR_2_INITIALS"&gt;VALIDATOR_2_NAME&lt;/name&gt;
+                &lt;/respStmt&gt;
+            &lt;/titleStmt&gt;
+            &lt;editionStmt&gt;
+                &lt;edition&gt;
+                    &lt;title type="main"&gt;The Psalms for Singing&lt;/title&gt;
+                    &lt;title type="short"&gt;2004 Irish Psalter&lt;/title&gt;
+                    &lt;date&gt;2004&lt;/date&gt;
+                &lt;/edition&gt;
+                &lt;respStmt&gt;
+                    &lt;resp&gt;Published by&lt;/resp&gt;
+                    &lt;persName role="pub"&gt;Nigel Lynn Publishing&lt;/persName&gt;
+                &lt;/respStmt&gt;
+            &lt;/editionStmt&gt;
+            &lt;publicationStmt&gt;
+                &lt;publisher&gt;Digital Splitleaf&lt;/publisher&gt;
+                &lt;availability&gt;
+                    &lt;licence target="LICENSE_URL_HERE"&gt;LICENSE_TEXT_HERE&lt;/licence&gt;
+                &lt;/availability&gt;
+            &lt;/publicationStmt&gt;
+            &lt;notesStmt&gt;
+                &lt;note&gt;Suggested tune:&lt;/note&gt;
+                &lt;note&gt;TUNE_HERE&lt;/note&gt;
+            &lt;/notesStmt&gt;
+            &lt;sourceDesc&gt;
+                &lt;p&gt;SOURCE_DESC_HERE&lt;/p&gt;
+            &lt;/sourceDesc&gt;
+        &lt;/fileDesc&gt;
+        &lt;encodingDesc&gt;
+            &lt;metDecl&gt;
+                &lt;p&gt;All metre designations are only counts of syllables and do not refer to any type of poetic foot.&lt;/p&gt;
+            &lt;/metDecl&gt;
+        &lt;/encodingDesc&gt;
+    &lt;/teiHeader&gt;
+&lt;text&gt;
+    &lt;body&gt;
+        &lt;div type="poem" met="8.6.8.6."&gt;
+            &lt;lg type="verse" n="1"&gt;
+                &lt;l&gt;
+                    &lt;seg type="syl" n="1"&gt;1. MY&lt;/seg&gt;
+                    &lt;seg type="syl" n="2"&gt;trust&lt;/seg&gt;
+                    &lt;seg type="syl" n="3"&gt;is&lt;/seg&gt;
+                    &lt;seg type="syl" n="4"&gt;ev-&lt;/seg&gt;
+                    &lt;seg type="syl" n="5"&gt;er&lt;/seg&gt;
+                    &lt;seg type="syl" n="6"&gt;in&lt;/seg&gt;
+                    &lt;seg type="syl" n="7"&gt;the&lt;/seg&gt;
+                    &lt;seg type="syl" n="8"&gt;LORD.&lt;/seg&gt;
+                &lt;/l&gt;
+                &lt;l&gt;
+                    &lt;seg type="syl" n="1"&gt;How&lt;/seg&gt;
+                    &lt;seg type="syl" n="2"&gt;can&lt;/seg&gt;
+                    &lt;seg type="syl" n="3"&gt;you&lt;/seg&gt;
+                    &lt;seg type="syl" n="4"&gt;say&lt;/seg&gt;
+                    &lt;seg type="syl" n="5"&gt;to&lt;/seg&gt;
+                    &lt;seg type="syl" n="6"&gt;me,&lt;/seg&gt;
+                &lt;/l&gt;
+                &lt;l&gt;
+                    &lt;seg type="syl" n="1"&gt;\`Now&lt;/seg&gt;
+                    &lt;seg type="syl" n="2"&gt;like&lt;/seg&gt;
+                    &lt;seg type="syl" n="3"&gt;a&lt;/seg&gt;
+                    &lt;seg type="syl" n="4"&gt;bird&lt;/seg&gt;
+                    &lt;seg type="syl" n="5"&gt;from&lt;/seg&gt;
+                    &lt;seg type="syl" n="6"&gt;per-&lt;/seg&gt;
+                    &lt;seg type="syl" n="7"&gt;il&lt;/seg&gt;
+                    &lt;seg type="syl" n="8"&gt;haste,&lt;/seg&gt;
+                &lt;/l&gt;
+                &lt;l&gt;
+                    &lt;seg type="syl" n="1"&gt;and&lt;/seg&gt;
+                    &lt;seg type="syl" n="2"&gt;to&lt;/seg&gt;
+                    &lt;seg type="syl" n="3"&gt;your&lt;/seg&gt;
+                    &lt;seg type="syl" n="4"&gt;moun-&lt;/seg&gt;
+                    &lt;seg type="syl" n="5"&gt;tain&lt;/seg&gt;
+                    &lt;seg type="syl" n="6"&gt;flee;&lt;/seg&gt;
+                &lt;/l&gt;
+            &lt;/lg&gt;
+            &lt;lg type="verse" n="2"&gt;
+                &lt;l&gt;
+                    &lt;seg type="syl" n="1"&gt;2. \`For&lt;/seg&gt;
+                    &lt;seg type="syl" n="2"&gt;look,&lt;/seg&gt;
+                    &lt;seg type="syl" n="3"&gt;the&lt;/seg&gt;
+                    &lt;seg type="syl" n="4"&gt;wic-&lt;/seg&gt;
+                    &lt;seg type="syl" n="5"&gt;ked&lt;/seg&gt;
+                    &lt;seg type="syl" n="6"&gt;bend&lt;/seg&gt;
+                    &lt;seg type="syl" n="7"&gt;their&lt;/seg&gt;
+                    &lt;seg type="syl" n="8"&gt;bow,&lt;/seg&gt;
+                &lt;/l&gt;
+                &lt;l&gt;
+                    &lt;seg type="syl" n="1"&gt;with&lt;/seg&gt;
+                    &lt;seg type="syl" n="2"&gt;ar-&lt;/seg&gt;
+                    &lt;seg type="syl" n="3"&gt;rows&lt;/seg&gt;
+                    &lt;seg type="syl" n="4"&gt;fixed&lt;/seg&gt;
+                    &lt;seg type="syl" n="5"&gt;for&lt;/seg&gt;
+                    &lt;seg type="syl" n="6"&gt;flight.&lt;/seg&gt;
+                &lt;/l&gt;
+                &lt;l&gt;
+                    &lt;seg type="syl" n="1"&gt;They&lt;/seg&gt;
+                    &lt;seg type="syl" n="2"&gt;shoot&lt;/seg&gt;
+                    &lt;seg type="syl" n="3"&gt;them&lt;/seg&gt;
+                    &lt;seg type="syl" n="4"&gt;at&lt;/seg&gt;
+                    &lt;seg type="syl" n="5"&gt;the&lt;/seg&gt;
+                    &lt;seg type="syl" n="6"&gt;true&lt;/seg&gt;
+                    &lt;seg type="syl" n="7"&gt;in&lt;/seg&gt;
+                    &lt;seg type="syl" n="8"&gt;heart&lt;/seg&gt;
+                &lt;/l&gt;
+                &lt;l&gt;
+                    &lt;seg type="syl" n="1"&gt;in&lt;/seg&gt;
+                    &lt;seg type="syl" n="2"&gt;dark-&lt;/seg&gt;
+                    &lt;seg type="syl" n="3"&gt;ness&lt;/seg&gt;
+                    &lt;seg type="syl" n="4"&gt;of&lt;/seg&gt;
+                    &lt;seg type="syl" n="5"&gt;the&lt;/seg&gt;
+                    &lt;seg type="syl" n="6"&gt;night.&lt;/seg&gt;
+                &lt;/l&gt;
+            &lt;/lg&gt;
+            &lt;lg type="verse" n="3" cert="low"&gt;
+                &lt;l&gt;
+                    &lt;seg type="syl" n="1"&gt;3. \`When&lt;/seg&gt;
+                    &lt;seg type="syl" n="2"&gt;the&lt;/seg&gt;
+                    &lt;seg type="syl" n="3"&gt;foun-&lt;/seg&gt;
+                    &lt;seg type="syl" n="4"&gt;da-&lt;/seg&gt;
+                    &lt;seg type="syl" n="5"&gt;tions&lt;/seg&gt;
+                    &lt;seg type="syl" n="6"&gt;are&lt;/seg&gt;
+                    &lt;seg type="syl" n="7"&gt;de-&lt;/seg&gt;
+                    &lt;seg type="syl" n="8"&gt;stroyed,&lt;/seg&gt;
+                &lt;/l&gt;
+                &lt;l&gt;
+                    &lt;seg type="syl" n="1"&gt;what&lt;/seg&gt;
+                    &lt;seg type="syl" n="2"&gt;can&lt;/seg&gt;
+                    &lt;seg type="syl" n="3"&gt;the&lt;/seg&gt;
+                    &lt;seg type="syl" n="4"&gt;right-&lt;/seg&gt;
+                    &lt;seg type="syl" n="5"&gt;eous&lt;/seg&gt;
+                    &lt;seg type="syl" n="6"&gt;try?'&lt;/seg&gt;
+                &lt;/l&gt;
+                &lt;l&gt;
+                    &lt;seg type="syl" n="1"&gt;The&lt;/seg&gt;
+                    &lt;seg type="syl" n="2"&gt;LORD&lt;/seg&gt;
+                    &lt;seg type="syl" n="3"&gt;is&lt;/seg&gt;
+                    &lt;seg type="syl" n="4"&gt;in&lt;/seg&gt;
+                    &lt;seg type="syl" n="5"&gt;his&lt;/seg&gt;
+                    &lt;seg type="syl" n="6"&gt;ho-&lt;/seg&gt;
+                    &lt;seg type="syl" n="7"&gt;ly&lt;/seg&gt;
+                    &lt;seg type="syl" n="8"&gt;house,&lt;/seg&gt;
+                &lt;/l&gt;
+                &lt;l&gt;
+                    &lt;seg type="syl" n="1"&gt;his&lt;/seg&gt;
+                    &lt;seg type="syl" n="2"&gt;throne&lt;/seg&gt;
+                    &lt;seg type="syl" n="3"&gt;in&lt;/seg&gt;
+                    &lt;seg type="syl" n="4"&gt;heaven&lt;/seg&gt;
+                    &lt;seg type="syl" n="5"&gt;high.&lt;/seg&gt;
+                &lt;/l&gt;
+            &lt;/lg&gt;
+            &lt;lg type="verse" n="4"&gt;
+                &lt;l&gt;
+                    &lt;seg type="syl" n="1"&gt;4. His&lt;/seg&gt;
+                    &lt;seg type="syl" n="2"&gt;eyes&lt;/seg&gt;
+                    &lt;seg type="syl" n="3"&gt;do&lt;/seg&gt;
+                    &lt;seg type="syl" n="4"&gt;see;&lt;/seg&gt;
+                    &lt;seg type="syl" n="5"&gt;his&lt;/seg&gt;
+                    &lt;seg type="syl" n="6"&gt;eye-&lt;/seg&gt;
+                    &lt;seg type="syl" n="7"&gt;lids&lt;/seg&gt;
+                    &lt;seg type="syl" n="8"&gt;test&lt;/seg&gt;
+                &lt;/l&gt;
+                &lt;l&gt;
+                    &lt;seg type="syl" n="1"&gt;the&lt;/seg&gt;
+                    &lt;seg type="syl" n="2"&gt;sons&lt;/seg&gt;
+                    &lt;seg type="syl" n="3"&gt;of&lt;/seg&gt;
+                    &lt;seg type="syl" n="4"&gt;men.&lt;/seg&gt;
+                    &lt;seg type="syl" n="5"&gt;He&lt;/seg&gt;
+                    &lt;seg type="syl" n="6"&gt;tests&lt;/seg&gt;
+                &lt;/l&gt;
+                &lt;l&gt;
+                    &lt;seg type="syl" n="1"&gt;both&lt;/seg&gt;
+                    &lt;seg type="syl" n="2"&gt;good&lt;/seg&gt;
+                    &lt;seg type="syl" n="3"&gt;and&lt;/seg&gt;
+                    &lt;seg type="syl" n="4"&gt;bad;&lt;/seg&gt;
+                    &lt;seg type="syl" n="5"&gt;him&lt;/seg&gt;
+                    &lt;seg type="syl" n="6"&gt;who&lt;/seg&gt;
+                    &lt;seg type="syl" n="7"&gt;de-&lt;/seg&gt;
+                    &lt;seg type="syl" n="8"&gt;lights&lt;/seg&gt;
+                &lt;/l&gt;
+                &lt;l&gt;
+                    &lt;seg type="syl" n="1"&gt;in&lt;/seg&gt;
+                    &lt;seg type="syl" n="2"&gt;vi'-&lt;/seg&gt;
+                    &lt;seg type="syl" n="3"&gt;lence&lt;/seg&gt;
+                    &lt;seg type="syl" n="4"&gt;he&lt;/seg&gt;
+                    &lt;seg type="syl" n="5"&gt;de-&lt;/seg&gt;
+                    &lt;seg type="syl" n="6"&gt;tests.&lt;/seg&gt;
+                &lt;/l&gt;
+            &lt;/lg&gt;
+        &lt;/div&gt;
+    &lt;/body&gt;
+&lt;/text&gt;
+&lt;/TEI&gt;
+`;
+
+let doc, div, pattern, filename = 'ps11.xml';
+const rowMap = new Map();
+
+function children(el, name){
+  return Array.from(el.children).filter(c =&gt; c.localName === name);
+}
+function segsOf(lEl){
+  return children(lEl, 'seg').filter(s =&gt; s.getAttribute('type') === 'syl');
+}
+function renumber(lEl){
+  segsOf(lEl).forEach((s, i) =&gt; s.setAttribute('n', String(i + 1)));
+}
+
+const METER_NAMES = {
+  '8.8.8.8': 'Long Meter (LM)',
+  '8.6.8.6': 'Common Meter (CM)',
+  '6.6.8.6': 'Short Meter (SM)',
+  '8.8.8.8.8.8.8.8': 'Long Meter Doubled (LMD)',
+  '8.6.8.6.8.6.8.6': 'Common Meter Doubled (CMD)',
+  '6.6.8.6.6.6.8.6': 'Short Meter Doubled (SMD)'
+};
+
+function load(xmlText){
+  const parser = new DOMParser();
+  const parsed = parser.parseFromString(xmlText, 'application/xml');
+  const errNode = parsed.querySelector('parsererror');
+  if (errNode) throw new Error('the file is not well-formed XML');
+  const foundDiv = parsed.getElementsByTagNameNS(TEI_NS, 'div')[0];
+  if (!foundDiv) throw new Error('no TEI &lt;div type="poem"&gt; element found');
+
+  doc = parsed;
+  div = foundDiv;
+  const met = div.getAttribute('met') || '';
+  pattern = met.split('.').map(s =&gt; s.trim()).filter(Boolean).map(Number);
+
+  const titleEl = doc.getElementsByTagNameNS(TEI_NS, 'title')[0];
+  document.getElementById('psalmTitle').textContent = titleEl ? titleEl.textContent : 'Untitled';
+
+  const key = pattern.join('.');
+  const friendly = METER_NAMES[key];
+  document.getElementById('meterLine').innerHTML =
+    (friendly ? friendly + ' · ' : '') + '&lt;b&gt;' + met + '&lt;/b&gt;';
+
+  render();
+}
+
+// Column layout for a line of N syllables: seam, box, seam, box, ..., seam
+// (2N+1 columns). Box columns size to content (max-content); seam columns
+// are a fixed width. Suggestion chips reuse this exact template in row 2,
+// so the browser — not JS math — keeps every column aligned across both rows.
+function colTemplate(n){
+  const parts = [];
+  for (let i = 0; i &lt; n; i++){ parts.push('18px'); parts.push('max-content'); }
+  parts.push('18px');
+  return parts.join(' ');
+}
+function boxColumn(i){ return 2 * i + 2; }
+function seamColumn(i){ return 2 * i + 1; }
+
+function render(){
+  rowMap.clear();
+  const container = document.getElementById('stanzas');
+  container.innerHTML = '';
+
+  const lgEls = children(div, 'lg');
+  lgEls.forEach((lg) =&gt; {
+    const stanzaEl = document.createElement('section');
+    stanzaEl.className = 'stanza';
+
+    const header = document.createElement('div');
+    header.className = 'stanza-header';
+    const badge = document.createElement('span');
+    badge.className = 'verse-badge';
+    badge.textContent = lg.getAttribute('n') || '';
+    header.appendChild(badge);
+    if (lg.getAttribute('cert')){
+      const flag = document.createElement('button');
+      flag.className = 'cert-flag';
+      flag.textContent = 'flagged (' + lg.getAttribute('cert') + ' certainty) — clear';
+      flag.onclick = () =&gt; { lg.removeAttribute('cert'); render(); };
+      header.appendChild(flag);
+    }
+    stanzaEl.appendChild(header);
+
+    const lEls = children(lg, 'l');
+    lEls.forEach((lEl, lineIdx) =&gt; {
+      const expected = pattern.length ? pattern[lineIdx % pattern.length] : null;
+      const row = document.createElement('div');
+      row.className = 'line-row';
+      row.dataset.expected = expected == null ? '' : String(expected);
+      rowMap.set(lEl, row);
+
+      const segEls = segsOf(lEl);
+      const grid = document.createElement('div');
+      grid.className = 'syllable-grid';
+      grid.style.gridTemplateColumns = colTemplate(segEls.length);
+
+      const seam0 = makeSeam(lEl, 0);
+      seam0.style.gridColumn = String(seamColumn(0));
+      seam0.style.gridRow = '1';
+      grid.appendChild(seam0);
+
+      segEls.forEach((seg, i) =&gt; {
+        const box = makeBox(seg, lEl);
+        box.style.gridColumn = String(boxColumn(i));
+        box.style.gridRow = '1';
+        grid.appendChild(box);
+
+        const seam = makeSeam(lEl, i + 1);
+        seam.style.gridColumn = String(seamColumn(i + 1));
+        seam.style.gridRow = '1';
+        grid.appendChild(seam);
+      });
+      row.appendChild(grid);
+
+      const counter = document.createElement('span');
+      counter.className = 'counter';
+      row.appendChild(counter);
+
+      const suggestBtn = document.createElement('button');
+      suggestBtn.className = 'suggest-btn';
+      suggestBtn.setAttribute('aria-label', 'Suggest a syllable split for this line');
+      suggestBtn.title = 'Suggest a syllable split';
+      suggestBtn.innerHTML = '&lt;svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" ' +
+        'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;' +
+        '&lt;path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.5.4.8 1 .8 1.6v.5a1 1 0 0 0 1 1h3.4a1 1 0 0 0 1-1v-.5c0-.6.3-1.2.8-1.6A6 6 0 0 0 12 3Z"/&gt;' +
+        '&lt;/svg&gt;';
+      suggestBtn.onclick = () =&gt; suggestLine(lEl, expected, row, suggestBtn);
+      row.appendChild(suggestBtn);
+
+      const suggestionActions = document.createElement('div');
+      suggestionActions.className = 'suggestion-actions';
+      row.appendChild(suggestionActions);
+
+      stanzaEl.appendChild(row);
+      updateLineStatus(lEl);
+    });
+
+    container.appendChild(stanzaEl);
+  });
+
+  updateSummary();
+}
+
+const measureCanvas = document.createElement('canvas');
+const measureCtx = measureCanvas.getContext('2d');
+const BOX_FONT = "16px 'Spectral', serif";
+function autosize(input){
+  measureCtx.font = BOX_FONT;
+  const w = measureCtx.measureText(input.value || 'M').width;
+  input.style.width = Math.max(34, Math.ceil(w) + 26) + 'px'; // +26 covers padding, border, cushion
+}
+if (document.fonts &amp;&amp; document.fonts.ready){
+  document.fonts.ready.then(() =&gt; {
+    document.querySelectorAll('.syl-input').forEach(autosize);
+  });
+}
+
+function makeBox(seg, lEl){
+  const wrap = document.createElement('span');
+  wrap.className = 'box';
+
+  const input = document.createElement('input');
+  input.value = seg.textContent;
+  input.className = 'syl-input';
+  input.setAttribute('aria-label', 'Syllable');
+  autosize(input);
+
+  input.addEventListener('input', () =&gt; {
+    seg.textContent = input.value;
+    autosize(input);
+    updateLineStatus(lEl);
+  });
+
+  input.addEventListener('keydown', (e) =&gt; {
+    if (e.key === 'Backspace' &amp;&amp; input.value === ''){
+      e.preventDefault();
+      const list = segsOf(lEl);
+      const myIdx = list.indexOf(seg);
+      seg.remove();
+      renumber(lEl);
+      render();
+      focusBoxAt(lEl, Math.max(0, myIdx - 1));
+    } else if (e.key === 'Enter'){
+      e.preventDefault();
+      input.blur();
+    }
+  });
+
+  const del = document.createElement('button');
+  del.className = 'del-btn';
+  del.setAttribute('aria-label', 'Delete syllable');
+  del.textContent = '×';
+  del.onclick = () =&gt; { seg.remove(); renumber(lEl); render(); };
+
+  wrap.appendChild(input);
+  wrap.appendChild(del);
+  return wrap;
+}
+
+function makeSeam(lEl, insertIdx){
+  const seam = document.createElement('button');
+  seam.className = 'seam';
+  seam.setAttribute('aria-label', 'Insert syllable here');
+  seam.textContent = '+';
+  seam.onclick = () =&gt; {
+    const list = segsOf(lEl);
+    const newSeg = doc.createElementNS(TEI_NS, 'seg');
+    newSeg.setAttribute('type', 'syl');
+    newSeg.textContent = '';
+    if (insertIdx &gt;= list.length) lEl.appendChild(newSeg);
+    else lEl.insertBefore(newSeg, list[insertIdx]);
+    renumber(lEl);
+    render();
+    focusBoxAt(lEl, insertIdx);
+  };
+  return seam;
+}
+
+function focusBoxAt(lEl, idx){
+  const row = rowMap.get(lEl);
+  if (!row) return;
+  const inputs = row.querySelectorAll('input.syl-input');
+  if (!inputs.length) return;
+  const target = inputs[Math.min(idx, inputs.length - 1)];
+  target.focus();
+  target.setSelectionRange(target.value.length, target.value.length);
+}
+
+function updateLineStatus(lEl){
+  const row = rowMap.get(lEl);
+  if (!row) return;
+  const actual = segsOf(lEl).length;
+  const expRaw = row.dataset.expected;
+  const expected = expRaw === '' ? null : Number(expRaw);
+  const mismatch = expected != null &amp;&amp; actual !== expected;
+  row.classList.toggle('mismatch', mismatch);
+  const counter = row.querySelector('.counter');
+  counter.textContent = expected != null ? actual + '/' + expected : String(actual);
+  updateSummary();
+}
+
+function updateSummary(){
+  let flagged = 0;
+  children(div, 'lg').forEach((lg) =&gt; {
+    if (lg.getAttribute('cert')) flagged++;
+    children(lg, 'l').forEach((lEl, i) =&gt; {
+      const expected = pattern.length ? pattern[i % pattern.length] : null;
+      if (expected != null &amp;&amp; segsOf(lEl).length !== expected) flagged++;
+    });
+  });
+  const el = document.getElementById('flagCount');
+  el.textContent = flagged === 0 ? 'All lines match the metre' : flagged + (flagged === 1 ? ' item needs attention' : ' items need attention');
+  el.classList.toggle('clear', flagged === 0);
+}
+
+// Word-boundary-aware tokenizer: consecutive segs are one word if all but the
+// last end in a trailing hyphen (the encoding's own continuation convention).
+function wordsFromLine(lEl){
+  const segEls = segsOf(lEl);
+  const words = [];
+  let current = '';
+  segEls.forEach((s) =&gt; {
+    const val = s.textContent;
+    if (val.endsWith('-')) current += val.slice(0, -1);
+    else { current += val; words.push(current); current = ''; }
+  });
+  if (current) words.push(current);
+  return words;
+}
+
+function splitWordPunct(token){
+  const lead = (token.match(/^[^A-Za-z]*/) || [''])[0];
+  const rest = token.slice(lead.length);
+  const trail = (rest.match(/[^A-Za-z]*$/) || [''])[0];
+  const core = trail ? rest.slice(0, -trail.length) : rest;
+  return { lead, core, trail };
+}
+
+// Free, local, rule-based syllabifier — the same family of technique
+// (vowel-group boundaries) that TeX/Apache FOP hyphenation patterns refine
+// with a real exceptions dictionary. This lighter version is a reasonable
+// zero-cost first pass but will get digraphs and archaic forms wrong sometimes
+// — that gap is exactly where a cheap on-demand LLM call earns its keep.
+function heuristicSyllabify(core){
+  if (core.length === 0) return [core];
+  const isVowel = c =&gt; 'aeiouyAEIOUY'.indexOf(c) !== -1;
+  const groups = [];
+  let i = 0;
+  while (i &lt; core.length){
+    if (isVowel(core[i])){
+      let j = i + 1;
+      while (j &lt; core.length &amp;&amp; isVowel(core[j])) j++;
+      groups.push([i, j]);
+      i = j;
+    } else i++;
+  }
+  if (groups.length &lt;= 1) return [core];
+
+  const splitPoints = [];
+  for (let g = 0; g &lt; groups.length - 1; g++){
+    const thisEnd = groups[g][1];
+    const nextStart = groups[g + 1][0];
+    const consonants = nextStart - thisEnd;
+    if (consonants &lt;= 0) continue;
+    splitPoints.push(consonants === 1 ? thisEnd : thisEnd + 1);
+  }
+  const syls = [];
+  let prev = 0;
+  splitPoints.forEach(p =&gt; { syls.push(core.slice(prev, p)); prev = p; });
+  syls.push(core.slice(prev));
+  if (syls.length &gt; 1 &amp;&amp; /^e$/i.test(syls[syls.length - 1])){
+    syls[syls.length - 2] += syls.pop();
+  }
+  return syls.filter(s =&gt; s.length &gt; 0);
+}
+
+function applySingleSyllable(lEl, index, value){
+  const segs = segsOf(lEl);
+  if (index &gt;= segs.length){
+    while (segsOf(lEl).length &lt;= index){
+      const seg = doc.createElementNS(TEI_NS, 'seg');
+      seg.setAttribute('type', 'syl');
+      seg.textContent = '';
+      lEl.appendChild(seg);
+    }
+    renumber(lEl);
+    render();
+    return;
+  }
+  segs[index].textContent = value;
+  renumber(lEl);
+  const row = rowMap.get(lEl);
+  if (row){
+    const input = row.querySelectorAll('input.syl-input')[index];
+    if (input){ input.value = value; autosize(input); }
+    // No manual realignment needed: the suggestion chip below shares this
+    // box's exact grid column, so the browser resizes both together.
+  }
+  updateLineStatus(lEl);
+}
+
+function applyAllSyllables(lEl, arr){
+  segsOf(lEl).forEach(s =&gt; s.remove());
+  arr.forEach((val, i) =&gt; {
+    const seg = doc.createElementNS(TEI_NS, 'seg');
+    seg.setAttribute('type', 'syl');
+    seg.setAttribute('n', String(i + 1));
+    seg.textContent = val;
+    lEl.appendChild(seg);
+  });
+  render();
+}
+
+function suggestLine(lEl, expected, row, btn){
+  const grid = row.querySelector('.syllable-grid');
+  const actions = row.querySelector('.suggestion-actions');
+  const n = segsOf(lEl).length;
+
+  // Clear any suggestion chips left over from a previous click.
+  grid.querySelectorAll('[data-suggestion-chip]').forEach(el =&gt; el.remove());
+  actions.style.display = 'flex';
+  actions.innerHTML = '';
+
+  const suggestion = [];
+  wordsFromLine(lEl).forEach(word =&gt; {
+    const { lead, core, trail } = splitWordPunct(word);
+    const syls = heuristicSyllabify(core || word);
+    syls.forEach((s, i) =&gt; {
+      let piece = s;
+      if (i === 0) piece = lead + piece;
+      if (i === syls.length - 1) piece = piece + trail;
+      if (i &lt; syls.length - 1) piece = piece + '-';
+      suggestion.push(piece);
+    });
+  });
+
+  // Reuse the exact same column template as row 1. If the suggestion has
+  // more syllables than there are boxes, extend it with extra columns so
+  // those overflow chips still have somewhere defined to sit.
+  const extra = Math.max(0, suggestion.length - n);
+  grid.style.gridTemplateColumns = colTemplate(n) + (extra ? ' ' + Array(extra).fill('max-content').join(' ') : '');
+
+  suggestion.forEach((val, i) =&gt; {
+    const chip = document.createElement('button');
+    chip.className = 'suggestion-chip';
+    chip.dataset.suggestionChip = '1';
+    chip.textContent = val;
+    chip.title = 'Use this for box ' + (i + 1);
+    chip.onclick = () =&gt; applySingleSyllable(lEl, i, val);
+    chip.style.gridColumn = String(i &lt; n ? boxColumn(i) : (2 * n + 2 + (i - n)));
+    chip.style.gridRow = '2';
+    grid.appendChild(chip);
+  });
+
+  const applyAll = document.createElement('button');
+  applyAll.className = 'apply-all-btn';
+  applyAll.textContent = 'Apply all';
+  applyAll.onclick = () =&gt; applyAllSyllables(lEl, suggestion);
+  actions.appendChild(applyAll);
+
+  const dismiss = document.createElement('button');
+  dismiss.className = 'dismiss-btn';
+  dismiss.textContent = 'dismiss';
+  dismiss.onclick = () =&gt; {
+    grid.querySelectorAll('[data-suggestion-chip]').forEach(el =&gt; el.remove());
+    grid.style.gridTemplateColumns = colTemplate(n);
+    actions.style.display = 'none';
+  };
+  actions.appendChild(dismiss);
+}
+
+function serializeCurrentDoc(){
+  const serializer = new XMLSerializer();
+  let xmlStr = serializer.serializeToString(doc);
+  if (!xmlStr.startsWith('&lt;?xml')) xmlStr = '&lt;?xml version="1.0" encoding="UTF-8"?&gt;\n' + xmlStr;
+  return xmlStr;
+}
+
+function downloadXML(){
+  const xmlStr = serializeCurrentDoc();
+
+  // Best-effort: this works fine on a normal (non-sandboxed) page, so try it,
+  // but don't depend on it — see the guaranteed fallback below.
+  try {
+    const blob = new Blob([xmlStr], { type: 'application/xml' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() =&gt; URL.revokeObjectURL(url), 5000);
+  } catch (err){ /* ignore — the textarea below always works regardless */ }
+
+  // Guaranteed path: no blob URL, no download attribute, no clipboard
+  // permission required — just a visible, pre-selected text box.
+  const output = document.getElementById('xmlOutput');
+  output.value = xmlStr;
+  document.getElementById('downloadFilenameHint').textContent = filename;
+  document.getElementById('downloadResult').classList.add('show');
+  output.focus();
+  output.select();
+
+  document.getElementById('copyXmlBtn').onclick = async () =&gt; {
+    const statusEl = document.getElementById('downloadCopyStatus');
+    try {
+      await navigator.clipboard.writeText(xmlStr);
+      statusEl.textContent = 'Copied to clipboard.';
+      statusEl.className = 'status-msg success';
+    } catch (err){
+      output.focus();
+      output.select();
+      statusEl.textContent = 'Could not use the clipboard automatically — the text is selected above, so Ctrl/Cmd+C should still work.';
+      statusEl.className = 'status-msg error';
+    }
+  };
+}
+
+document.getElementById('downloadBtn').addEventListener('click', downloadXML);
+
+
+// ---------------------------------------------------------------------
+// File upload — reads a local TEI XML file straight into the editor.
+// No network calls of any kind happen here.
+// ---------------------------------------------------------------------
+document.getElementById('fileInput').addEventListener('change', (e) =&gt; {
+  const file = e.target.files &amp;&amp; e.target.files[0];
+  const statusEl = document.getElementById('uploadStatus');
+  const nameLabel = document.getElementById('fileNameLabel');
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = () =&gt; {
+    try {
+      load(reader.result);
+      filename = file.name;
+      nameLabel.textContent = file.name;
+      statusEl.textContent = 'Loaded ' + file.name + '. Edit below, then Download XML when you\'re done.';
+      statusEl.className = 'status-msg success';
+    } catch (err){
+      statusEl.textContent = 'Could not read that file as TEI XML: ' + err.message;
+      statusEl.className = 'status-msg error';
+    }
+  };
+  reader.onerror = () =&gt; {
+    statusEl.textContent = 'Could not read that file.';
+    statusEl.className = 'status-msg error';
+  };
+  reader.readAsText(file);
+});
+
+load(SAMPLE_XML);
+//
+</script>
+</body>
+</html>

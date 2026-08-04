@@ -58,14 +58,61 @@ declare function local:first-existing-path($candidates as xs:string*) as xs:stri
     )[1]
 };
 
-declare function local:binary-to-xml($path as xs:string) as document-node()? {
-    let $raw := util:binary-to-string(file:read-binary($path))
+(: Uploads do not always arrive as UTF-8. sibmei writes UTF-16 with a BOM, which the
+   single-argument util:binary-to-string() decodes as UTF-8 and mangles, so parse-xml()
+   then fails and the file looks like it is not XML at all. :)
+declare variable $input-encodings := ("UTF-8", "UTF-16LE", "UTF-16BE", "UTF-16", "ISO-8859-1");
+
+declare function local:strip-bom($s as xs:string) as xs:string {
+    if (starts-with($s, codepoints-to-string(65279)))
+    then substring($s, 2)
+    else $s
+};
+
+(: parse-xml() consumes characters, not bytes, so a declared byte encoding is redundant
+   here and some parsers reject it outright ("labelled UTF-16 but has UTF-8 content").
+   Drop just the encoding pseudo-attribute and leave the rest of the declaration alone. :)
+declare function local:drop-encoding-decl($s as xs:string) as xs:string {
+    replace(
+        $s,
+        '^(<\?xml\s[^?]*?)\s+encoding\s*=\s*("[^"]*"|''[^'']*'')',
+        '$1'
+    )
+};
+
+declare function local:string-to-xml($s as xs:string?) as document-node()? {
+    let $clean :=
+        if (empty($s)) then ""
+        else local:drop-encoding-decl(replace(local:strip-bom($s), "^\s+", ""))
     return
-        try {
-            parse-xml($raw)
-        } catch * {
-            ()
-        }
+        if ($clean = "") then ()
+        else
+            try {
+                parse-xml($clean)
+            } catch * {
+                ()
+            }
+};
+
+(: Decode with each candidate encoding and keep the first that yields a parseable
+   document. Returns map { "doc": document-node()?, "encoding": xs:string }. :)
+declare function local:binary-to-xml-doc($bin as xs:base64Binary?) as map(*) {
+    if (empty($bin)) then
+        map { "doc": (), "encoding": "" }
+    else
+        let $hit :=
+            (
+                for $enc in $input-encodings
+                let $s := try { util:binary-to-string($bin, $enc) } catch * { () }
+                let $doc := local:string-to-xml($s)
+                where exists($doc/*)
+                return map { "doc": $doc, "encoding": $enc }
+            )[1]
+        return ($hit, map { "doc": (), "encoding": "" })[1]
+};
+
+declare function local:binary-to-xml($path as xs:string) as document-node()? {
+    local:binary-to-xml-doc(file:read-binary($path))?doc
 };
 
 declare function local:root-local-name($doc as document-node()?) as xs:string {
@@ -422,9 +469,18 @@ declare function local:rewrite-node($node as node()) as node()* {
 
         case element(mei:layerDef) return ()
         case element(mei:instrDef) return ()
+        case element(mei:pgHead) return ()
         case element(mei:staffGrp) return
+            let $is-first-staffgrp := empty($node/preceding::mei:staffGrp)
+            let $attrs :=
+                if ($is-first-staffgrp) then (
+                    $node/@*[local-name(.) != "symbol" and local-name(.) != "bar.thru"],
+                    attribute symbol {"bracket"}
+                )
+                else $node/@*
+            return
             element {node-name($node)} {
-                $node/@*,
+                $attrs,
                 for $child in $node/node()
                 return
                     if ($child instance of text() and normalize-space(string($child)) = "") then ()
@@ -511,14 +567,6 @@ declare function local:build-mei-head($title as xs:string, $metre as xs:string, 
                 <respStmt>
                     <resp>General editor</resp>
                     <persName role="editor">Timothy Duguid</persName>
-                </respStmt>
-                <respStmt>
-                    <resp>Validated by</resp>
-                    <name role="editor" xml:id="VALIDATOR_1_INITIALS">VALIDATOR_1_NAME</name>
-                </respStmt>
-                <respStmt>
-                    <resp>Validated by</resp>
-                    <name role="editor" xml:id="VALIDATOR_2_INITIALS">VALIDATOR_2_NAME</name>
                 </respStmt>
             </titleStmt>
             <editionStmt>
@@ -681,27 +729,17 @@ else
     let $safe-name := local:safe-file-name($upload-name)
     let $base-name := local:file-base-name($safe-name)
     let $ext := local:file-ext($safe-name)
-    let $input-doc :=
+    let $input-decode :=
         if (exists($upload)) then
-            try {
-                parse-xml(util:binary-to-string($upload))
-            } catch * {
-                ()
-            }
+            local:binary-to-xml-doc($upload)
         else if (exists($upload-temp)) then
-            try {
-                parse-xml(util:binary-to-string(file:read-binary($upload-temp)))
-            } catch * {
-                ()
-            }
+            local:binary-to-xml-doc(file:read-binary($upload-temp))
         else if (normalize-space($upload-text) != "") then
-            try {
-                parse-xml($upload-text)
-            } catch * {
-                ()
-            }
+            map { "doc": local:string-to-xml($upload-text), "encoding": "UTF-8" }
         else
-            ()
+            map { "doc": (), "encoding": "" }
+    let $input-doc := $input-decode?doc
+    let $input-encoding := string($input-decode?encoding)
     let $root-name := local:root-local-name($input-doc)
     let $is-mei := ($root-name = "mei")
     let $is-musicxml := ($root-name = ("score-partwise", "score-timewise") or $ext = ("musicxml", "mxl"))
@@ -848,6 +886,7 @@ else
                     <section class="card">
                         <p><strong>Input file:</strong> {$safe-name}</p>
                         <p><strong>Detected root:</strong> {if ($root-name != "") then $root-name else "(not XML)"}</p>
+                        <p><strong>Detected encoding:</strong> {if ($input-encoding != "") then $input-encoding else "(none matched)"}</p>
                     </section>
 
                     {
@@ -862,7 +901,13 @@ else
                             <section class="card warn">
                                 <h3>Generation failed</h3>
                                 <p>{
-                                    if (not($is-mei or $is-musicxml or $is-musescore)) then
+                                    if ($root-name = "" and not($needs-conversion)) then
+                                        concat(
+                                            "Uploaded file could not be parsed as XML. Tried these encodings: ",
+                                            string-join($input-encodings, ", "),
+                                            ". Check that the file is well-formed XML."
+                                        )
+                                    else if (not($is-mei or $is-musicxml or $is-musescore)) then
                                         "Unsupported file type. Upload MEI, MusicXML, or MuseScore."
                                     else if ($needs-conversion and not($creds-configured)) then
                                         "MusicXML/MuseScore conversion requires DBA credentials. Set $dba-user and $dba-password in run-mei-generator.xq."

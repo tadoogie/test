@@ -883,6 +883,13 @@
                 margin: 0 0 0.3em 0;
                 color: #222;
             }
+            .solfa-tune-title {
+                font-size: 1.05em;
+                font-weight: 500;
+                font-style: italic;
+                margin: 0 0 0.3em 0;
+                color: #444;
+            }
             .solfa-meta {
                 font-size: 0.9em;
                 color: #555;
@@ -1128,6 +1135,20 @@
                                         <h3 class="panel-title">OPTIONS</h3>
                                     </div>
                       <div class="menu-item">
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-left:8px; margin-bottom: 15px;">
+                          <span class="displayGroup" style="font-size: 1.2em; font-weight: 600;">Notation</span>
+                          <div style="display: flex; gap: 0; width: 120px; border-radius: 8px; overflow: hidden;">
+                            <button id="notationStaff" class="search-mode-btn active" style="flex: 1; background: #6fc252; color: white; border: none; cursor: pointer; font-size: 0.9em; font-weight: 600; padding: 8px; transition: all 0.2s;">
+                              Staff
+                            </button>
+                            <button id="notationSolfa" class="search-mode-btn" style="flex: 1; background: #666; color: white; border: none; cursor: pointer; font-size: 0.9em; font-weight: 600; padding: 8px; transition: all 0.2s;">
+                              Sol-fa
+                            </button>
+                          </div>
+                        </div>
+                        <div style="margin-left: 8px; font-size: 0.9em">By default, the score is shown in standard staff notation. Select <strong>Sol-fa</strong> to display the score as Curwen tonic sol-fa instead.</div>
+                      </div>                
+                      <div class="menu-item">
                         <div id="optionsSpacer"/>
                         <div style="display: flex; align-items: center; justify-content: space-between; margin-left:8px; margin-bottom: 15px;">
                           <span class="displayGroup" style="font-size: 1.2em; font-weight: 600;">Presentation Mode</span>
@@ -1142,20 +1163,6 @@
                         </div>
                         <input id="psMode" name="presentation" type="checkbox" style="display: none;"/>
                         <div style="margin-left: 8px; font-size: 0.9em">By default, all stanzas are displayed together as a block within the music, just like a traditional hymnal. To show each stanza on its own line with the music repeated for every stanza, turn Presentation Mode <strong>On</strong>.</div>
-                      </div>
-                      <div class="menu-item">
-                        <div style="display: flex; align-items: center; justify-content: space-between; margin-left:8px; margin-bottom: 15px;">
-                          <span class="displayGroup" style="font-size: 1.2em; font-weight: 600;">Notation</span>
-                          <div style="display: flex; gap: 0; width: 120px; border-radius: 8px; overflow: hidden;">
-                            <button id="notationStaff" class="search-mode-btn active" style="flex: 1; background: #6fc252; color: white; border: none; cursor: pointer; font-size: 0.9em; font-weight: 600; padding: 8px; transition: all 0.2s;">
-                              Staff
-                            </button>
-                            <button id="notationSolfa" class="search-mode-btn" style="flex: 1; background: #666; color: white; border: none; cursor: pointer; font-size: 0.9em; font-weight: 600; padding: 8px; transition: all 0.2s;">
-                              Sol-fa
-                            </button>
-                          </div>
-                        </div>
-                        <div style="margin-left: 8px; font-size: 0.9em">By default, the score is shown in standard staff notation. Select <strong>Sol-fa</strong> to display the score as Curwen tonic sol-fa instead.</div>
                       </div>
                       <div class="menu-item right">
                         <div id="submit" class="goBtn"/>
@@ -1385,6 +1392,16 @@
     </div>
   </div>
 </div>
+
+  <!-- Notation Preference Confirmation Modal (shown when a shared link specifies solfa=on) -->
+  <div id="notationConfirmModal" style="display:none;">
+    <div>
+      <h2 style="margin-top: 0">Notation Preference</h2>
+      <p>This setting can also be viewed in traditional staff notation. Please confirm your notation preference:</p>
+      <button id="notationConfirmSolfaBtn">Solfa</button>
+      <button id="notationConfirmStaffBtn">Staff</button>
+    </div>
+  </div>
 
   <!-- Search Modal -->
   <div id="searchModal" style="display:none;">
