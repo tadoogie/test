@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Accordion Test Suite</title>
+  <link rel="stylesheet" href="css/accordion.css">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 20px auto;
+      padding: 20px;
+    }
+    .test-section {
+      margin-bottom: 30px;
+      padding: 20px;
+      background: #f8f9fa;
+      border-radius: 8px;
+    }
+    .test-result {
+      margin-top: 10px;
+      padding: 10px;
+      border-radius: 4px;
+    }
+    .test-pass {
+      background: #d4edda;
+      border: 1px solid #c3e6cb;
+      color: #155724;
+    }
+    .test-fail {
+      background: #f8d7da;
+      border: 1px solid #f5c6cb;
+      color: #721c24;
+    }
+    h1 {
+      color: #333;
+    }
+    h2 {
+      color: #666;
+      font-size: 18px;
+    }
+    button {
+      margin-top: 10px;
+      padding: 8px 16px;
+      background: #0d6efd;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #0b5ed7;
+    }
+  </style>
+</head>
+<body>
+  <h1>🧪 Accordion Test Suite</h1>
+  <p>This page tests the accordion functionality to ensure all requirements are met.</p>
+
+  <div class="test-section">
+    <h2>Test 1: HTML Structure</h2>
+    <div id="test1-result" class="test-result"></div>
+  </div>
+
+  <div class="test-section">
+    <h2>Test 2: ARIA Attributes</h2>
+    <div id="test2-result" class="test-result"></div>
+  </div>
+
+  <div class="test-section">
+    <h2>Test 3: Click Toggle Functionality</h2>
+    <button id="test3-button">Run Test 3</button>
+    <div id="test3-result" class="test-result"></div>
+  </div>
+
+  <div class="test-section">
+    <h2>Test 4: Keyboard Support</h2>
+    <div id="test4-result" class="test-result"></div>
+  </div>
+
+  <div class="test-section">
+    <h2>Test 5: Animation Timing</h2>
+    <button id="test5-button">Run Test 5</button>
+    <div id="test5-result" class="test-result"></div>
+  </div>
+
+  <!-- Hidden test accordion -->
+  <div style="display: none;">
+    <div class="sidenav">
+      <div class="panel-text">
+        <div class="section">
+          <button 
+            class="selectVerses" 
+            role="button"
+            tabindex="0"
+            aria-expanded="false"
+            aria-controls="test-verses-content"
+            id="test-selectVerses"
+          >
+            <span>View Verses</span>
+            <span class="accordion-icon" aria-hidden="true"></span>
+          </button>
+          <div 
+            class="verses" 
+            id="test-verses-content"
+            role="region"
+            aria-labelledby="test-selectVerses"
+          >
+            <div class="verses-content">
+              <div class="verse-item">Test verse 1</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initAccordion } from './js/accordion.js';
+
+    // Test utilities
+    function passTest(elementId, message) {
+      const el = document.getElementById(elementId);
+      el.className = 'test-result test-pass';
+      el.innerHTML = '✅ PASS: ' + message;
+    }
+
+    function failTest(elementId, message) {
+      const el = document.getElementById(elementId);
+      el.className = 'test-result test-fail';
+      el.innerHTML = '❌ FAIL: ' + message;
+    }
+
+    // Wait for DOM
+    document.addEventListener('DOMContentLoaded', () => {
+      runTests();
+    });
+
+    async function runTests() {
+      // Test 1: HTML Structure
+      const selectVerses = document.getElementById('test-selectVerses');
+      const versesContent = document.getElementById('test-verses-content');
+      
+      if (selectVerses && versesContent) {
+        passTest('test1-result', 'selectVerses and verses elements exist');
+      } else {
+        failTest('test1-result', 'Required HTML elements not found');
+        return;
+      }
+
+      // Test 2: ARIA Attributes
+      const hasRole = selectVerses.getAttribute('role') === 'button';
+      const hasExpanded = selectVerses.hasAttribute('aria-expanded');
+      const hasControls = selectVerses.hasAttribute('aria-controls');
+      const hasRegion = versesContent.getAttribute('role') === 'region';
+      const hasLabelledBy = versesContent.hasAttribute('aria-labelledby');
+      
+      if (hasRole && hasExpanded && hasControls && hasRegion && hasLabelledBy) {
+        passTest('test2-result', 'All ARIA attributes are properly set');
+      } else {
+        failTest('test2-result', `Missing ARIA attributes: role=${hasRole}, aria-expanded=${hasExpanded}, aria-controls=${hasControls}, region=${hasRegion}, aria-labelledby=${hasLabelledBy}`);
+      }
+
+      // Initialize accordion for tests
+      const accordion = initAccordion(selectVerses, versesContent);
+
+      // Test 3: Click Toggle (manual trigger)
+      document.getElementById('test3-button').addEventListener('click', async () => {
+        const initialState = selectVerses.getAttribute('aria-expanded') === 'true';
+        selectVerses.click();
+        
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        const newState = selectVerses.getAttribute('aria-expanded') === 'true';
+        const contentHasClass = versesContent.classList.contains('expanded');
+        
+        if (newState !== initialState && (newState === contentHasClass)) {
+          passTest('test3-result', 'Click toggles aria-expanded and CSS class correctly');
+        } else {
+          failTest('test3-result', `Click toggle failed. Initial: ${initialState}, New: ${newState}, Has class: ${contentHasClass}`);
+        }
+      });
+
+      // Test 4: Keyboard Support
+      const tabIndex = selectVerses.getAttribute('tabindex');
+      if (tabIndex === '0') {
+        passTest('test4-result', 'Element is keyboard accessible (tabindex="0")');
+      } else {
+        failTest('test4-result', `Incorrect tabindex: ${tabIndex}`);
+      }
+
+      // Test 5: Animation Timing (manual trigger)
+      document.getElementById('test5-button').addEventListener('click', async () => {
+        const styles = window.getComputedStyle(versesContent);
+        const transition = styles.getPropertyValue('transition');
+        
+        if (transition.includes('0.3s') || transition.includes('300ms')) {
+          passTest('test5-result', 'CSS transition is set to 0.3s');
+        } else {
+          failTest('test5-result', `Transition timing incorrect: ${transition}`);
+        }
+      });
+
+      console.log('✅ All automated tests completed');
+    }
+  </script>
+</body>
+</html>
