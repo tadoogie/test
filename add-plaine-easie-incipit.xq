@@ -314,9 +314,7 @@ declare function local:generate-signed-interval($doc as node()) as xs:string {
                 let $curr-midi := local:pitch-to-midi($pname, $oct, $accid)
                 let $prev-midi := local:pitch-to-midi($prev-pname, $prev-oct, $prev-accid)
                 let $interval := $curr-midi - $prev-midi
-                return 
-                    if ($interval >= 0) then concat("+", string($interval))
-                    else string($interval)
+                return string($interval)
     return string-join($intervals, " ")
 };
 
