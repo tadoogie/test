@@ -1,57 +1,57 @@
-<collection xmlns="http://exist.sourceforge.net/NS/exist" name="/db/apps/digital-splitleaf/resources/images" version="1" owner="admin" group="dba" mode="755" created="2026-03-12T14:17:25.701Z">
+<collection xmlns="http://exist.sourceforge.net/NS/exist" name="/db/apps/digital-splitleaf/resources/images" version="1" owner="admin" group="dba" mode="755" created="2026-05-15T18:01:44.507Z">
     <acl entries="0" version="1"/>
-    <resource type="XMLResource" name="header.svg" skip="no" owner="admin" group="dba" mode="644" created="2026-03-12T14:17:25.702Z" modified="2026-03-12T14:17:25.702Z" filename="header.svg" mimetype="image/svg+xml">
+    <resource type="XMLResource" name="TransposeUp3.svg" skip="no" owner="admin" group="dba" mode="755" created="2026-05-15T18:01:44.554Z" modified="2026-05-15T18:01:44.554Z" filename="TransposeUp3.svg" mimetype="image/svg+xml">
         <acl entries="0" version="1"/>
     </resource>
-    <resource type="XMLResource" name="TransposeDown1.svg" skip="no" owner="admin" group="dba" mode="644" created="2026-03-12T14:17:25.721Z" modified="2026-03-12T14:17:25.721Z" filename="TransposeDown1.svg" mimetype="image/svg+xml">
+    <resource type="XMLResource" name="TransposeUp2.svg" skip="no" owner="admin" group="dba" mode="755" created="2026-05-15T18:01:44.603Z" modified="2026-05-15T18:01:44.603Z" filename="TransposeUp2.svg" mimetype="image/svg+xml">
         <acl entries="0" version="1"/>
     </resource>
-    <resource type="XMLResource" name="TransposeDown2.svg" skip="no" owner="admin" group="dba" mode="644" created="2026-03-12T14:17:25.724Z" modified="2026-03-12T14:17:25.724Z" filename="TransposeDown2.svg" mimetype="image/svg+xml">
+    <resource type="XMLResource" name="TransposeUp1.svg" skip="no" owner="admin" group="dba" mode="755" created="2026-05-15T18:01:44.647Z" modified="2026-05-15T18:01:44.647Z" filename="TransposeUp1.svg" mimetype="image/svg+xml">
         <acl entries="0" version="1"/>
     </resource>
-    <resource type="XMLResource" name="TransposeDwn.svg" skip="no" owner="admin" group="dba" mode="644" created="2026-03-12T14:17:25.734Z" modified="2026-03-12T14:17:25.734Z" filename="TransposeDwn.svg" mimetype="image/svg+xml">
+    <resource type="XMLResource" name="TransposeDown1.svg" skip="no" owner="admin" group="dba" mode="755" created="2026-05-15T18:01:44.696Z" modified="2026-05-15T18:01:44.696Z" filename="TransposeDown1.svg" mimetype="image/svg+xml">
         <acl entries="0" version="1"/>
     </resource>
-    <resource type="XMLResource" name="TransposeDwnArrow.svg" skip="no" owner="admin" group="dba" mode="644" created="2026-03-12T14:17:25.736Z" modified="2026-03-12T14:17:25.736Z" filename="TransposeDwnArrow.svg" mimetype="image/svg+xml">
+    <resource type="XMLResource" name="TransposeDown2.svg" skip="no" owner="admin" group="dba" mode="755" created="2026-05-15T18:01:44.748Z" modified="2026-05-15T18:01:44.748Z" filename="TransposeDown2.svg" mimetype="image/svg+xml">
         <acl entries="0" version="1"/>
     </resource>
-    <resource type="XMLResource" name="TransposeUp1.svg" skip="no" owner="admin" group="dba" mode="644" created="2026-03-12T14:17:25.745Z" modified="2026-03-12T14:17:25.745Z" filename="TransposeUp1.svg" mimetype="image/svg+xml">
+    <resource type="XMLResource" name="TransposeDwn.svg" skip="no" owner="admin" group="dba" mode="755" created="2026-05-15T18:01:44.967Z" modified="2026-05-15T18:01:44.967Z" filename="TransposeDwn.svg" mimetype="image/svg+xml">
         <acl entries="0" version="1"/>
     </resource>
-    <resource type="XMLResource" name="TransposeUp2.svg" skip="no" owner="admin" group="dba" mode="644" created="2026-03-12T14:17:25.748Z" modified="2026-03-12T14:17:25.748Z" filename="TransposeUp2.svg" mimetype="image/svg+xml">
+    <resource type="XMLResource" name="TransposeDwnArrow.svg" skip="no" owner="admin" group="dba" mode="755" created="2026-05-15T18:01:45.591Z" modified="2026-05-15T18:01:45.591Z" filename="TransposeDwnArrow.svg" mimetype="image/svg+xml">
         <acl entries="0" version="1"/>
     </resource>
-    <resource type="XMLResource" name="TransposeUp3.svg" skip="no" owner="admin" group="dba" mode="644" created="2026-03-12T14:17:25.758Z" modified="2026-03-12T14:17:25.758Z" filename="TransposeUp3.svg" mimetype="image/svg+xml">
+    <resource type="XMLResource" name="header.svg" skip="no" owner="admin" group="dba" mode="755" created="2026-05-15T18:01:45.71Z" modified="2026-05-15T18:01:45.71Z" filename="header.svg" mimetype="image/svg+xml">
         <acl entries="0" version="1"/>
     </resource>
-    <resource type="BinaryResource" name="arrow.png" skip="no" owner="admin" group="dba" mode="644" created="2026-03-12T14:17:25.781Z" modified="2026-03-12T14:17:25.781Z" filename="arrow.png" mimetype="image/png">
+    <resource type="BinaryResource" name="verovio-sm.png" skip="no" owner="admin" group="dba" mode="755" created="2026-05-15T18:01:44.509Z" modified="2026-05-15T18:01:44.509Z" filename="verovio-sm.png" mimetype="image/png">
         <acl entries="0" version="1"/>
     </resource>
-    <resource type="BinaryResource" name="header.png" skip="no" owner="admin" group="dba" mode="644" created="2026-03-12T14:17:25.784Z" modified="2026-03-12T14:17:25.784Z" filename="header.png" mimetype="image/png">
+    <resource type="BinaryResource" name="leaf.ico" skip="no" owner="admin" group="dba" mode="755" created="2026-05-15T18:01:44.809Z" modified="2026-05-15T18:01:44.809Z" filename="leaf.ico" mimetype="image/x-icon">
         <acl entries="0" version="1"/>
     </resource>
-    <resource type="BinaryResource" name="leaf.ico" skip="no" owner="admin" group="dba" mode="644" created="2026-03-12T14:17:25.787Z" modified="2026-03-12T14:17:25.787Z" filename="leaf.ico" mimetype="image/vnd.microsoft.icon">
+    <resource type="BinaryResource" name="arrow.png" skip="no" owner="admin" group="dba" mode="755" created="2026-05-15T18:01:44.911Z" modified="2026-05-15T18:01:44.911Z" filename="arrow.png" mimetype="image/png">
         <acl entries="0" version="1"/>
     </resource>
-    <resource type="BinaryResource" name="logo-med.png" skip="no" owner="admin" group="dba" mode="644" created="2026-03-12T14:17:25.789Z" modified="2026-03-12T14:17:25.789Z" filename="logo-med.png" mimetype="image/png">
+    <resource type="BinaryResource" name="powered-by.png" skip="no" owner="admin" group="dba" mode="755" created="2026-05-15T18:01:45.041Z" modified="2026-05-15T18:01:45.041Z" filename="powered-by.png" mimetype="image/png">
         <acl entries="0" version="1"/>
     </resource>
-    <resource type="BinaryResource" name="logo.png" skip="no" owner="admin" group="dba" mode="644" created="2026-03-12T14:17:25.791Z" modified="2026-03-12T14:17:25.791Z" filename="logo.png" mimetype="image/png">
+    <resource type="BinaryResource" name="header.png" skip="no" owner="admin" group="dba" mode="755" created="2026-05-15T18:01:45.232Z" modified="2026-05-15T18:01:45.232Z" filename="header.png" mimetype="image/png">
         <acl entries="0" version="1"/>
     </resource>
-    <resource type="BinaryResource" name="mei-sm.png" skip="no" owner="admin" group="dba" mode="644" created="2026-03-12T14:17:25.794Z" modified="2026-03-12T14:17:25.794Z" filename="mei-sm.png" mimetype="image/png">
+    <resource type="BinaryResource" name="logo-med.png" skip="no" owner="admin" group="dba" mode="755" created="2026-05-15T18:01:45.316Z" modified="2026-05-15T18:01:45.316Z" filename="logo-med.png" mimetype="image/png">
         <acl entries="0" version="1"/>
     </resource>
-    <resource type="BinaryResource" name="powered-by.png" skip="no" owner="admin" group="dba" mode="644" created="2026-03-12T14:17:25.796Z" modified="2026-03-12T14:17:25.796Z" filename="powered-by.png" mimetype="image/png">
+    <resource type="BinaryResource" name="logo.png" skip="no" owner="admin" group="dba" mode="755" created="2026-05-15T18:01:45.39Z" modified="2026-05-15T18:01:45.39Z" filename="logo.png" mimetype="image/png">
         <acl entries="0" version="1"/>
     </resource>
-    <resource type="BinaryResource" name="tei-sm.png" skip="no" owner="admin" group="dba" mode="644" created="2026-03-12T14:17:25.798Z" modified="2026-03-12T14:17:25.798Z" filename="tei-sm.png" mimetype="image/png">
+    <resource type="BinaryResource" name="viewer-logo.png" skip="no" owner="admin" group="dba" mode="755" created="2026-05-15T18:01:45.466Z" modified="2026-05-15T18:01:45.466Z" filename="viewer-logo.png" mimetype="image/png">
         <acl entries="0" version="1"/>
     </resource>
-    <resource type="BinaryResource" name="verovio-sm.png" skip="no" owner="admin" group="dba" mode="644" created="2026-03-12T14:17:25.8Z" modified="2026-03-12T14:17:25.8Z" filename="verovio-sm.png" mimetype="image/png">
+    <resource type="BinaryResource" name="mei-sm.png" skip="no" owner="admin" group="dba" mode="755" created="2026-05-15T18:01:45.544Z" modified="2026-05-15T18:01:45.544Z" filename="mei-sm.png" mimetype="image/png">
         <acl entries="0" version="1"/>
     </resource>
-    <resource type="BinaryResource" name="viewer-logo.png" skip="no" owner="admin" group="dba" mode="644" created="2026-03-12T14:17:25.803Z" modified="2026-03-12T14:17:25.803Z" filename="viewer-logo.png" mimetype="image/png">
+    <resource type="BinaryResource" name="tei-sm.png" skip="no" owner="admin" group="dba" mode="755" created="2026-05-15T18:01:45.638Z" modified="2026-05-15T18:01:45.638Z" filename="tei-sm.png" mimetype="image/png">
         <acl entries="0" version="1"/>
     </resource>
 </collection>

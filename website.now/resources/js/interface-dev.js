@@ -319,7 +319,7 @@ function syncTuneInputDataset() {
   }
 }
 
-function ensurePstuneSearchUI(tuneLabels, tuneListObjs, initialValue, suggTune) {
+function ensurePstuneSearchUI(tuneLabels, tuneListObjs, initialValue, suggData) {
   const tunesContainer = document.getElementById('tunes');
   let tuneButtonsContainer = document.getElementById('tuneButtons');
 
@@ -424,13 +424,15 @@ function ensurePstuneSearchUI(tuneLabels, tuneListObjs, initialValue, suggTune) 
   function renderTuneButtons(filter, excludeLabel) {
      tuneButtonsContainer.innerHTML = '';
     filter = (filter || '').toLowerCase().trim();
-    excludeLabel = excludeLabel || null;
+    // excludeLabel may be a single label (string) or a list of labels (array) -
+    // the latter lets us exclude every currently-shown suggested tune at once.
+    const excludeLabels = Array.isArray(excludeLabel) ? excludeLabel : (excludeLabel ? [excludeLabel] : []);
 
     const sourceList = Array.isArray(tuneLabels) && tuneLabels.length ? tuneLabels : Object.keys(window._pstuneMap || {});
 
     const matches = sourceList.filter(function(lbl) {
-        // Exclude the specified label if provided
-        if (excludeLabel && lbl === excludeLabel) return false;
+        // Exclude any of the specified labels
+        if (excludeLabels.indexOf(lbl) !== -1) return false;
         
         if (!filter) return true;
         return normalizeString(lbl).indexOf(normalizeString(filter)) !== -1;
@@ -570,7 +572,25 @@ function ensurePstuneSearchUI(tuneLabels, tuneListObjs, initialValue, suggTune) 
   try { maybeShowNextForTune(); } catch (_) {}
 }
 
-function getTunes(tuneLabel) {
+// Parses the third ";"-delimited field of a psData string, which holds a
+// percent-encoded JSON array of {target, idno, scope} tune suggestions
+// (see getSourcesTextsMetres.xq / searchTexts.xq). Returns [] on any
+// missing or malformed data rather than throwing.
+function parseSuggData(psDataStr) {
+  var parts = (psDataStr || "").split(";");
+  var raw = parts[2] || "";
+  if (!raw) return [];
+  try {
+    var parsed = JSON.parse(decodeURIComponent(raw));
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+// suggDataOverride, if given, is an array of {target, idno, scope} objects
+// to use instead of re-reading them from #pstext's stored psData.
+function getTunes(suggDataOverride) {
   var psInput = document.getElementById("pstext");
   var psDataStr = psInput ? psInput.dataset.psdata : "";
   if (!psDataStr) return;
@@ -578,9 +598,10 @@ function getTunes(tuneLabel) {
   var psData = psDataStr.split(";");
   var teiID = psData[0];
   var metre = psData[1];
-  var suggTune = tuneLabel || psData[2] || "201a";
+  var suggData = Array.isArray(suggDataOverride) ? suggDataOverride : parseSuggData(psDataStr);
 
-  var urlVariable = encodeURI("getTunes.xq?metre=" + metre + "&suggTune=" + suggTune + "&teiID=" + teiID);
+  var urlVariable = encodeURI("getTunes.xq?metre=" + metre + "&teiID=" + teiID) +
+    "&suggData=" + encodeURIComponent(JSON.stringify(suggData));
 
   var selMetInput = document.getElementById("selMet");
   if (selMetInput) {
@@ -602,61 +623,67 @@ function getTunes(tuneLabel) {
 
       // Initialize our persistent filter UI (input placeholder + buttons)
       try {
-        ensurePstuneSearchUI(tuneLabels, tuneList, tuneLabel || '', suggTune);
+        ensurePstuneSearchUI(tuneLabels, tuneList, '', suggData);
       } catch (e) {
         console.warn('ensurePstuneSearchUI failed', e);
       }
 
-      // Attach click handler to suggested tune button if it exists
-      const suggTuneBtn = document.querySelector('#pstuneSuggestion .tune-btn');
-      if (suggTuneBtn) {
-        suggTuneBtn.addEventListener('mousedown', function(e) {
-          // Set flag to prevent blur event from interfering
-          if (window.isClickingButton !== undefined) {
-            window.isClickingButton = true;
-          }
-        });
+      // Attach click handlers to every suggested tune button (there may be
+      // more than one now). All suggested labels are excluded together from
+      // the regular filtered list below, since they're already shown here.
+      const suggTuneBtns = document.querySelectorAll('#pstuneSuggestion .tune-btn');
+      if (suggTuneBtns.length) {
+        const suggLabels = Array.from(suggTuneBtns).map(b => b.dataset.label || '');
 
-        suggTuneBtn.addEventListener('click', function(e) {
-          const input = document.getElementById('pstune');
-          const tuneButtonsContainer = document.getElementById('tuneButtons');
-          const lbl = suggTuneBtn.dataset.label || '';
-          // Use the same lookup mechanism as regular tune buttons
-          const mappingId = normalizeTunePath(window._pstuneMap[lbl] || '');
+        suggTuneBtns.forEach(function(suggTuneBtn) {
+          suggTuneBtn.addEventListener('mousedown', function(e) {
+            // Set flag to prevent blur event from interfering
+            if (window.isClickingButton !== undefined) {
+              window.isClickingButton = true;
+            }
+          });
 
-          if (input) {
-            // Store selection in dataset
-            input.dataset.tuneid = normalizeTunePath(mappingId);
-            input.dataset.tunelabel = lbl;
-            
-            // Show the tune name in the input field
-            input.value = lbl;
-            
-            // Mark button as active and deactivate all others
-            if (tuneButtonsContainer) {
-              tuneButtonsContainer.querySelectorAll('.verse-btn, .tune-btn').forEach(b => {
+          suggTuneBtn.addEventListener('click', function(e) {
+            const input = document.getElementById('pstune');
+            const tuneButtonsContainer = document.getElementById('tuneButtons');
+            const lbl = suggTuneBtn.dataset.label || '';
+            // Use the same lookup mechanism as regular tune buttons
+            const mappingId = normalizeTunePath(window._pstuneMap[lbl] || '');
+
+            if (input) {
+              // Store selection in dataset
+              input.dataset.tuneid = normalizeTunePath(mappingId);
+              input.dataset.tunelabel = lbl;
+
+              // Show the tune name in the input field
+              input.value = lbl;
+
+              // Mark this button as active and deactivate all others,
+              // including the other suggested-tune buttons
+              document.querySelectorAll('#pstuneSuggestion .tune-btn, #tuneButtons .verse-btn, #tuneButtons .tune-btn').forEach(b => {
                 b.classList.remove('active');
               });
+              suggTuneBtn.classList.add('active');
+
+              // Update global variable
+              window.globalPsTune = normalizeTunePath(mappingId);
+
+              // Filter to show only this tune button, but exclude every
+              // suggested tune from tuneButtons div since they're already
+              // shown in the pstuneSuggestion area
+              if (typeof window._renderTuneButtons === 'function') {
+                window._renderTuneButtons(lbl, suggLabels);
+              }
             }
-            suggTuneBtn.classList.add('active');
 
-            // Update global variable
-            window.globalPsTune = normalizeTunePath(mappingId);
-            
-            // Filter to show only this tune button, but exclude it from tuneButtons div
-            // since it's already shown in the pstuneSuggestion area
-            if (typeof window._renderTuneButtons === 'function') {
-              window._renderTuneButtons(lbl, lbl);  // Pass lbl twice: filter and exclude
+            // Reset flag
+            if (window.isClickingButton !== undefined) {
+              window.isClickingButton = false;
             }
-          }
 
-          // Reset flag
-          if (window.isClickingButton !== undefined) {
-            window.isClickingButton = false;
-          }
-
-          try { updateSelectionSummary(); } catch(e) {}
-          try { maybeShowNextForTune(); } catch(e) {}
+            try { updateSelectionSummary(); } catch(e) {}
+            try { maybeShowNextForTune(); } catch(e) {}
+          });
         });
       }
 
@@ -1160,7 +1187,7 @@ function handleMultipleSourceSelection(sourceLabels) {
     const label = t.label || '';
     const teiID = t.id || '';
     const metre = t.metre || '';
-    const sugg = t.suggTune || '';
+    const sugg = encodeURIComponent(JSON.stringify(t.suggTunes || []));
     return { label: label, data: `${teiID};${metre};${sugg}`, rawObj: t };
   });
   
@@ -1233,7 +1260,7 @@ function handleSourceSelection(sourceLabel) {
     const label = t.label || '';
     const teiID = t.id || '';
     const metre = t.metre || '';
-    const sugg = t.suggTune || '';
+    const sugg = encodeURIComponent(JSON.stringify(t.suggTunes || []));
     return { label: label, data: `${teiID};${metre};${sugg}`, rawObj: t };
   });
 
@@ -1527,7 +1554,7 @@ function setTexts() {
       const parts = (item.data || '').split(';');
       const teiID = parts[0] || '';
       const metre = parts[1] || '';
-      const suggTune = parts[2] || '';
+      const suggData = parseSuggData(item.data || '');
       
       const selMetInput = document.getElementById("selMet");
       if (selMetInput) {
@@ -1536,7 +1563,7 @@ function setTexts() {
     
       populateVersesFromSelectedText(item.rawObj || { verses: [], sections: [] });
     
-      try { getTunes(suggTune); } catch (e) { console.warn('getTunes failed', e); }
+      try { getTunes(suggData); } catch (e) { console.warn('getTunes failed', e); }
     });
 
     psalmBtnsInner.appendChild(btn);
@@ -2428,10 +2455,11 @@ function maybeShowNextForTune() {
         });
       }
       
-      // Re-run getTunes to restore the original filtered list by metre
-      // Pass empty string so suggTune falls back to psData[2] (the actual suggested tune)
+      // Re-run getTunes to restore the original filtered list by metre.
+      // Pass null (not an array) so getTunes falls back to re-reading the
+      // suggestions from psData[2] on #pstext.
       try {
-        getTunes('');  // ← Pass empty string to preserve suggested tune from psData[2]
+        getTunes(null);
       } catch(e) {
         console.warn('Error calling getTunes:', e);
       }

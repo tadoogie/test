@@ -1,15 +1,15 @@
-<collection xmlns="http://exist.sourceforge.net/NS/exist" name="/db/apps/digital-splitleaf/resources/fonts" version="1" owner="admin" group="dba" mode="755" created="2026-03-12T14:17:25.657Z">
+<collection xmlns="http://exist.sourceforge.net/NS/exist" name="/db/apps/digital-splitleaf/resources/fonts" version="1" owner="admin" group="dba" mode="755" created="2026-05-15T18:01:48.868Z">
     <acl entries="0" version="1"/>
-    <resource type="XMLResource" name="icons.svg" skip="no" owner="admin" group="dba" mode="644" created="2026-03-12T14:17:25.659Z" modified="2026-03-12T14:17:25.659Z" filename="icons.svg" mimetype="image/svg+xml">
+    <resource type="XMLResource" name="icons.svg" skip="no" owner="admin" group="dba" mode="755" created="2026-05-15T18:01:49.103Z" modified="2026-05-15T18:01:49.103Z" filename="icons.svg" mimetype="image/svg+xml">
         <acl entries="0" version="1"/>
     </resource>
-    <resource type="BinaryResource" name="icons.eot" skip="no" owner="admin" group="dba" mode="644" created="2026-03-12T14:17:25.676Z" modified="2026-03-12T14:17:25.676Z" filename="icons.eot" mimetype="application/octet-stream">
+    <resource type="BinaryResource" name="icons.eot" skip="no" owner="admin" group="dba" mode="755" created="2026-05-15T18:01:48.871Z" modified="2026-05-15T18:01:48.871Z" filename="icons.eot" mimetype="application/vnd.ms-fontobject">
         <acl entries="0" version="1"/>
     </resource>
-    <resource type="BinaryResource" name="icons.ttf" skip="no" owner="admin" group="dba" mode="644" created="2026-03-12T14:17:25.678Z" modified="2026-03-12T14:17:25.678Z" filename="icons.ttf" mimetype="application/octet-stream">
+    <resource type="BinaryResource" name="icons.woff" skip="no" owner="admin" group="dba" mode="755" created="2026-05-15T18:01:48.923Z" modified="2026-05-15T18:01:48.923Z" filename="icons.woff" mimetype="font/woff">
         <acl entries="0" version="1"/>
     </resource>
-    <resource type="BinaryResource" name="icons.woff" skip="no" owner="admin" group="dba" mode="644" created="2026-03-12T14:17:25.681Z" modified="2026-03-12T14:17:25.681Z" filename="icons.woff" mimetype="application/font-woff">
+    <resource type="BinaryResource" name="icons.ttf" skip="no" owner="admin" group="dba" mode="755" created="2026-05-15T18:01:48.985Z" modified="2026-05-15T18:01:48.985Z" filename="icons.ttf" mimetype="font/ttf">
         <acl entries="0" version="1"/>
     </resource>
     <subcollection name="customIcons" filename="customIcons"/>
