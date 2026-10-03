@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
 <meta xmlns="http://exist-db.org/xquery/repo">
     <description>Digital Splitleaf Psalter</description>
     <author>Timothy Duguid</author>
@@ -9,5 +10,4 @@
     <target>digital-splitleaf</target>
     <prepare>pre-install.xql</prepare>
     <finish/>
-<deployed>2026-04-07T14:07:35.442Z</deployed>
-</meta>
+<deployed>2026-04-07T14:07:35.442Z</deployed></meta>

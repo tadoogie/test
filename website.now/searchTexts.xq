@@ -8,6 +8,27 @@ declare namespace xmldb="http://exist-db.org/xquery/xmldb";
 declare option output:method "json";
 declare option output:media-type "application/json";
 
+(: Escape a string for embedding inside a hand-built JSON string literal. :)
+declare function local:json-escape($s as xs:string?) as xs:string {
+  if (empty($s)) then ''
+  else replace(replace($s, '\\', '\\\\'), '"', '\\"')
+};
+
+(: Build a JSON array (as a string) of {target, idno, scope} from tuneSuggestions refs.
+   This travels inside the flat "data" field below, so it's manually serialized
+   here rather than left to the endpoint's own JSON output. :)
+declare function local:suggestions-json($refs as element(tei:ref)*) as xs:string {
+  concat('[', string-join(
+    for $ref in $refs
+    return concat(
+      '{"target":"', local:json-escape(string($ref/@target)), '",',
+      '"idno":"', local:json-escape(normalize-space(string($ref/tei:idno))), '",',
+      '"scope":"', local:json-escape(normalize-space(string($ref/tei:scope))), '"}'
+    ),
+    ','
+  ), ']')
+};
+
 (: Accent-insensitive normalization: strip marks via \p{M} to avoid range regex issues :)
 declare function local:normalize($str as xs:string?) as xs:string {
   if (empty($str) or $str = '') then ''
@@ -115,7 +136,8 @@ return
         else if ($date != '') then $date
         else ""
       let $metre    := string($doc//tei:div/@met)
-      let $suggTune := normalize-space(string($doc//tei:notesStmt/tei:note[2]))
+      let $suggRefs := $doc//tei:notesStmt/tei:note[@type="tuneSuggestions"]/tei:ref
+      let $suggJson := local:suggestions-json($suggRefs)
       let $snippet  := local:build-snippet($text, $normT, $normQ, 40)
       let $verseNum := local:find-verse-with-match($doc, $normQ)
       order by $label
@@ -126,7 +148,7 @@ return
         "source": $sourceInfo,
         "sourceShort": $short,
         "path": document-uri($doc),
-        "data": concat($id, ";", $metre, ";", $suggTune),
+        "data": concat($id, ";", $metre, ";", encode-for-uri($suggJson)),
         "verseNum": $verseNum
       }
 

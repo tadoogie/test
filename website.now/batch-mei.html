@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Batch MEI Generator</title>
+</head>
+<body style="font-family: Arial, sans-serif; margin: 2rem;">
+<main style="max-width: 56rem; margin: 0 auto;">
+    <h2>Generate DS-Ready MEI — Batch</h2>
+    <p>Upload a zip of MEI files (folders and subfolders are fine) and get back a zip of Digital Splitleaf compatible MEI with the same folder structure. Nothing is added to the database. For a single file, use the <a href="upload-mei.html">upload form</a>.</p>
+
+    <section style="margin-top: 1rem; padding: 0.8rem; border: 1px solid #ddd; border-radius: 6px; background: #fafafa;">
+        <h3 style="margin-top: 0;">What This Batch Transformer Applies</h3>
+        <ul style="margin: 0; padding-left: 1.1rem; line-height: 1.5;">
+            <li>Everything the single-file generator does: <code>workList/work</code> with title, metre and the four incipit codes; SATB <code>layerDef</code>/<code>instrDef</code>; empty <code>&lt;syl/&gt;</code>; <code>note/@class</code> URI references.</li>
+            <li>Title and metre are read from each file’s <code>&lt;anchoredText func="title"&gt;</code>: the bold text is the tune name (capitals become title case, e.g. <code>EARNEST PRAYER</code> → <code>Earnest Prayer</code>) and the rest is the metre (<code>6 6 6 6 8 8</code> → <code>6.6.6.6.8.8.</code>).</li>
+            <li>The title heading is removed from the music; <code>&lt;anchoredText func="composer"&gt;</code> is kept.</li>
+            <li>Each <code>Name.mei</code> or <code>Name.xml</code> becomes <code>Name-ds.xml</code> in the matching folder. The zip also contains a CSV report of every file, next to (not inside) the converted folder.</li>
+        </ul>
+        <p style="margin: 0.7rem 0 0 0; font-size: 0.95rem;">
+            Only MEI is converted; other XML (e.g. MusicXML) is reported and left out, and macOS <code>__MACOSX</code> and hidden files are skipped.
+        </p>
+    </section>
+
+    <form action="run-mei-batch.xq" method="post" enctype="multipart/form-data" style="display: grid; gap: 0.75rem; margin-top: 1rem;">
+        <label for="zipFile">Zip file</label>
+        <input id="zipFile" name="zipFile" type="file" accept=".zip,application/zip" required="required"/>
+
+        <label for="editionTitle">Edition main title (for <code>editionStmt/edition/title[@type='main']</code>)</label>
+        <input id="editionTitle" name="editionTitle" type="text" value="The Psalter in Metre and Scripture Paraphrases" placeholder="The Psalms for Singing"/>
+
+        <label for="editionShortTitle">Edition short title (for <code>editionStmt/edition/title[@type='short']</code>; leave blank to repeat the main title)</label>
+        <input id="editionShortTitle" name="editionShortTitle" type="text" placeholder="2004 Irish Psalter"/>
+
+        <label for="editionDate">Edition date (for <code>editionStmt/edition/date</code>)</label>
+        <input id="editionDate" name="editionDate" type="text" value="1900" placeholder="2004" style="max-width: 10rem;"/>
+
+        <button type="submit" style="width: fit-content; padding: 0.45rem 0.8rem;">Convert</button>
+        <p style="margin: 0; font-size: 0.9rem; color: #555;">The result page lists each file with the title and metre it found, with a button to download the converted zip.</p>
+    </form>
+</main>
+</body>
+</html>

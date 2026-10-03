@@ -12,7 +12,15 @@ let $sources :=
       let $label := string($text//tei:titleStmt/tei:title)
       let $id := string($text//tei:TEI/@xml:id)
       let $metre := string($text//tei:div/@met)
-      let $sugg := normalize-space(string($text//tei:notesStmt/tei:note[2]))
+      let $suggTunes :=
+        array {
+          for $ref in $text//tei:notesStmt/tei:note[@type="tuneSuggestions"]/tei:ref
+          return map {
+            "target": string($ref/@target),
+            "idno": normalize-space(string($ref/tei:idno)),
+            "scope": normalize-space(string($ref/tei:scope))
+          }
+        }
       let $sections :=
         array {
           for $sec in $text//tei:div/tei:div
@@ -25,7 +33,7 @@ let $sources :=
         "label": $label,
         "id": $id,
         "metre": $metre,
-        "suggTune": $sugg,
+        "suggTunes": $suggTunes,
         "sections": $sections,
         "verses": $verses
       }

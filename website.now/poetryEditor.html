@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
@@ -355,6 +356,65 @@ body{
   margin-bottom: 16px;
 }
 
+.tunes-panel{
+  background: var(--paper-raised);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 22px;
+  margin-bottom: 16px;
+}
+
+.tune-row{
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.tune-select{
+  font-family:'Inter',sans-serif;
+  font-size: 13px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 7px 9px;
+  background: var(--paper);
+  color: var(--ink);
+  flex: 1;
+  min-width: 200px;
+}
+
+.tune-scope-input{
+  font-family:'IBM Plex Mono',monospace;
+  font-size: 13px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 7px 9px;
+  background: var(--paper);
+  color: var(--ink);
+  width: 170px;
+}
+
+.tune-select:focus-visible, .tune-scope-input:focus-visible{
+  outline: none;
+  border-color: var(--focus);
+  box-shadow: 0 0 0 2px rgba(47,92,138,0.2);
+}
+
+.tune-remove-btn{
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: var(--paper-raised);
+  color: var(--ink-soft);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+}
+.tune-remove-btn:hover{ background: var(--rubric); color: white; border-color: var(--rubric); }
+
 .panel-help{
   font-size: 12.5px;
   color: var(--ink-soft);
@@ -469,7 +529,7 @@ body{
     <div class="upload-row">
       <input type="file" id="fileInput" accept=".xml,text/xml,application/xml"/>
       <label for="fileInput" class="file-input-label">Choose TEI XML file…</label>
-      <span class="file-name" id="fileNameLabel">No file chosen — showing the sample Psalm 11 below</span>
+      <span class="file-name" id="fileNameLabel">No file chosen — showing the sample Psalm 5 below</span>
     </div>
     <p class="status-msg" id="uploadStatus"/>
   </div>
@@ -507,10 +567,21 @@ body{
     </div>
   </div>
 
+  <div class="tunes-panel" id="tunesPanel" style="display:none;">
+    <p class="eyebrow">Tune suggestions</p>
+    <p class="panel-help">
+      Tunes in this psalm's metre (<b id="tunesMetreLabel"/>). Pick a tune, then note which stanzas it
+      suits — e.g. "1-2, 4-5" or "all" — using the stanza numbers shown on each verse below. This is written
+      into the TEI's <code>tuneSuggestions</code> note.
+    </p>
+    <div id="tuneRows"/>
+    <button class="btn secondary" id="addTuneBtn">+ Add tune suggestion</button>
+    <p class="status-msg" id="tunesStatus"/>
+  </div>
+
   <div class="col-header">
     <span/>
-    <span class="count-col">Syllable count<small>actual / target</small>
-                </span>
+    <span class="count-col">Syllable count<small>actual / target</small></span>
     <span>Suggest</span>
   </div>
 
@@ -523,46 +594,44 @@ body{
 const TEI_NS = 'http://www.tei-c.org/ns/1.0';
 
 // Real content from Digital-Splitleaf/splitleaf-data, texts/2004-Irish/ps11.xml
-const SAMPLE_XML = `&lt;TEI xmlns="http://www.tei-c.org/ns/1.0" xml:id="ID_HERE"&gt;
-&lt;teiHeader&gt;
+const SAMPLE_XML = `
+&lt;TEI xmlns="http://www.tei-c.org/ns/1.0" xml:id="1650-Ps5"&gt;
+    &lt;teiHeader&gt;
         &lt;fileDesc&gt;
             &lt;titleStmt&gt;
-                &lt;title&gt;Psalm 11&lt;/title&gt;
-                &lt;author&gt;Anonymous&lt;/author&gt;
-                &lt;editor role="general"&gt;Timothy Duguid&lt;/editor&gt;
+                &lt;title&gt;Psalm 5&lt;/title&gt;
+                &lt;author&gt;Various&lt;/author&gt;
                 &lt;respStmt&gt;
                     &lt;resp&gt;Encoded by&lt;/resp&gt;
-                    &lt;persName role="enc"&gt;Luca Guariento (Splitleaf TEI Encoder script)&lt;/persName&gt;
-                &lt;/respStmt&gt;
-                &lt;respStmt&gt;
-                    &lt;resp&gt;Validated by&lt;/resp&gt;
-                    &lt;name xml:id="TD"&gt;Tim Duugid&lt;/name&gt;
-                    &lt;name xml:id="VALIDATOR_2_INITIALS"&gt;VALIDATOR_2_NAME&lt;/name&gt;
+                    &lt;persName role="enc"&gt;Timothy Duguid&lt;/persName&gt;
                 &lt;/respStmt&gt;
             &lt;/titleStmt&gt;
             &lt;editionStmt&gt;
                 &lt;edition&gt;
-                    &lt;title type="main"&gt;The Psalms for Singing&lt;/title&gt;
-                    &lt;title type="short"&gt;2004 Irish Psalter&lt;/title&gt;
-                    &lt;date&gt;2004&lt;/date&gt;
+                    &lt;title type="main"&gt;The Psalter in Metre&lt;/title&gt;
+                    &lt;title type="short"&gt;1650 Scottish Metrical&lt;/title&gt;
+                    &lt;date&gt;1650&lt;/date&gt;
                 &lt;/edition&gt;
-                &lt;respStmt&gt;
-                    &lt;resp&gt;Published by&lt;/resp&gt;
-                    &lt;persName role="pub"&gt;Nigel Lynn Publishing&lt;/persName&gt;
-                &lt;/respStmt&gt;
+                    &lt;respStmt&gt;
+                        &lt;persName role="pub"&gt;Evan Tyler&lt;/persName&gt;
+                    &lt;/respStmt&gt;
             &lt;/editionStmt&gt;
             &lt;publicationStmt&gt;
-                &lt;publisher&gt;Digital Splitleaf&lt;/publisher&gt;
                 &lt;availability&gt;
-                    &lt;licence target="LICENSE_URL_HERE"&gt;LICENSE_TEXT_HERE&lt;/licence&gt;
+                    &lt;license target="https://creativecommons.org/licenses/by-nc/4.0/"&gt;Distributed under a Creative Commons Attribution-NonCommercial 4.0 License&lt;/license&gt;
                 &lt;/availability&gt;
+                &lt;p&gt;Published by Timothy Duguid&lt;/p&gt;
             &lt;/publicationStmt&gt;
             &lt;notesStmt&gt;
-                &lt;note&gt;Suggested tune:&lt;/note&gt;
-                &lt;note&gt;TUNE_HERE&lt;/note&gt;
+                &lt;note type="tuneSuggestions"&gt;
+                    &lt;ref target="https://splitleaf.org/db/tunes/8.6.8.6/moravia.xml"&gt;
+                        &lt;idno&gt;SL89&lt;/idno&gt;
+                        &lt;scope/&gt;
+                    &lt;/ref&gt;
+                &lt;/note&gt;
             &lt;/notesStmt&gt;
             &lt;sourceDesc&gt;
-                &lt;p&gt;SOURCE_DESC_HERE&lt;/p&gt;
+                &lt;p&gt;Texts come from the 1650 Scottish Metrical Psalter&lt;/p&gt;
             &lt;/sourceDesc&gt;
         &lt;/fileDesc&gt;
         &lt;encodingDesc&gt;
@@ -573,165 +642,393 @@ const SAMPLE_XML = `&lt;TEI xmlns="http://www.tei-c.org/ns/1.0" xml:id="ID_HERE"
     &lt;/teiHeader&gt;
 &lt;text&gt;
     &lt;body&gt;
-        &lt;div type="poem" met="8.6.8.6."&gt;
-            &lt;lg type="verse" n="1"&gt;
-                &lt;l&gt;
-                    &lt;seg type="syl" n="1"&gt;1. MY&lt;/seg&gt;
-                    &lt;seg type="syl" n="2"&gt;trust&lt;/seg&gt;
-                    &lt;seg type="syl" n="3"&gt;is&lt;/seg&gt;
-                    &lt;seg type="syl" n="4"&gt;ev-&lt;/seg&gt;
-                    &lt;seg type="syl" n="5"&gt;er&lt;/seg&gt;
-                    &lt;seg type="syl" n="6"&gt;in&lt;/seg&gt;
-                    &lt;seg type="syl" n="7"&gt;the&lt;/seg&gt;
-                    &lt;seg type="syl" n="8"&gt;LORD.&lt;/seg&gt;
-                &lt;/l&gt;
-                &lt;l&gt;
-                    &lt;seg type="syl" n="1"&gt;How&lt;/seg&gt;
-                    &lt;seg type="syl" n="2"&gt;can&lt;/seg&gt;
-                    &lt;seg type="syl" n="3"&gt;you&lt;/seg&gt;
-                    &lt;seg type="syl" n="4"&gt;say&lt;/seg&gt;
-                    &lt;seg type="syl" n="5"&gt;to&lt;/seg&gt;
-                    &lt;seg type="syl" n="6"&gt;me,&lt;/seg&gt;
-                &lt;/l&gt;
-                &lt;l&gt;
-                    &lt;seg type="syl" n="1"&gt;\`Now&lt;/seg&gt;
-                    &lt;seg type="syl" n="2"&gt;like&lt;/seg&gt;
-                    &lt;seg type="syl" n="3"&gt;a&lt;/seg&gt;
-                    &lt;seg type="syl" n="4"&gt;bird&lt;/seg&gt;
-                    &lt;seg type="syl" n="5"&gt;from&lt;/seg&gt;
-                    &lt;seg type="syl" n="6"&gt;per-&lt;/seg&gt;
-                    &lt;seg type="syl" n="7"&gt;il&lt;/seg&gt;
-                    &lt;seg type="syl" n="8"&gt;haste,&lt;/seg&gt;
-                &lt;/l&gt;
-                &lt;l&gt;
-                    &lt;seg type="syl" n="1"&gt;and&lt;/seg&gt;
-                    &lt;seg type="syl" n="2"&gt;to&lt;/seg&gt;
-                    &lt;seg type="syl" n="3"&gt;your&lt;/seg&gt;
-                    &lt;seg type="syl" n="4"&gt;moun-&lt;/seg&gt;
-                    &lt;seg type="syl" n="5"&gt;tain&lt;/seg&gt;
-                    &lt;seg type="syl" n="6"&gt;flee;&lt;/seg&gt;
-                &lt;/l&gt;
+        &lt;div type="poem" met="8.6.8.6."&gt;        
+            &lt;lg type="verse" n="1-2" xml:id="st1-2"&gt;
+            &lt;l&gt;
+            &lt;seg type="syl" n="1"&gt;1. Give&lt;/seg&gt;
+            &lt;seg type="syl" n="2"&gt;ear&lt;/seg&gt;
+            &lt;seg type="syl" n="3"&gt;un-&lt;/seg&gt;
+            &lt;seg type="syl" n="4"&gt;to&lt;/seg&gt;
+            &lt;seg type="syl" n="5"&gt;my&lt;/seg&gt;
+            &lt;seg type="syl" n="6"&gt;words,&lt;/seg&gt;
+            &lt;seg type="syl" n="7"&gt;O&lt;/seg&gt;
+            &lt;seg type="syl" n="8"&gt;LORD,&lt;/seg&gt;
+            &lt;/l&gt;
+            &lt;l&gt;
+            &lt;seg type="syl" n="1"&gt;my&lt;/seg&gt;
+            &lt;seg type="syl" n="2"&gt;med-&lt;/seg&gt;
+            &lt;seg type="syl" n="3"&gt;i-&lt;/seg&gt;
+            &lt;seg type="syl" n="4"&gt;ta-&lt;/seg&gt;
+            &lt;seg type="syl" n="5"&gt;tion&lt;/seg&gt;
+            &lt;seg type="syl" n="6"&gt;weigh.&lt;/seg&gt;
+            &lt;/l&gt;
+            &lt;l&gt;
+            &lt;seg type="syl" n="1"&gt;2. Hear&lt;/seg&gt;
+            &lt;seg type="syl" n="2"&gt;my&lt;/seg&gt;
+            &lt;seg type="syl" n="3"&gt;loud&lt;/seg&gt;
+            &lt;seg type="syl" n="4"&gt;cry,&lt;/seg&gt;
+            &lt;seg type="syl" n="5"&gt;my&lt;/seg&gt;
+            &lt;seg type="syl" n="6"&gt;King,&lt;/seg&gt;
+            &lt;seg type="syl" n="7"&gt;my&lt;/seg&gt;
+            &lt;seg type="syl" n="8"&gt;God&lt;/seg&gt;
+            &lt;/l&gt;
+            &lt;l&gt;
+            &lt;seg type="syl" n="1"&gt;for&lt;/seg&gt;
+            &lt;seg type="syl" n="2"&gt;I&lt;/seg&gt;
+            &lt;seg type="syl" n="3"&gt;to&lt;/seg&gt;
+            &lt;seg type="syl" n="4"&gt;thee&lt;/seg&gt;
+            &lt;seg type="syl" n="5"&gt;will&lt;/seg&gt;
+            &lt;seg type="syl" n="6"&gt;pray.&lt;/seg&gt;
+            &lt;/l&gt;
             &lt;/lg&gt;
-            &lt;lg type="verse" n="2"&gt;
-                &lt;l&gt;
-                    &lt;seg type="syl" n="1"&gt;2. \`For&lt;/seg&gt;
-                    &lt;seg type="syl" n="2"&gt;look,&lt;/seg&gt;
-                    &lt;seg type="syl" n="3"&gt;the&lt;/seg&gt;
-                    &lt;seg type="syl" n="4"&gt;wic-&lt;/seg&gt;
-                    &lt;seg type="syl" n="5"&gt;ked&lt;/seg&gt;
-                    &lt;seg type="syl" n="6"&gt;bend&lt;/seg&gt;
-                    &lt;seg type="syl" n="7"&gt;their&lt;/seg&gt;
-                    &lt;seg type="syl" n="8"&gt;bow,&lt;/seg&gt;
-                &lt;/l&gt;
-                &lt;l&gt;
-                    &lt;seg type="syl" n="1"&gt;with&lt;/seg&gt;
-                    &lt;seg type="syl" n="2"&gt;ar-&lt;/seg&gt;
-                    &lt;seg type="syl" n="3"&gt;rows&lt;/seg&gt;
-                    &lt;seg type="syl" n="4"&gt;fixed&lt;/seg&gt;
-                    &lt;seg type="syl" n="5"&gt;for&lt;/seg&gt;
-                    &lt;seg type="syl" n="6"&gt;flight.&lt;/seg&gt;
-                &lt;/l&gt;
-                &lt;l&gt;
-                    &lt;seg type="syl" n="1"&gt;They&lt;/seg&gt;
-                    &lt;seg type="syl" n="2"&gt;shoot&lt;/seg&gt;
-                    &lt;seg type="syl" n="3"&gt;them&lt;/seg&gt;
-                    &lt;seg type="syl" n="4"&gt;at&lt;/seg&gt;
-                    &lt;seg type="syl" n="5"&gt;the&lt;/seg&gt;
-                    &lt;seg type="syl" n="6"&gt;true&lt;/seg&gt;
-                    &lt;seg type="syl" n="7"&gt;in&lt;/seg&gt;
-                    &lt;seg type="syl" n="8"&gt;heart&lt;/seg&gt;
-                &lt;/l&gt;
-                &lt;l&gt;
-                    &lt;seg type="syl" n="1"&gt;in&lt;/seg&gt;
-                    &lt;seg type="syl" n="2"&gt;dark-&lt;/seg&gt;
-                    &lt;seg type="syl" n="3"&gt;ness&lt;/seg&gt;
-                    &lt;seg type="syl" n="4"&gt;of&lt;/seg&gt;
-                    &lt;seg type="syl" n="5"&gt;the&lt;/seg&gt;
-                    &lt;seg type="syl" n="6"&gt;night.&lt;/seg&gt;
-                &lt;/l&gt;
+            &lt;lg type="verse" n="3" xml:id="st3"&gt;
+            &lt;l&gt;
+            &lt;seg type="syl" n="1"&gt;3. LORD,&lt;/seg&gt;
+            &lt;seg type="syl" n="2"&gt;thou&lt;/seg&gt;
+            &lt;seg type="syl" n="3"&gt;shalt&lt;/seg&gt;
+            &lt;seg type="syl" n="4"&gt;ear-&lt;/seg&gt;
+            &lt;seg type="syl" n="5"&gt;ly&lt;/seg&gt;
+            &lt;seg type="syl" n="6"&gt;hear&lt;/seg&gt;
+            &lt;seg type="syl" n="7"&gt;my&lt;/seg&gt;
+            &lt;seg type="syl" n="8"&gt;voice:&lt;/seg&gt;
+            &lt;/l&gt;
+            &lt;l&gt;
+            &lt;seg type="syl" n="1"&gt;I&lt;/seg&gt;
+            &lt;seg type="syl" n="2"&gt;ear-&lt;/seg&gt;
+            &lt;seg type="syl" n="3"&gt;ly&lt;/seg&gt;
+            &lt;seg type="syl" n="4"&gt;will&lt;/seg&gt;
+            &lt;seg type="syl" n="5"&gt;di-&lt;/seg&gt;
+            &lt;seg type="syl" n="6"&gt;rect&lt;/seg&gt;
+            &lt;/l&gt;
+            &lt;l&gt;
+            &lt;seg type="syl" n="1"&gt;My&lt;/seg&gt;
+            &lt;seg type="syl" n="2"&gt;prayer&lt;/seg&gt;
+            &lt;seg type="syl" n="3"&gt;to&lt;/seg&gt;
+            &lt;seg type="syl" n="4"&gt;thee&lt;/seg&gt;
+            &lt;seg type="syl" n="5"&gt;and,&lt;/seg&gt;
+            &lt;seg type="syl" n="6"&gt;look-&lt;/seg&gt;
+            &lt;seg type="syl" n="7"&gt;ing&lt;/seg&gt;
+            &lt;seg type="syl" n="8"&gt;up,&lt;/seg&gt;
+            &lt;/l&gt;
+            &lt;l&gt;
+            &lt;seg type="syl" n="1"&gt;an&lt;/seg&gt;
+            &lt;seg type="syl" n="2"&gt;an-&lt;/seg&gt;
+            &lt;seg type="syl" n="3"&gt;swer&lt;/seg&gt;
+            &lt;seg type="syl" n="4"&gt;will&lt;/seg&gt;
+            &lt;seg type="syl" n="5"&gt;ex-&lt;/seg&gt;
+            &lt;seg type="syl" n="6"&gt;pect.&lt;/seg&gt;
+            &lt;/l&gt;
             &lt;/lg&gt;
-            &lt;lg type="verse" n="3" cert="low"&gt;
-                &lt;l&gt;
-                    &lt;seg type="syl" n="1"&gt;3. \`When&lt;/seg&gt;
-                    &lt;seg type="syl" n="2"&gt;the&lt;/seg&gt;
-                    &lt;seg type="syl" n="3"&gt;foun-&lt;/seg&gt;
-                    &lt;seg type="syl" n="4"&gt;da-&lt;/seg&gt;
-                    &lt;seg type="syl" n="5"&gt;tions&lt;/seg&gt;
-                    &lt;seg type="syl" n="6"&gt;are&lt;/seg&gt;
-                    &lt;seg type="syl" n="7"&gt;de-&lt;/seg&gt;
-                    &lt;seg type="syl" n="8"&gt;stroyed,&lt;/seg&gt;
-                &lt;/l&gt;
-                &lt;l&gt;
-                    &lt;seg type="syl" n="1"&gt;what&lt;/seg&gt;
-                    &lt;seg type="syl" n="2"&gt;can&lt;/seg&gt;
-                    &lt;seg type="syl" n="3"&gt;the&lt;/seg&gt;
-                    &lt;seg type="syl" n="4"&gt;right-&lt;/seg&gt;
-                    &lt;seg type="syl" n="5"&gt;eous&lt;/seg&gt;
-                    &lt;seg type="syl" n="6"&gt;try?'&lt;/seg&gt;
-                &lt;/l&gt;
-                &lt;l&gt;
-                    &lt;seg type="syl" n="1"&gt;The&lt;/seg&gt;
-                    &lt;seg type="syl" n="2"&gt;LORD&lt;/seg&gt;
-                    &lt;seg type="syl" n="3"&gt;is&lt;/seg&gt;
-                    &lt;seg type="syl" n="4"&gt;in&lt;/seg&gt;
-                    &lt;seg type="syl" n="5"&gt;his&lt;/seg&gt;
-                    &lt;seg type="syl" n="6"&gt;ho-&lt;/seg&gt;
-                    &lt;seg type="syl" n="7"&gt;ly&lt;/seg&gt;
-                    &lt;seg type="syl" n="8"&gt;house,&lt;/seg&gt;
-                &lt;/l&gt;
-                &lt;l&gt;
-                    &lt;seg type="syl" n="1"&gt;his&lt;/seg&gt;
-                    &lt;seg type="syl" n="2"&gt;throne&lt;/seg&gt;
-                    &lt;seg type="syl" n="3"&gt;in&lt;/seg&gt;
-                    &lt;seg type="syl" n="4"&gt;heaven&lt;/seg&gt;
-                    &lt;seg type="syl" n="5"&gt;high.&lt;/seg&gt;
-                &lt;/l&gt;
+            &lt;lg type="verse" n="4-5" xml:id="st4-5"&gt;
+            &lt;l&gt;
+            &lt;seg type="syl" n="1"&gt;4. For&lt;/seg&gt;
+            &lt;seg type="syl" n="2"&gt;thou&lt;/seg&gt;
+            &lt;seg type="syl" n="3"&gt;art&lt;/seg&gt;
+            &lt;seg type="syl" n="4"&gt;not&lt;/seg&gt;
+            &lt;seg type="syl" n="5"&gt;a&lt;/seg&gt;
+            &lt;seg type="syl" n="6"&gt;God&lt;/seg&gt;
+            &lt;seg type="syl" n="7"&gt;that&lt;/seg&gt;
+            &lt;seg type="syl" n="8"&gt;doth&lt;/seg&gt;
+            &lt;/l&gt;
+            &lt;l&gt;
+            &lt;seg type="syl" n="1"&gt;in&lt;/seg&gt;
+            &lt;seg type="syl" n="2"&gt;wick-&lt;/seg&gt;
+            &lt;seg type="syl" n="3"&gt;ed-&lt;/seg&gt;
+            &lt;seg type="syl" n="4"&gt;ness&lt;/seg&gt;
+            &lt;seg type="syl" n="5"&gt;de-&lt;/seg&gt;
+            &lt;seg type="syl" n="6"&gt;light&lt;/seg&gt;
+            &lt;/l&gt;
+            &lt;l&gt;
+            &lt;seg type="syl" n="1"&gt;5. Nei-&lt;/seg&gt;
+            &lt;seg type="syl" n="2"&gt;ther&lt;/seg&gt;
+            &lt;seg type="syl" n="3"&gt;shall&lt;/seg&gt;
+            &lt;seg type="syl" n="4"&gt;e-&lt;/seg&gt;
+            &lt;seg type="syl" n="5"&gt;vil&lt;/seg&gt;
+            &lt;seg type="syl" n="6"&gt;dwell&lt;/seg&gt;
+            &lt;seg type="syl" n="7"&gt;with&lt;/seg&gt;
+            &lt;seg type="syl" n="8"&gt;thee,&lt;/seg&gt;
+            &lt;/l&gt;
+            &lt;l&gt;
+            &lt;seg type="syl" n="1"&gt;nor&lt;/seg&gt;
+            &lt;seg type="syl" n="2"&gt;fools&lt;/seg&gt;
+            &lt;seg type="syl" n="3"&gt;stand&lt;/seg&gt;
+            &lt;seg type="syl" n="4"&gt;in&lt;/seg&gt;
+            &lt;seg type="syl" n="5"&gt;thy&lt;/seg&gt;
+            &lt;seg type="syl" n="6"&gt;sight.&lt;/seg&gt;
+            &lt;/l&gt;
             &lt;/lg&gt;
-            &lt;lg type="verse" n="4"&gt;
-                &lt;l&gt;
-                    &lt;seg type="syl" n="1"&gt;4. His&lt;/seg&gt;
-                    &lt;seg type="syl" n="2"&gt;eyes&lt;/seg&gt;
-                    &lt;seg type="syl" n="3"&gt;do&lt;/seg&gt;
-                    &lt;seg type="syl" n="4"&gt;see;&lt;/seg&gt;
-                    &lt;seg type="syl" n="5"&gt;his&lt;/seg&gt;
-                    &lt;seg type="syl" n="6"&gt;eye-&lt;/seg&gt;
-                    &lt;seg type="syl" n="7"&gt;lids&lt;/seg&gt;
-                    &lt;seg type="syl" n="8"&gt;test&lt;/seg&gt;
-                &lt;/l&gt;
-                &lt;l&gt;
-                    &lt;seg type="syl" n="1"&gt;the&lt;/seg&gt;
-                    &lt;seg type="syl" n="2"&gt;sons&lt;/seg&gt;
-                    &lt;seg type="syl" n="3"&gt;of&lt;/seg&gt;
-                    &lt;seg type="syl" n="4"&gt;men.&lt;/seg&gt;
-                    &lt;seg type="syl" n="5"&gt;He&lt;/seg&gt;
-                    &lt;seg type="syl" n="6"&gt;tests&lt;/seg&gt;
-                &lt;/l&gt;
-                &lt;l&gt;
-                    &lt;seg type="syl" n="1"&gt;both&lt;/seg&gt;
-                    &lt;seg type="syl" n="2"&gt;good&lt;/seg&gt;
-                    &lt;seg type="syl" n="3"&gt;and&lt;/seg&gt;
-                    &lt;seg type="syl" n="4"&gt;bad;&lt;/seg&gt;
-                    &lt;seg type="syl" n="5"&gt;him&lt;/seg&gt;
-                    &lt;seg type="syl" n="6"&gt;who&lt;/seg&gt;
-                    &lt;seg type="syl" n="7"&gt;de-&lt;/seg&gt;
-                    &lt;seg type="syl" n="8"&gt;lights&lt;/seg&gt;
-                &lt;/l&gt;
-                &lt;l&gt;
-                    &lt;seg type="syl" n="1"&gt;in&lt;/seg&gt;
-                    &lt;seg type="syl" n="2"&gt;vi'-&lt;/seg&gt;
-                    &lt;seg type="syl" n="3"&gt;lence&lt;/seg&gt;
-                    &lt;seg type="syl" n="4"&gt;he&lt;/seg&gt;
-                    &lt;seg type="syl" n="5"&gt;de-&lt;/seg&gt;
-                    &lt;seg type="syl" n="6"&gt;tests.&lt;/seg&gt;
-                &lt;/l&gt;
+            &lt;lg type="verse" n="6" xml:id="st6"&gt;
+            &lt;l&gt;
+            &lt;seg type="syl" n="1"&gt;6. All&lt;/seg&gt;
+            &lt;seg type="syl" n="2"&gt;that&lt;/seg&gt;
+            &lt;seg type="syl" n="3"&gt;ill-&lt;/seg&gt;
+            &lt;seg type="syl" n="4"&gt;do-&lt;/seg&gt;
+            &lt;seg type="syl" n="5"&gt;ers&lt;/seg&gt;
+            &lt;seg type="syl" n="6"&gt;are&lt;/seg&gt;
+            &lt;seg type="syl" n="7"&gt;thou&lt;/seg&gt;
+            &lt;seg type="syl" n="8"&gt;hat'st&lt;/seg&gt;
+            &lt;/l&gt;
+            &lt;l&gt;
+            &lt;seg type="syl" n="1"&gt;cutt'st&lt;/seg&gt;
+            &lt;seg type="syl" n="2"&gt;off&lt;/seg&gt;
+            &lt;seg type="syl" n="3"&gt;that&lt;/seg&gt;
+            &lt;seg type="syl" n="4"&gt;li-&lt;/seg&gt;
+            &lt;seg type="syl" n="5"&gt;ars&lt;/seg&gt;
+            &lt;seg type="syl" n="6"&gt;be:&lt;/seg&gt;
+            &lt;/l&gt;
+            &lt;l&gt;
+            &lt;seg type="syl" n="1"&gt;The&lt;/seg&gt;
+            &lt;seg type="syl" n="2"&gt;blood-&lt;/seg&gt;
+            &lt;seg type="syl" n="3"&gt;y&lt;/seg&gt;
+            &lt;seg type="syl" n="4"&gt;and&lt;/seg&gt;
+            &lt;seg type="syl" n="5"&gt;de-&lt;/seg&gt;
+            &lt;seg type="syl" n="6"&gt;ceit-&lt;/seg&gt;
+            &lt;seg type="syl" n="7"&gt;ful&lt;/seg&gt;
+            &lt;seg type="syl" n="8"&gt;man&lt;/seg&gt;
+            &lt;/l&gt;
+            &lt;l&gt;
+            &lt;seg type="syl" n="1"&gt;ab-&lt;/seg&gt;
+            &lt;seg type="syl" n="2"&gt;horr-&lt;/seg&gt;
+            &lt;seg type="syl" n="3"&gt;ed&lt;/seg&gt;
+            &lt;seg type="syl" n="4"&gt;is&lt;/seg&gt;
+            &lt;seg type="syl" n="5"&gt;by&lt;/seg&gt;
+            &lt;seg type="syl" n="6"&gt;thee.&lt;/seg&gt;
+            &lt;/l&gt;
+            &lt;/lg&gt;
+            &lt;lg type="verse" n="7" xml:id="st7"&gt;
+            &lt;l&gt;
+            &lt;seg type="syl" n="1"&gt;7. But&lt;/seg&gt;
+            &lt;seg type="syl" n="2"&gt;I&lt;/seg&gt;
+            &lt;seg type="syl" n="3"&gt;in-&lt;/seg&gt;
+            &lt;seg type="syl" n="4"&gt;to&lt;/seg&gt;
+            &lt;seg type="syl" n="5"&gt;thy&lt;/seg&gt;
+            &lt;seg type="syl" n="6"&gt;house&lt;/seg&gt;
+            &lt;seg type="syl" n="7"&gt;will&lt;/seg&gt;
+            &lt;seg type="syl" n="8"&gt;come&lt;/seg&gt;
+            &lt;/l&gt;
+            &lt;l&gt;
+            &lt;seg type="syl" n="1"&gt;in&lt;/seg&gt;
+            &lt;seg type="syl" n="2"&gt;thine&lt;/seg&gt;
+            &lt;seg type="syl" n="3"&gt;a-&lt;/seg&gt;
+            &lt;seg type="syl" n="4"&gt;bun-&lt;/seg&gt;
+            &lt;seg type="syl" n="5"&gt;dant&lt;/seg&gt;
+            &lt;seg type="syl" n="6"&gt;grace&lt;/seg&gt;
+            &lt;/l&gt;
+            &lt;l&gt;
+            &lt;seg type="syl" n="1"&gt;And&lt;/seg&gt;
+            &lt;seg type="syl" n="2"&gt;I&lt;/seg&gt;
+            &lt;seg type="syl" n="3"&gt;will&lt;/seg&gt;
+            &lt;seg type="syl" n="4"&gt;wor-&lt;/seg&gt;
+            &lt;seg type="syl" n="5"&gt;ship&lt;/seg&gt;
+            &lt;seg type="syl" n="6"&gt;in&lt;/seg&gt;
+            &lt;seg type="syl" n="7"&gt;thy&lt;/seg&gt;
+            &lt;seg type="syl" n="8"&gt;fear&lt;/seg&gt;
+            &lt;/l&gt;
+            &lt;l&gt;
+            &lt;seg type="syl" n="1"&gt;to-&lt;/seg&gt;
+            &lt;seg type="syl" n="2"&gt;ward&lt;/seg&gt;
+            &lt;seg type="syl" n="3"&gt;thy&lt;/seg&gt;
+            &lt;seg type="syl" n="4"&gt;ho-&lt;/seg&gt;
+            &lt;seg type="syl" n="5"&gt;ly&lt;/seg&gt;
+            &lt;seg type="syl" n="6"&gt;place.&lt;/seg&gt;
+            &lt;/l&gt;
+            &lt;/lg&gt;
+            &lt;lg type="verse" n="8" xml:id="st8"&gt;
+            &lt;l&gt;
+            &lt;seg type="syl" n="1"&gt;8. Be-&lt;/seg&gt;
+            &lt;seg type="syl" n="2"&gt;cause&lt;/seg&gt;
+            &lt;seg type="syl" n="3"&gt;of&lt;/seg&gt;
+            &lt;seg type="syl" n="4"&gt;those&lt;/seg&gt;
+            &lt;seg type="syl" n="5"&gt;mine&lt;/seg&gt;
+            &lt;seg type="syl" n="6"&gt;en-&lt;/seg&gt;
+            &lt;seg type="syl" n="7"&gt;e-&lt;/seg&gt;
+            &lt;seg type="syl" n="8"&gt;mies,&lt;/seg&gt;
+            &lt;/l&gt;
+            &lt;l&gt;
+            &lt;seg type="syl" n="1"&gt;LORD,&lt;/seg&gt;
+            &lt;seg type="syl" n="2"&gt;in&lt;/seg&gt;
+            &lt;seg type="syl" n="3"&gt;thy&lt;/seg&gt;
+            &lt;seg type="syl" n="4"&gt;right-&lt;/seg&gt;
+            &lt;seg type="syl" n="5"&gt;eous-&lt;/seg&gt;
+            &lt;seg type="syl" n="6"&gt;ness&lt;/seg&gt;
+            &lt;/l&gt;
+            &lt;l&gt;
+            &lt;seg type="syl" n="1"&gt;Do&lt;/seg&gt;
+            &lt;seg type="syl" n="2"&gt;thou&lt;/seg&gt;
+            &lt;seg type="syl" n="3"&gt;me&lt;/seg&gt;
+            &lt;seg type="syl" n="4"&gt;lead&lt;/seg&gt;
+            &lt;seg type="syl" n="5"&gt;do&lt;/seg&gt;
+            &lt;seg type="syl" n="6"&gt;thou&lt;/seg&gt;
+            &lt;seg type="syl" n="7"&gt;thy&lt;/seg&gt;
+            &lt;seg type="syl" n="8"&gt;way&lt;/seg&gt;
+            &lt;/l&gt;
+            &lt;l&gt;
+            &lt;seg type="syl" n="1"&gt;make&lt;/seg&gt;
+            &lt;seg type="syl" n="2"&gt;straight&lt;/seg&gt;
+            &lt;seg type="syl" n="3"&gt;be-&lt;/seg&gt;
+            &lt;seg type="syl" n="4"&gt;fore&lt;/seg&gt;
+            &lt;seg type="syl" n="5"&gt;my&lt;/seg&gt;
+            &lt;seg type="syl" n="6"&gt;face.&lt;/seg&gt;
+            &lt;/l&gt;
+            &lt;/lg&gt;
+            &lt;lg type="verse" n="9" xml:id="st9"&gt;
+            &lt;l&gt;
+            &lt;seg type="syl" n="1"&gt;9. For&lt;/seg&gt;
+            &lt;seg type="syl" n="2"&gt;in&lt;/seg&gt;
+            &lt;seg type="syl" n="3"&gt;their&lt;/seg&gt;
+            &lt;seg type="syl" n="4"&gt;mouth&lt;/seg&gt;
+            &lt;seg type="syl" n="5"&gt;there&lt;/seg&gt;
+            &lt;seg type="syl" n="6"&gt;is&lt;/seg&gt;
+            &lt;seg type="syl" n="7"&gt;no&lt;/seg&gt;
+            &lt;seg type="syl" n="8"&gt;truth,&lt;/seg&gt;
+            &lt;/l&gt;
+            &lt;l&gt;
+            &lt;seg type="syl" n="1"&gt;their&lt;/seg&gt;
+            &lt;seg type="syl" n="2"&gt;in-&lt;/seg&gt;
+            &lt;seg type="syl" n="3"&gt;ward&lt;/seg&gt;
+            &lt;seg type="syl" n="4"&gt;part&lt;/seg&gt;
+            &lt;seg type="syl" n="5"&gt;is&lt;/seg&gt;
+            &lt;seg type="syl" n="6"&gt;ill&lt;/seg&gt;
+            &lt;/l&gt;
+            &lt;l&gt;
+            &lt;seg type="syl" n="1"&gt;Their&lt;/seg&gt;
+            &lt;seg type="syl" n="2"&gt;throat's&lt;/seg&gt;
+            &lt;seg type="syl" n="3"&gt;an&lt;/seg&gt;
+            &lt;seg type="syl" n="4"&gt;o-&lt;/seg&gt;
+            &lt;seg type="syl" n="5"&gt;pen&lt;/seg&gt;
+            &lt;seg type="syl" n="6"&gt;sep-&lt;/seg&gt;
+            &lt;seg type="syl" n="7"&gt;ul-&lt;/seg&gt;
+            &lt;seg type="syl" n="8"&gt;chre,&lt;/seg&gt;
+            &lt;/l&gt;
+            &lt;l&gt;
+            &lt;seg type="syl" n="1"&gt;their&lt;/seg&gt;
+            &lt;seg type="syl" n="2"&gt;tongue&lt;/seg&gt;
+            &lt;seg type="syl" n="3"&gt;doth&lt;/seg&gt;
+            &lt;seg type="syl" n="4"&gt;flat-&lt;/seg&gt;
+            &lt;seg type="syl" n="5"&gt;ter&lt;/seg&gt;
+            &lt;seg type="syl" n="6"&gt;still.&lt;/seg&gt;
+            &lt;/l&gt;
+            &lt;/lg&gt;
+            &lt;lg type="verse" n="10" xml:id="st10"&gt;
+            &lt;l&gt;
+            &lt;seg type="syl" n="1"&gt;10. O&lt;/seg&gt;
+            &lt;seg type="syl" n="2"&gt;God,&lt;/seg&gt;
+            &lt;seg type="syl" n="3"&gt;des-&lt;/seg&gt;
+            &lt;seg type="syl" n="4"&gt;troy&lt;/seg&gt;
+            &lt;seg type="syl" n="5"&gt;them&lt;/seg&gt;
+            &lt;seg type="syl" n="6"&gt;let&lt;/seg&gt;
+            &lt;seg type="syl" n="7"&gt;them&lt;/seg&gt;
+            &lt;seg type="syl" n="8"&gt;be,&lt;/seg&gt;
+            &lt;/l&gt;
+            &lt;l&gt;
+            &lt;seg type="syl" n="1"&gt;by&lt;/seg&gt;
+            &lt;seg type="syl" n="2"&gt;their&lt;/seg&gt;
+            &lt;seg type="syl" n="3"&gt;own&lt;/seg&gt;
+            &lt;seg type="syl" n="4"&gt;coun-&lt;/seg&gt;
+            &lt;seg type="syl" n="5"&gt;sel&lt;/seg&gt;
+            &lt;seg type="syl" n="6"&gt;quelled:&lt;/seg&gt;
+            &lt;/l&gt;
+            &lt;l&gt;
+            &lt;seg type="syl" n="1"&gt;Them&lt;/seg&gt;
+            &lt;seg type="syl" n="2"&gt;for&lt;/seg&gt;
+            &lt;seg type="syl" n="3"&gt;their&lt;/seg&gt;
+            &lt;seg type="syl" n="4"&gt;man-&lt;/seg&gt;
+            &lt;seg type="syl" n="5"&gt;y&lt;/seg&gt;
+            &lt;seg type="syl" n="6"&gt;sins&lt;/seg&gt;
+            &lt;seg type="syl" n="7"&gt;cast&lt;/seg&gt;
+            &lt;seg type="syl" n="8"&gt;out,&lt;/seg&gt;
+            &lt;/l&gt;
+            &lt;l&gt;
+            &lt;seg type="syl" n="1"&gt;for&lt;/seg&gt;
+            &lt;seg type="syl" n="2"&gt;they&lt;/seg&gt;
+            &lt;seg type="syl" n="3"&gt;'gainst&lt;/seg&gt;
+            &lt;seg type="syl" n="4"&gt;thee&lt;/seg&gt;
+            &lt;seg type="syl" n="5"&gt;re-&lt;/seg&gt;
+            &lt;seg type="syl" n="6"&gt;belled.&lt;/seg&gt;
+            &lt;/l&gt;
+            &lt;/lg&gt;
+            &lt;lg type="verse" n="11" xml:id="st11"&gt;
+            &lt;l&gt;
+            &lt;seg type="syl" n="1"&gt;11. But&lt;/seg&gt;
+            &lt;seg type="syl" n="2"&gt;let&lt;/seg&gt;
+            &lt;seg type="syl" n="3"&gt;all&lt;/seg&gt;
+            &lt;seg type="syl" n="4"&gt;joy&lt;/seg&gt;
+            &lt;seg type="syl" n="5"&gt;that&lt;/seg&gt;
+            &lt;seg type="syl" n="6"&gt;trust&lt;/seg&gt;
+            &lt;seg type="syl" n="7"&gt;in&lt;/seg&gt;
+            &lt;seg type="syl" n="8"&gt;thee,&lt;/seg&gt;
+            &lt;/l&gt;
+            &lt;l&gt;
+            &lt;seg type="syl" n="1"&gt;and&lt;/seg&gt;
+            &lt;seg type="syl" n="2"&gt;still&lt;/seg&gt;
+            &lt;seg type="syl" n="3"&gt;make&lt;/seg&gt;
+            &lt;seg type="syl" n="4"&gt;shout-&lt;/seg&gt;
+            &lt;seg type="syl" n="5"&gt;ing&lt;/seg&gt;
+            &lt;seg type="syl" n="6"&gt;noise&lt;/seg&gt;
+            &lt;/l&gt;
+            &lt;l&gt;
+            &lt;seg type="syl" n="1"&gt;For&lt;/seg&gt;
+            &lt;seg type="syl" n="2"&gt;them&lt;/seg&gt;
+            &lt;seg type="syl" n="3"&gt;thou&lt;/seg&gt;
+            &lt;seg type="syl" n="4"&gt;sav'st:&lt;/seg&gt;
+            &lt;seg type="syl" n="5"&gt;let&lt;/seg&gt;
+            &lt;seg type="syl" n="6"&gt;all&lt;/seg&gt;
+            &lt;seg type="syl" n="7"&gt;that&lt;/seg&gt;
+            &lt;seg type="syl" n="8"&gt;love&lt;/seg&gt;
+            &lt;/l&gt;
+            &lt;l&gt;
+            &lt;seg type="syl" n="1"&gt;thy&lt;/seg&gt;
+            &lt;seg type="syl" n="2"&gt;name&lt;/seg&gt;
+            &lt;seg type="syl" n="3"&gt;in&lt;/seg&gt;
+            &lt;seg type="syl" n="4"&gt;thee&lt;/seg&gt;
+            &lt;seg type="syl" n="5"&gt;re-&lt;/seg&gt;
+            &lt;seg type="syl" n="6"&gt;joice.&lt;/seg&gt;
+            &lt;/l&gt;
+            &lt;/lg&gt;
+            &lt;lg type="verse" n="12" xml:id="st12"&gt;
+            &lt;l&gt;
+            &lt;seg type="syl" n="1"&gt;12. For,&lt;/seg&gt;
+            &lt;seg type="syl" n="2"&gt;LORD,&lt;/seg&gt;
+            &lt;seg type="syl" n="3"&gt;un-&lt;/seg&gt;
+            &lt;seg type="syl" n="4"&gt;to&lt;/seg&gt;
+            &lt;seg type="syl" n="5"&gt;the&lt;/seg&gt;
+            &lt;seg type="syl" n="6"&gt;right-&lt;/seg&gt;
+            &lt;seg type="syl" n="7"&gt;eous&lt;/seg&gt;
+            &lt;seg type="syl" n="8"&gt;man&lt;/seg&gt;
+            &lt;/l&gt;
+            &lt;l&gt;
+            &lt;seg type="syl" n="1"&gt;thou&lt;/seg&gt;
+            &lt;seg type="syl" n="2"&gt;wilt&lt;/seg&gt;
+            &lt;seg type="syl" n="3"&gt;thy&lt;/seg&gt;
+            &lt;seg type="syl" n="4"&gt;bless-&lt;/seg&gt;
+            &lt;seg type="syl" n="5"&gt;ing&lt;/seg&gt;
+            &lt;seg type="syl" n="6"&gt;yield:&lt;/seg&gt;
+            &lt;/l&gt;
+            &lt;l&gt;
+            &lt;seg type="syl" n="1"&gt;With&lt;/seg&gt;
+            &lt;seg type="syl" n="2"&gt;fa-&lt;/seg&gt;
+            &lt;seg type="syl" n="3"&gt;vour&lt;/seg&gt;
+            &lt;seg type="syl" n="4"&gt;thou&lt;/seg&gt;
+            &lt;seg type="syl" n="5"&gt;wilt&lt;/seg&gt;
+            &lt;seg type="syl" n="6"&gt;com-&lt;/seg&gt;
+            &lt;seg type="syl" n="7"&gt;pass&lt;/seg&gt;
+            &lt;seg type="syl" n="8"&gt;him&lt;/seg&gt;
+            &lt;/l&gt;
+            &lt;l&gt;
+            &lt;seg type="syl" n="1"&gt;a-&lt;/seg&gt;
+            &lt;seg type="syl" n="2"&gt;bout,&lt;/seg&gt;
+            &lt;seg type="syl" n="3"&gt;as&lt;/seg&gt;
+            &lt;seg type="syl" n="4"&gt;with&lt;/seg&gt;
+            &lt;seg type="syl" n="5"&gt;a&lt;/seg&gt;
+            &lt;seg type="syl" n="6"&gt;shield.&lt;/seg&gt;
+            &lt;/l&gt;
             &lt;/lg&gt;
         &lt;/div&gt;
     &lt;/body&gt;
 &lt;/text&gt;
-&lt;/TEI&gt;
-`;
+&lt;/TEI&gt;`;
 
-let doc, div, pattern, filename = 'ps11.xml';
+let doc, div, pattern, filename = 'Ps5.xml';
 const rowMap = new Map();
 
 function children(el, name){
@@ -775,6 +1072,7 @@ function load(xmlText){
     (friendly ? friendly + ' · ' : '') + '&lt;b&gt;' + met + '&lt;/b&gt;';
 
   render();
+  initTuneSuggestions();
 }
 
 // Column layout for a line of N syllables: seam, box, seam, box, ..., seam
@@ -1085,16 +1383,7 @@ function applyAllSyllables(lEl, arr){
   render();
 }
 
-function suggestLine(lEl, expected, row, btn){
-  const grid = row.querySelector('.syllable-grid');
-  const actions = row.querySelector('.suggestion-actions');
-  const n = segsOf(lEl).length;
-
-  // Clear any suggestion chips left over from a previous click.
-  grid.querySelectorAll('[data-suggestion-chip]').forEach(el =&gt; el.remove());
-  actions.style.display = 'flex';
-  actions.innerHTML = '';
-
+function heuristicSuggestionForLine(lEl){
   const suggestion = [];
   wordsFromLine(lEl).forEach(word =&gt; {
     const { lead, core, trail } = splitWordPunct(word);
@@ -1107,6 +1396,17 @@ function suggestLine(lEl, expected, row, btn){
       suggestion.push(piece);
     });
   });
+  return suggestion;
+}
+
+function renderSuggestionChips(lEl, row, suggestion, note){
+  const grid = row.querySelector('.syllable-grid');
+  const actions = row.querySelector('.suggestion-actions');
+  const n = segsOf(lEl).length;
+
+  grid.querySelectorAll('[data-suggestion-chip]').forEach(el =&gt; el.remove());
+  actions.style.display = 'flex';
+  actions.innerHTML = '';
 
   // Reuse the exact same column template as row 1. If the suggestion has
   // more syllables than there are boxes, extend it with extra columns so
@@ -1141,6 +1441,18 @@ function suggestLine(lEl, expected, row, btn){
     actions.style.display = 'none';
   };
   actions.appendChild(dismiss);
+
+  if (note){
+    const noteEl = document.createElement('span');
+    noteEl.className = 'status-msg info';
+    noteEl.style.margin = '0';
+    noteEl.textContent = note;
+    actions.appendChild(noteEl);
+  }
+}
+
+function suggestLine(lEl, expected, row, btn){
+  renderSuggestionChips(lEl, row, heuristicSuggestionForLine(lEl), null);
 }
 
 function serializeCurrentDoc(){
@@ -1192,6 +1504,211 @@ function downloadXML(){
 }
 
 document.getElementById('downloadBtn').addEventListener('click', downloadXML);
+
+// ---------------------------------------------------------------------
+// Tune suggestions
+// ---------------------------------------------------------------------
+// Point this at your eXist-db endpoint once it exists — it should return
+// { "tunes": [ { "name": "...", "idno": "...", "filename": "..." }, ... ] }
+// for the given metre. In this browser-only preview nothing is listening
+// here, so it falls back to the sample list below — expected, not a bug.
+// Confirmed working directly against the raw eXist path — the clean
+// splitleaf.org URL was dropping the query string somewhere upstream
+// (proxy or controller.xql rewrite), not a problem in the XQuery itself.
+// If you later get the clean URL preserving query strings, this can
+// change back to the shorter relative form.
+const TUNE_LIST_ENDPOINT = 'https://splitleaf.org/exist/apps/digital-splitleaf/tunes-by-metre.xq';
+const TUNE_BASE_URL = 'https://splitleaf.org/db/tunes';
+
+// Sample data standing in for a real /db/tunes/{metre}/ listing. Moravia/
+// SL89 and Agawam/SL1 are real entries confirmed from your own files
+// (Ps5.xml and agawam.xml); the rest are illustrative placeholders.
+const MOCK_TUNES_BY_METRE = {
+  '8.6.8.6': [
+    { name: 'Moravia', idno: 'SL89', filename: 'moravia.xml' },
+    { name: 'Agawam', idno: 'SL1', filename: 'agawam.xml' },
+    { name: 'Crimond', idno: 'SL12', filename: 'crimond.xml' },
+    { name: 'St. Anne', idno: 'SL45', filename: 'st-anne.xml' },
+    { name: 'Winchester Old', idno: 'SL23', filename: 'winchester-old.xml' },
+    { name: 'Martyrdom', idno: 'SL67', filename: 'martyrdom.xml' },
+    { name: 'Dundee (French)', idno: 'SL34', filename: 'dundee.xml' }
+  ]
+};
+
+let currentTunes = [];
+
+function metreFolderName(met){
+  return (met || '').replace(/\.$/, '');
+}
+
+async function fetchTunesForMetre(met){
+  const folder = metreFolderName(met);
+  try {
+    const res = await fetch(TUNE_LIST_ENDPOINT + '?metre=' + encodeURIComponent(folder));
+    if (!res.ok) throw new Error('server returned ' + res.status);
+    const data = await res.json();
+    if (!Array.isArray(data.tunes)) throw new Error('unexpected response shape');
+    return { tunes: data.tunes, usedFallback: false };
+  } catch (err){
+    return { tunes: MOCK_TUNES_BY_METRE[folder] || [], usedFallback: true, error: err.message };
+  }
+}
+
+// --- reading/writing the TEI structure -------------------------------
+//   &lt;notesStmt&gt;
+//     &lt;note type="tuneSuggestions"&gt;
+//       &lt;ref target="https://splitleaf.org/db/tunes/{metre}/{filename}"&gt;
+//         &lt;idno&gt;SL89&lt;/idno&gt;
+//         &lt;scope&gt;1-2, 4-5&lt;/scope&gt;
+//       &lt;/ref&gt;
+//       ...
+//     &lt;/note&gt;
+//   &lt;/notesStmt&gt;
+
+function tuneNoteEl(){
+  const notesStmtEl = doc.getElementsByTagNameNS(TEI_NS, 'notesStmt')[0];
+  if (!notesStmtEl) return null;
+  return children(notesStmtEl, 'note').find(n =&gt; n.getAttribute('type') === 'tuneSuggestions') || null;
+}
+
+function ensureTuneNote(){
+  const existing = tuneNoteEl();
+  if (existing) return existing;
+  let notesStmtEl = doc.getElementsByTagNameNS(TEI_NS, 'notesStmt')[0];
+  if (!notesStmtEl){
+    notesStmtEl = doc.createElementNS(TEI_NS, 'notesStmt');
+    doc.getElementsByTagNameNS(TEI_NS, 'fileDesc')[0].appendChild(notesStmtEl);
+  }
+  const note = doc.createElementNS(TEI_NS, 'note');
+  note.setAttribute('type', 'tuneSuggestions');
+  notesStmtEl.appendChild(note);
+  return note;
+}
+
+function tuneRefs(){
+  const note = tuneNoteEl();
+  return note ? children(note, 'ref') : [];
+}
+
+function makeTuneRow(refEl){
+  const row = document.createElement('div');
+  row.className = 'tune-row';
+
+  const idnoEl = refEl.getElementsByTagNameNS(TEI_NS, 'idno')[0];
+  const scopeEl = refEl.getElementsByTagNameNS(TEI_NS, 'scope')[0];
+  const currentIdno = idnoEl ? idnoEl.textContent.trim() : '';
+  // idno alone isn't a safe match key — several real tunes share one (e.g.
+  // SL4, SL63, SL80 each cover two different tunes). The filename in the
+  // ref's target URL is unique, so prefer that; idno is only a fallback
+  // for a ref with no target yet.
+  const targetAttr = refEl.getAttribute('target') || '';
+  const currentFilename = targetAttr ? targetAttr.split('/').pop() : '';
+
+  const select = document.createElement('select');
+  select.className = 'tune-select';
+  const blank = document.createElement('option');
+  blank.value = '';
+  blank.textContent = 'Select a tune…';
+  select.appendChild(blank);
+
+  let matched = false;
+  currentTunes.forEach(t =&gt; {
+    const opt = document.createElement('option');
+    opt.value = t.filename;
+    opt.textContent = t.name;
+    const isMatch = currentFilename ? (t.filename === currentFilename) : (t.idno === currentIdno);
+    if (isMatch){ opt.selected = true; matched = true; }
+    select.appendChild(opt);
+  });
+  if ((currentFilename || currentIdno) &amp;&amp; !matched){
+    const unknown = document.createElement('option');
+    unknown.value = '';
+    unknown.textContent = (currentFilename || currentIdno) + ' (not in current tune list)';
+    unknown.selected = true;
+    select.appendChild(unknown);
+  }
+
+  select.addEventListener('change', () =&gt; {
+    const tune = currentTunes.find(t =&gt; t.filename === select.value);
+    if (!tune) return;
+    let idnoNode = refEl.getElementsByTagNameNS(TEI_NS, 'idno')[0];
+    if (!idnoNode){
+      idnoNode = doc.createElementNS(TEI_NS, 'idno');
+      refEl.insertBefore(idnoNode, refEl.firstChild);
+    }
+    idnoNode.textContent = tune.idno;
+    refEl.setAttribute('target', TUNE_BASE_URL + '/' + metreFolderName(div.getAttribute('met') || '') + '/' + tune.filename);
+  });
+
+  const scopeInput = document.createElement('input');
+  scopeInput.type = 'text';
+  scopeInput.className = 'tune-scope-input';
+  scopeInput.placeholder = 'Stanzas, e.g. 1-2, 4-5';
+  scopeInput.value = scopeEl ? scopeEl.textContent : '';
+  scopeInput.addEventListener('input', () =&gt; {
+    let scopeNode = refEl.getElementsByTagNameNS(TEI_NS, 'scope')[0];
+    if (!scopeNode){
+      scopeNode = doc.createElementNS(TEI_NS, 'scope');
+      refEl.appendChild(scopeNode);
+    }
+    scopeNode.textContent = scopeInput.value;
+  });
+
+  const removeBtn = document.createElement('button');
+  removeBtn.className = 'tune-remove-btn';
+  removeBtn.setAttribute('aria-label', 'Remove this tune suggestion');
+  removeBtn.title = 'Remove this tune suggestion';
+  removeBtn.textContent = '×';
+  removeBtn.onclick = () =&gt; {
+    const note = tuneNoteEl();
+    refEl.remove();
+    if (note &amp;&amp; children(note, 'ref').length === 0) note.remove();
+    renderTuneRows();
+  };
+
+  row.appendChild(select);
+  row.appendChild(scopeInput);
+  row.appendChild(removeBtn);
+  return row;
+}
+
+function renderTuneRows(){
+  const container = document.getElementById('tuneRows');
+  container.innerHTML = '';
+  tuneRefs().forEach(refEl =&gt; container.appendChild(makeTuneRow(refEl)));
+}
+
+async function initTuneSuggestions(){
+  const panel = document.getElementById('tunesPanel');
+  const statusEl = document.getElementById('tunesStatus');
+  panel.style.display = 'block';
+  document.getElementById('tunesMetreLabel').textContent = div.getAttribute('met') || '';
+  statusEl.textContent = 'Loading tunes for this metre…';
+  statusEl.className = 'status-msg info';
+
+  const { tunes, usedFallback, error } = await fetchTunesForMetre(div.getAttribute('met') || '');
+  currentTunes = tunes;
+  if (usedFallback){
+    statusEl.textContent = 'Using sample tune data for this prototype (tune endpoint unreachable here: ' +
+      error + ') — will query your real /db/tunes once deployed.';
+    statusEl.className = 'status-msg info';
+  } else {
+    statusEl.textContent = '';
+    statusEl.className = 'status-msg';
+  }
+
+  renderTuneRows();
+}
+
+document.getElementById('addTuneBtn').addEventListener('click', () =&gt; {
+  const note = ensureTuneNote();
+  const ref = doc.createElementNS(TEI_NS, 'ref');
+  ref.setAttribute('target', '');
+  ref.appendChild(doc.createElementNS(TEI_NS, 'idno'));
+  ref.appendChild(doc.createElementNS(TEI_NS, 'scope'));
+  note.appendChild(ref);
+  renderTuneRows();
+});
 
 
 // ---------------------------------------------------------------------
